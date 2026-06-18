@@ -1,0 +1,27 @@
+default:
+    suites:
+        default:
+            paths: [ "%paths.base%/features" ]
+            contexts:
+                - FeatureContext
+            filters:
+                tags: "@core"
+        security:
+            paths: [ "%paths.base%/features" ]
+            contexts:
+                - SecurityContext
+            filters:
+                tags: "@security"
+    extensions:
+        OpenCATS\Tests\Behat\ServiceContainer\MinkExtension:
+            base_url: http://opencats
+            default_session: browserkit
+            javascript_session: selenium2
+            sessions:
+                browserkit:
+                    browserkit: ~
+                selenium2:
+                    selenium2:
+                        wd_host: 'http://selenium:4444/wd/hub'
+                        browser: 'chrome'
+            show_auto: false
