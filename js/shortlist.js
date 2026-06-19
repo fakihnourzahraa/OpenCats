@@ -1,18 +1,4 @@
 
-// function checkStatus(candidateId, callback) {
-//     $.ajax({
-//         url: 'ajax.php?f=shortlist&action=isShortlisted&candidateId=' + candidateId,
-//         type: 'GET',
-//         dataType: 'xml',
-//         success: function(response) {
-//             var isShortlisted = $(response).find('isShortlisted').text() === '1';
-//             if (callback) callback(isShortlisted);
-//         },
-//         error: function() {
-//             if (callback) callback(false);
-//         }
-//     });
-// }
 function checkStatus(candidateId, callback) {
     $.ajax({
         url: 'ajax.php?f=shortlist&action=isShortlisted&candidateId=' + candidateId,
@@ -118,5 +104,4 @@ function initAllSL(stars)
         initShortlist(star.candidateId, star.containerId);
     });
 }
-
 

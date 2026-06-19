@@ -29,11 +29,9 @@ class Shortlist{
                   AND candidate_id = {$this->_db->makeQueryInteger($cID)}";
         $result = $this->_db->query($query);
         
-        if (!$result) {
+        if (!$result)
             return false;
-        }
-        
-        $row = $this->_db->getAssoc();  // No parameter - uses last query result
+        $row = $this->_db->getAssoc();  //using the results of the last query
         return isset($row['count']) && $row['count'] > 0;
     }
 
@@ -43,9 +41,8 @@ class Shortlist{
                   WHERE recruiter_id = {$this->_db->makeQueryInteger($rID)}";
         $result = $this->_db->query($query);
         
-        if (!$result) {
+        if (!$result)
             return array();
-        }
         
         $candidates = [];
         while (($row = $this->_db->getAssoc())) {
@@ -60,13 +57,11 @@ class Shortlist{
                   WHERE recruiter_id = {$this->_db->makeQueryInteger($rID)}";
         $result = $this->_db->query($query);
         
-        if (!$result) {
+        if (!$result)
             return 0;
-        }
         
-        $row = $this->_db->getAssoc();  // No parameter - uses last query result
+        $row = $this->_db->getAssoc();
         return isset($row['count']) ? intval($row['count']) : 0;
     }
 }
-
 ?>

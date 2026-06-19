@@ -2214,6 +2214,16 @@ class CandidatesDataGrid extends DataGrid
                                      'pagerOptional' => false,
                                      'filterable' => false,
                                      'exportable' => false),
+            'IsShortlist' => array('select' => '',
+                                    'pagerOptional' => false,
+                                    'filterable' => false,
+                                    'filterDescription' => 'Only Shortlisted Candidates',
+                                    'filterRender=#' => '
+                                        return "candidate.candidate_id IN (
+                                            SELECT candidate_id FROM shortlist
+                                            WHERE recruiter_id = " . $db->makeQueryInteger($argument) . "
+                                        )";
+                                    '),
 
             'OwnerID' =>       array('select'    => '',
                                      'filter'    => 'candidate.owner',
@@ -2226,6 +2236,7 @@ class CandidatesDataGrid extends DataGrid
                                      'pagerOptional' => false,
                                      'filterable' => false,
                                      'filterDescription' => 'Only Hot Candidates'),
+
         // Tags filtering
         	'Tags'	=>			array(
                                      'select'	=> '(

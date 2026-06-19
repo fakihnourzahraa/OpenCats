@@ -2495,7 +2495,7 @@ class CandidatesUI extends UserInterface
                     self::TRUNCATE_KEYSKILLS
                 ) . "...";
             }
-$resultSet[$rowIndex]['shortlistStar'] = '<div id="star-' . $resultSet[$rowIndex]['candidateID'] . '" class="shortlist-container" data-candidate-id="' . $resultSet[$rowIndex]['candidateID'] . '" style="text-align:center;"><i class="shortlist-star">★</i></div>';
+            $resultSet[$rowIndex]['shortlistStar'] = '<div id="star-' . $resultSet[$rowIndex]['candidateID'] . '" class="shortlist-container" data-candidate-id="' . $resultSet[$rowIndex]['candidateID'] . '" style="text-align:center;"><i class="shortlist-star">★</i></div>';
         }
 
         return $resultSet;

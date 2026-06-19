@@ -1,11 +1,5 @@
 <?php
-/*
- * CATS
- * AJAX Shortlist Interface
- */
-
 include_once(LEGACY_ROOT . '/lib/Shortlist.php');
-
 $interface = new SecureAJAXInterface();
 
 if (!$interface->isRequiredIDValid('candidateId'))
@@ -24,10 +18,6 @@ $candidateID = $_REQUEST['candidateId'];
 $action      = $_REQUEST['action'];
 $recruiterID = $_SESSION['CATS']->getUserID();
 
-/* Release the session file lock now that we have what we need from it -
- * otherwise concurrent requests (e.g. one per row on page load) queue up
- * behind each other instead of running in parallel, and slow/timed-out
- * ones can come back with a malformed body. */
 session_write_close();
 
 $shortlist = new Shortlist();
@@ -70,7 +60,6 @@ switch ($action)
         die();
 }
 
-/* Send back the XML data. */
 $interface->outputXMLPage($output);
 
 ?>
