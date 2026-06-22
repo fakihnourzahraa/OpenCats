@@ -1,16 +1,11 @@
+
 <?php
 include_once(LEGACY_ROOT . '/lib/Shortlist.php');
 $interface = new SecureAJAXInterface();
 
-if (!$interface->isRequiredIDValid('candidateId'))
+if ($_SESSION['CATS']->getAccessLevel('candidates') < ACCESS_LEVEL_EDIT)
 {
-    $interface->outputXMLErrorPage(-1, 'Invalid candidate ID.');
-    die();
-}
-
-if (!isset($_REQUEST['action']) || empty($_REQUEST['action']))
-{
-    $interface->outputXMLErrorPage(-1, 'No action specified.');
+    $interface->outputXMLErrorPage(-1, ERROR_NO_PERMISSION);
     die();
 }
 
@@ -27,32 +22,19 @@ switch ($action)
     case 'add':
         $shortlist->add($recruiterID, $candidateID);
 
-        $output =
-            "<data>\n" .
-            "    <errorcode>0</errorcode>\n" .
-            "    <errormessage></errormessage>\n" .
-            "</data>\n";
+        $output ="<errorcode>0</errorcode>";
         break;
 
     case 'remove':
         $shortlist->remove($recruiterID, $candidateID);
 
-        $output =
-            "<data>\n" .
-            "    <errorcode>0</errorcode>\n" .
-            "    <errormessage></errormessage>\n" .
-            "</data>\n";
+        $output ="<errorcode>0</errorcode>";
         break;
 
     case 'isShortlisted':
         $isShortlisted = $shortlist->isShortlisted($recruiterID, $candidateID) ? '1' : '0';
 
-        $output =
-            "<data>\n" .
-            "    <errorcode>0</errorcode>\n" .
-            "    <errormessage></errormessage>\n" .
-            "    <isShortlisted>" . $isShortlisted . "</isShortlisted>\n" .
-            "</data>\n";
+        $output ="<isShortlisted>" . $isShortlisted . "</isShortlisted>";
         break;
 
     default:

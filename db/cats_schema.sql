@@ -1191,8 +1191,6 @@ CREATE TABLE `shortlist` (
   `shortlist_id` int(11) AUTO_INCREMENT PRIMARY KEY,
   `recruiter_id` int(11), /*recruiter who shorlisted, I want this to be private to them*/
   `candidate_id` int(11),
-  KEY `idx_recruiter` (`recruiter_id`),
-  KEY `idx_candidate` (`candidate_id`),
 ) ENGINE=MyISAM AUTO_INCREMENT=1 DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
 
 /*cant use foreign keys in MyISAM*/

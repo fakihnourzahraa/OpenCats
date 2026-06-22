@@ -128,56 +128,65 @@
             <?php $this->dataGrid->draw(); ?>
 
             <script>
-            //MY CODE
-           document.addEventListener('DOMContentLoaded', function() {
-    var allTables = document.querySelectorAll('table');
-    var gridTable = null;
-    for (var i = 0; i < allTables.length; i++) {
-        if (allTables[i].querySelector('a[href*="candidateID="]')) {
-            gridTable = allTables[i];
-            break;
-        }
-    }
-    if (!gridTable) return;
+            document.addEventListener('DOMContentLoaded', function()
+            {
+                var allTables = document.querySelectorAll('table');
+                var gridTable = null;
+                for (var i = 0; i < allTables.length; i++) {
+                    if (allTables[i].querySelector('a[href*="candidateID="]'))
+                    {
+                        gridTable = allTables[i];
+                        break;
+                    }
+            }
+            if (!gridTable)
+                return ;
 
-    var headerRow = gridTable.tHead ? gridTable.tHead.rows[0] : gridTable.rows[0];
-    if (headerRow) {
-        var firstTh = headerRow.querySelector('th');
-        if (firstTh) {
-            var th = document.createElement('th');
-            th.style.width = '40px';
-            th.style.borderRight = '1px solid gray';
-            firstTh.parentNode.insertBefore(th, firstTh);
-        }
-    }
+            var headerRow = gridTable.tHead ? gridTable.tHead.rows[0] : gridTable.rows[0];
+            if (headerRow)
+            {
+                var firstTh = headerRow.querySelector('th');
+                if (firstTh)
+                {
+                    var th = document.createElement('th');
+                    th.style.width = '40px';
+                    th.style.borderRight = '1px solid gray';
+                    firstTh.parentNode.insertBefore(th, firstTh);
+                }
+            }
 
-    var bodyRows = gridTable.tBodies.length
-        ? gridTable.tBodies[0].rows
-        : Array.prototype.slice.call(gridTable.rows).slice(1);
+            var bodyRows = gridTable.tBodies.length ? gridTable.tBodies[0].rows : Array.prototype.slice.call(gridTable.rows).slice(1);
+            //extracting all data rows
+            // two ways of extracting, if tbody exists, else if it doesnt
 
-    Array.prototype.forEach.call(bodyRows, function(row) {
-        var link = row.querySelector('a');
-        if (!link) return;
+            Array.prototype.forEach.call(bodyRows, function(row)
+            {
+                var link = row.querySelector('a');
+                if (!link)
+                    return ;
 
-        var href = link.getAttribute('href');
-        var match = href.match(/candidateID=(\d+)/);
-        if (!match) return;
+                var href = link.getAttribute('href');
+                var match = href.match(/candidateID=(\d+)/);
+                //extract candidate id
+                if (!match)
+                    return ;
 
-        var candidateId = match[1];
-        var containerId = 'star-' + candidateId;
+                var candidateId = match[1];
+                var containerId = 'star-' + candidateId;
 
-        if (document.getElementById(containerId)) return;
+                if (document.getElementById(containerId))
+                    return ;
 
-        var td = document.createElement('td');
-        td.style.textAlign = 'center';
-        td.style.width = '40px';
-        td.innerHTML = '<div id="' + containerId + '" class="shortlist-container" data-candidate-id="' + candidateId + '"><i class="shortlist-star">★</i></div>';
+                var td = document.createElement('td');
+                td.style.textAlign = 'center';
+                td.style.width = '40px';
+                td.innerHTML = '<div id="' + containerId + '" class="shortlist-container" data-candidate-id="' + candidateId + '"><i class="shortlist-star">★</i></div>';
 
-        row.querySelector('td').parentNode.insertBefore(td, row.querySelector('td'));
+                row.querySelector('td').parentNode.insertBefore(td, row.querySelector('td'));
 
-        initShortlist(candidateId, containerId);
-    });
-});
+                initShortlist(candidateId, containerId);
+            });
+            });
             </script>
 
 

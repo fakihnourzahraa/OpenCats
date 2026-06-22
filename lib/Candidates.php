@@ -2214,7 +2214,8 @@ class CandidatesDataGrid extends DataGrid
                                      'pagerOptional' => false,
                                      'filterable' => false,
                                      'exportable' => false),
-            'IsShortlist' => array('select' => '',
+
+            'IsShortlist' => array( 'select'    => '',
                                     'pagerOptional' => false,
                                     'filterable' => false,
                                     'filterDescription' => 'Only Shortlisted Candidates',
