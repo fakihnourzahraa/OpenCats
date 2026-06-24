@@ -37,8 +37,8 @@ if( !defined('LEGACY_ROOT') )
 }
 
 /* Database configuration. */
-define('DATABASE_USER', 'cats');
-define('DATABASE_PASS', 'opencats123');
+define('DATABASE_USER', 'opencats');
+define('DATABASE_PASS', 'databasepassword');
 define('DATABASE_HOST', 'localhost');
 define('DATABASE_NAME', 'opencats');
 
@@ -259,7 +259,7 @@ define('CACHE_MODULES', false);
  * by distance from a zipcode.
  */
 
-define('US_ZIPS_ENABLED', false);
+define('US_ZIPS_ENABLED', true);
 
 /* LDAP Configuration
  */

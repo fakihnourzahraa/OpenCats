@@ -754,7 +754,6 @@ class CompaniesDataGrid extends DataGrid
         $this->_dataItemIDColumn = 'company.company_id';
 
         $this->_classColumns = array(
-            
             'Attachments' => array(  'select'   => 'IF(attachment_id, 1, 0) AS attachmentPresent',
                                      'pagerRender' => '
                                                     if ($rsData[\'attachmentPresent\'] == 1)

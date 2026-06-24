@@ -3,9 +3,9 @@ include_once('./vendor/autoload.php');
 use OpenCATS\UI\QuickActionMenu;
 ?>
 <?php if ($this->isPopup): ?>
-    <?php TemplateUtility::printHeader('Job Order - '.$this->data['title'], array('js/sorttable.js', 'js/match.js', 'js/pipeline.js', 'js/attachment.js')); ?>
+    <?php TemplateUtility::printHeader('Job Order - '.$this->data['title'], array('js/sorttable.js', 'js/match.js', 'js/pipeline.js', 'js/attachment.js', 'js/dataGrid.js', 'js/dataGridFilters.js')); ?>
 <?php else: ?>
-    <?php TemplateUtility::printHeader('Job Order - '.$this->data['title'], array( 'js/sorttable.js', 'js/match.js', 'js/pipeline.js', 'js/attachment.js')); ?>
+    <?php TemplateUtility::printHeader('Job Order - '.$this->data['title'], array('js/sorttable.js', 'js/match.js', 'js/pipeline.js', 'js/attachment.js', 'js/dataGrid.js', 'js/dataGridFilters.js')); ?>
     <?php TemplateUtility::printHeaderBlock(); ?>
     <?php TemplateUtility::printTabs($this->active); ?>
         <div id="main">
@@ -368,8 +368,15 @@ use OpenCATS\UI\QuickActionMenu;
             <br clear="all" />
             <br />
 
-            <p class="note">Candidate in Job Order</p>
-
+<p class="note">Candidate in Job Order</p>
+<span style="float:right;">
+    <?php $this->dataGrid->drawShowFilterControl(); ?>
+</span>
+<?php $this->dataGrid->drawFilterArea(); ?>
+<input type="hidden" id="filterArea<?php echo md5('joborders:PipelineCandidatesDataGrid'); ?>" value="<?php echo isset($this->dataGrid->_parameters['filter']) ? htmlspecialchars($this->dataGrid->_parameters['filter']) : ''; ?>" />
+<script type="text/javascript">
+    <?php $this->dataGrid->_getApplyFilterFunctionDefinition(); ?>
+</script>
             <p id="ajaxPipelineControl">
                 Number of visible entries:&nbsp;&nbsp;
                 <select id="numberOfEntriesSelect" onchange="PipelineJobOrder_changeLimit(<?php $this->_($this->data['jobOrderID']); ?>, this.value, <?php if ($this->isPopup) echo(1); else echo(0); ?>, 'ajaxPipelineTable', '<?php echo($this->sessionCookie); ?>', 'ajaxPipelineTableIndicator', '<?php echo(CATSUtility::getIndexName()); ?>');" class="selectBox">

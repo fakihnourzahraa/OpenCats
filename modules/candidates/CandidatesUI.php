@@ -49,7 +49,6 @@ include_once(LEGACY_ROOT . '/lib/ParseUtility.php');
 include_once(LEGACY_ROOT . '/lib/Questionnaire.php');
 include_once(LEGACY_ROOT . '/lib/Tags.php');
 include_once(LEGACY_ROOT . '/lib/Search.php');
-include_once(LEGACY_ROOT . '/lib/Shortlist.php');
 
 class CandidatesUI extends UserInterface
 {

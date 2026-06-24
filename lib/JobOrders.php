@@ -1167,7 +1167,11 @@ class JobOrdersDataGrid extends DataGrid
                                      'sortableColumn'    => 'notes',
                                      'pagerWidth'   => 300,
                                      'filter'         => 'joborder.notes'),
-
+            'Address' =>        array('select'   => 'joborder.address AS address',
+                                     'sortableColumn'     => 'address',
+                                     'pagerWidth'    => 250,
+                                     'alphaNavigation' => true,
+                                     'filter'         => 'joborder.address'),
             'OwnerID' =>       array('select'    => '',
                                      'filter'    => 'joborder.owner, joborder.recruiter',
                                      'filterInList' => true,

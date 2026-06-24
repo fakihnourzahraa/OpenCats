@@ -34,6 +34,7 @@
 include_once(LEGACY_ROOT . '/lib/JobOrders.php');
 include_once(LEGACY_ROOT . '/lib/Hooks.php');
 include_once(LEGACY_ROOT . '/lib/Width.php');
+include_once(LEGACY_ROOT . '/lib/Candidates.php');
 
 class JobOrdersListByViewDataGrid extends JobOrdersDataGrid
 {
@@ -153,5 +154,31 @@ class joborderSavedListByViewDataGrid extends JobOrdersDataGrid
     }
 }
 
+class PipelineCandidatesDataGrid extends CandidatesDataGrid
+{
+    public function __construct($siteID, $parameters, $misc)
+    {
+        $this->_tableWidth = new Width(100, '%');
+        $this->_defaultAlphabeticalSortBy = 'lastName';
+        $this->ajaxMode = false;
+        $this->showExportCheckboxes = false;
+        $this->showActionArea = false;
+        $this->showChooseColumnsBox = true;
+        $this->allowResizing = true;
+
+        $this->defaultSortBy = 'dateCreatedSort';
+        $this->defaultSortDirection = 'DESC';
+
+        $this->_defaultColumns = array(
+            array('name' => 'First Name', 'width' => 75),
+            array('name' => 'Last Name',  'width' => 85),
+            array('name' => 'E-Mail',     'width' => 80),
+            array('name' => 'Home Phone', 'width' => 80),
+        );
+
+        parent::__construct("joborders:PipelineCandidatesDataGrid",
+                             $siteID, $parameters, $misc);
+    }
+}
 
 ?>

@@ -3,12 +3,11 @@ include_once('./vendor/autoload.php');
 use OpenCATS\UI\CandidateQuickActionMenu;
 use OpenCATS\UI\CandidateDuplicateQuickActionMenu;
 ?>
-
 <?php if ($this->isPopup): ?>
-    <?php TemplateUtility::printHeader('Candidate - '.$this->data['firstName'].' '.$this->data['lastName'], array( 'js/activity.js', 'js/sorttable.js', 'js/match.js', 'js/lib.js', 'js/pipeline.js', 'js/attachment.js', 'modules/candidates/quickAction-candidates.js', 'js/shortlist.js')); ?>
+    <?php TemplateUtility::printHeader('Candidate - '.$this->data['firstName'].' '.$this->data['lastName'], array( 'js/activity.js', 'js/sorttable.js', 'js/match.js', 'js/lib.js', 'js/pipeline.js', 'js/attachment.js', 'modules/candidates/quickAction-candidates.js')); ?>
 <?php else: ?>
-    <?php TemplateUtility::printHeader('Candidate - '.$this->data['firstName'].' '.$this->data['lastName'], array( 'js/activity.js', 'js/sorttable.js', 'js/match.js', 'js/lib.js', 'js/pipeline.js', 'js/attachment.js', 'modules/candidates/quickAction-candidates.js', 'modules/candidates/quickAction-duplicates.js', 'js/shortlist.js')); ?>
-
+    <?php TemplateUtility::printHeader('Candidate - '.$this->data['firstName'].' '.$this->data['lastName'], array( 'js/activity.js', 'js/sorttable.js', 'js/match.js', 'js/lib.js', 'js/pipeline.js', 'js/attachment.js', 'modules/candidates/quickAction-candidates.js', 'modules/candidates/quickAction-duplicates.js')); ?>
+    
     <?php TemplateUtility::printHeaderBlock(); ?>
     <?php TemplateUtility::printTabs($this->active); ?>
         <div id="main">
@@ -22,9 +21,6 @@ use OpenCATS\UI\CandidateDuplicateQuickActionMenu;
                         <img src="images/candidate.gif" width="24" height="24" border="0" alt="Candidates" style="margin-top: 3px;" />&nbsp;
                     </td>
                     <td><h2>Candidates: Candidate Details
-                        <span id="shortlist-detail-<?php echo($this->candidateID); ?>" class="shortlist-container" data-candidate-id="<?php echo($this->candidateID); ?>" style="cursor:pointer; font-weight:normal; font-size:14px;">
-                            <i class="shortlist-star">★</i> Shortlist
-                        </span>
                         <?php if($_SESSION['CATS']->getAccessLevel('candidates.duplicates') >= ACCESS_LEVEL_SA): ?>    
                             <?php if(!empty($this->data['isDuplicate'])): ?>
                                 <img src="images/wf_error.gif" alt="duplicate_warning" width="20" height="20" border="0" title="Possible duplicate" />
@@ -44,16 +40,8 @@ use OpenCATS\UI\CandidateDuplicateQuickActionMenu;
                </tr>
             </table>
 
-<p class="note" style="display:flex; justify-content:space-between; align-items:center;">
-    <span>Candidate Details</span>
+            <p class="note">Candidate Details</p>
 
-</p>
-
-<script>
-$(document).ready(function() {
-    initShortlist(<?php echo($this->candidateID); ?>, 'shortlist-detail-<?php echo($this->candidateID); ?>');
-});
-</script>
             <?php if ($this->data['isAdminHidden'] == 1): ?>
                 <p class="warning">This Candidate is hidden.  Only CATS Administrators can view it or search for it.  To make it visible by the site users, click <a href="<?php echo(CATSUtility::getIndexName()); ?>?m=candidates&amp;a=administrativeHideShow&amp;candidateID=<?php echo($this->candidateID); ?>&amp;state=0" style="font-weight:bold;">Here.</a></p>
             <?php endif; ?>

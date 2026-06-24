@@ -1377,16 +1377,3 @@ td.contentContainerOld {
 #emailPreview * {
     padding: 5px;
 }
-
-.shortlist-star {
-    font-size: 16px;
-    color: #c5ccd4;
-    cursor: pointer;
-    line-height: 1;
-    user-select: none;
-    display: inline-block;
-}
-
-.shortlist-star.shortlist-starred {
-    color: #f0a500;
-}

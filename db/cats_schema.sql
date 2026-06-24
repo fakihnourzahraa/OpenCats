@@ -819,6 +819,7 @@ CREATE TABLE `joborder` (
   `openings_available` int(11) DEFAULT '0',
   `questionnaire_id` int(11) DEFAULT NULL,
   `import_id` int(11) NOT NULL DEFAULT '0',
+  `address` text COLLATE utf8_unicode_ci,
   PRIMARY KEY (`joborder_id`),
   KEY `IDX_recruiter` (`recruiter`),
   KEY `IDX_title` (`title`),
@@ -1186,12 +1187,3 @@ CREATE TABLE `zipcodes` (
 /*Data for the table `zipcodes` */
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
-
-CREATE TABLE `shortlist` (
-  `shortlist_id` int(11) AUTO_INCREMENT PRIMARY KEY,
-  `recruiter_id` int(11), /*recruiter who shorlisted, I want this to be private to them*/
-  `candidate_id` int(11),
-) ENGINE=MyISAM AUTO_INCREMENT=1 DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
-
-/*cant use foreign keys in MyISAM*/
-/*collate is the translation*/

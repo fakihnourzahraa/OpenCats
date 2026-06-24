@@ -1,5 +1,5 @@
 <?php /* $Id: Candidates.tpl 3445 2007-11-06 23:17:04Z will $ */ ?>
-<?php TemplateUtility::printHeader('Candidates', array('js/highlightrows.js', 'js/export.js', 'js/dataGrid.js', 'js/dataGridFilters.js', 'js/shortlist.js')); ?>
+<?php TemplateUtility::printHeader('Candidates', array( 'js/highlightrows.js', 'js/export.js', 'js/dataGrid.js', 'js/dataGridFilters.js')); ?>
 <?php TemplateUtility::printHeaderBlock(); ?>
 <?php TemplateUtility::printTabs($this->active); ?>
 <?php $md5InstanceName = md5($this->dataGrid->getInstanceName());?>
@@ -31,11 +31,6 @@
                                         <?php $this->dataGrid->printNavigation(false); ?>
                                     </td>
                                     <td valign="top" align="right" nowrap="nowrap">
-                                        <input type="checkbox" name="onlyShortlistCandidates" id="onlyShortlistCandidates" <?php if ($this->dataGrid->getFilterValue('IsShortlist') ==  $this->userID): ?>checked<?php endif;?> 
-                                        onclick="<?php echo $this->dataGrid->getJSAddRemoveFilterFromCheckbox('IsShortlist', '=#', $this->userID); ?>" />
-                                        Only Shortlisted Candidates&nbsp;
-                                    </td>
-                                    <td valign="top" align="right" nowrap="nowrap">
                                         <input type="checkbox" name="onlyMyCandidates" id="onlyMyCandidates" <?php if ($this->dataGrid->getFilterValue('OwnerID') ==  $this->userID): ?>checked<?php endif; ?> onclick="<?php echo $this->dataGrid->getJSAddRemoveFilterFromCheckbox('OwnerID', '==',  $this->userID); ?>" />
                                         Only My Candidates&nbsp;
                                     </td>
@@ -43,7 +38,6 @@
                                         <input type="checkbox" name="onlyHotCandidates" id="onlyHotCandidates" <?php if ($this->dataGrid->getFilterValue('IsHot') == '1'): ?>checked<?php endif; ?> onclick="<?php echo $this->dataGrid->getJSAddRemoveFilterFromCheckbox('IsHot', '==', '\'1\''); ?>" />
                                         <label for="onlyHotCandidates">Only Hot Candidates</label>&nbsp;
                                     </td>
-
                                     <td valign="top" align="right" nowrap="nowrap">
 	                					<a href="javascript:void(0);" id="exportBoxLink<?= $md5InstanceName ?>" onclick="toggleHideShowControls('<?= $md5InstanceName ?>-tags'); return false;">Filter by tag</a>
 	                					<div id="tagsContainer" style="position:relative">
@@ -125,70 +119,7 @@
             </p>
 
             <?php $this->dataGrid->drawFilterArea(); ?>
-            <?php $this->dataGrid->draw(); ?>
-
-            <script>
-            document.addEventListener('DOMContentLoaded', function()
-            {
-                var allTables = document.querySelectorAll('table');
-                var gridTable = null;
-                for (var i = 0; i < allTables.length; i++) {
-                    if (allTables[i].querySelector('a[href*="candidateID="]'))
-                    {
-                        gridTable = allTables[i];
-                        break;
-                    }
-            }
-            if (!gridTable)
-                return ;
-
-            var headerRow = gridTable.tHead ? gridTable.tHead.rows[0] : gridTable.rows[0];
-            if (headerRow)
-            {
-                var firstTh = headerRow.querySelector('th');
-                if (firstTh)
-                {
-                    var th = document.createElement('th');
-                    th.style.width = '40px';
-                    th.style.borderRight = '1px solid gray';
-                    firstTh.parentNode.insertBefore(th, firstTh);
-                }
-            }
-
-            var bodyRows = gridTable.tBodies.length ? gridTable.tBodies[0].rows : Array.prototype.slice.call(gridTable.rows).slice(1);
-            //extracting all data rows
-            // two ways of extracting, if tbody exists, else if it doesnt
-
-            Array.prototype.forEach.call(bodyRows, function(row)
-            {
-                var link = row.querySelector('a');
-                if (!link)
-                    return ;
-
-                var href = link.getAttribute('href');
-                var match = href.match(/candidateID=(\d+)/);
-                //extract candidate id
-                if (!match)
-                    return ;
-
-                var candidateId = match[1];
-                var containerId = 'star-' + candidateId;
-
-                if (document.getElementById(containerId))
-                    return ;
-
-                var td = document.createElement('td');
-                td.style.textAlign = 'center';
-                td.style.width = '40px';
-                td.innerHTML = '<div id="' + containerId + '" class="shortlist-container" data-candidate-id="' + candidateId + '"><i class="shortlist-star">★</i></div>';
-
-                row.querySelector('td').parentNode.insertBefore(td, row.querySelector('td'));
-
-                initShortlist(candidateId, containerId);
-            });
-            });
-            </script>
-
+            <?php $this->dataGrid->draw();  ?>
 
             <div style="display:block;">
                 <span style="float:left;">
@@ -237,6 +168,5 @@
 
             <?php endif; ?>
         </div>
-
     </div>
 <?php TemplateUtility::printFooter(); ?>
