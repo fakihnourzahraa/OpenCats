@@ -369,13 +369,39 @@ use OpenCATS\UI\QuickActionMenu;
             <br />
 
 <p class="note">Candidate in Job Order</p>
-<span style="float:right;">
-    <?php $this->dataGrid->drawShowFilterControl(); ?>
-</span>
-<?php $this->dataGrid->drawFilterArea(); ?>
-<input type="hidden" id="filterArea<?php echo md5('joborders:PipelineCandidatesDataGrid'); ?>" value="<?php echo isset($this->dataGrid->_parameters['filter']) ? htmlspecialchars($this->dataGrid->_parameters['filter']) : ''; ?>" />
+<div style="margin-bottom: 8px;">
+    <select id="pipelineFilterColumn">
+        <option value="firstName">First Name</option>
+        <option value="lastName">Last Name</option>
+        <option value="status">Status</option>
+        <option value="state">Location</option>
+    </select>
+    <select id="pipelineFilterOperator">
+        <option value="=~">contains</option>
+        <option value="==">is equal to</option>
+    </select>
+    <input type="text" id="pipelineFilterValue" style="width: 180px;" />
+    <input type="button" value="Apply" onclick="applyPipelineFilter();" />
+    <input type="button" value="Clear" onclick="clearPipelineFilter();" />
+</div>
 <script type="text/javascript">
-    <?php $this->dataGrid->_getApplyFilterFunctionDefinition(); ?>
+function applyPipelineFilter() {
+    PipelineJobOrder_populate(
+        <?php $this->_($this->data['jobOrderID']); ?>,
+        0,
+        <?php $this->_($this->pipelineEntriesPerPage); ?>,
+        'dateCreatedInt', 'desc',
+        <?php if ($this->isPopup) echo(1); else echo(0); ?>,
+        'ajaxPipelineTable',
+        '<?php echo($this->sessionCookie); ?>',
+        'ajaxPipelineTableIndicator',
+        '<?php echo(CATSUtility::getIndexName()); ?>'
+    );
+}
+function clearPipelineFilter() {
+    document.getElementById('pipelineFilterValue').value = '';
+    applyPipelineFilter();
+}
 </script>
             <p id="ajaxPipelineControl">
                 Number of visible entries:&nbsp;&nbsp;

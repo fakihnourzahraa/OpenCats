@@ -56,6 +56,11 @@ $sortDirection  = $_REQUEST['sortDirection'];
 $indexFile      = $_REQUEST['indexFile'];
 $isPopup        = $_REQUEST['isPopup'] == 1 ? true : false;
 
+
+$filterValue    = isset($_REQUEST['filterValue']) ? trim($_REQUEST['filterValue']) : '';
+$filterColumn   = isset($_REQUEST['filterColumn']) ? trim($_REQUEST['filterColumn']) : 'firstName';
+$filterOperator = isset($_REQUEST['filterOperator']) ? trim($_REQUEST['filterOperator']) : '=~';
+
 $_SESSION['CATS']->setPipelineEntriesPerPage($entriesPerPage);
 
 $jobOrders = new JobOrders($siteID);
@@ -111,6 +116,24 @@ foreach ($pipelinesRS as $rowIndex => $row)
         $pipelinesRS[$rowIndex]['candidateJobOrderID'],
         $_SESSION['CATS']->getCookie()
     );
+}
+
+/* Filter the data. */
+if ($filterValue !== '')
+{
+    $pipelinesRS = array_filter($pipelinesRS, function($row) use ($filterColumn, $filterOperator, $filterValue) {
+        $fieldValue = strtolower(isset($row[$filterColumn]) ? $row[$filterColumn] : '');
+        $search = strtolower($filterValue);
+        switch ($filterOperator)
+        {
+            case '==': return $fieldValue == $search;
+            case '=~': return strpos($fieldValue, $search) !== false;
+            case '=>':  return $fieldValue >= $search;
+            case '=<':  return $fieldValue <= $search;
+            default:    return true;
+        }
+    });
+    $pipelinesRS = array_values($pipelinesRS);
 }
 
 /* Sort the data. */
