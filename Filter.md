@@ -58,9 +58,11 @@ class PipelineCandidatesDataGrid extends CandidatesDataGrid
 
 ### 2. `modules/joborders/JobOrdersUI.php`
 
-**What:** Instantiated `PipelineCandidatesDataGrid` and assigned it to the template inside the Job Order show action.
+**What:** Instantiated `PipelineCandidatesDataGrid` and assigned it to the template inside the show function before:
 
-**Added inside the show action handler:**
+$this->_template->display('./modules/joborders/Show.tpl');
+
+**Added inside the show function:**
 ```php
 include_once(LEGACY_ROOT . '/modules/joborders/dataGrids.php');
 
@@ -240,4 +242,3 @@ POSTData += '&filterString=' + urlEncode(filterAreaEl ? filterAreaEl.value : '')
 ```
 
 ---
-

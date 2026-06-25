@@ -56,11 +56,9 @@ $sortDirection  = $_REQUEST['sortDirection'];
 $indexFile      = $_REQUEST['indexFile'];
 $isPopup        = $_REQUEST['isPopup'] == 1 ? true : false;
 
-
-$filterValue    = isset($_REQUEST['filterValue']) ? trim($_REQUEST['filterValue']) : '';
-$filterColumn   = isset($_REQUEST['filterColumn']) ? trim($_REQUEST['filterColumn']) : 'firstName';
+$filterValue    = isset($_REQUEST['filterValue'])    ? trim($_REQUEST['filterValue'])    : '';
+$filterColumn   = isset($_REQUEST['filterColumn'])   ? trim($_REQUEST['filterColumn'])   : 'firstName';
 $filterOperator = isset($_REQUEST['filterOperator']) ? trim($_REQUEST['filterOperator']) : '=~';
-
 $_SESSION['CATS']->setPipelineEntriesPerPage($entriesPerPage);
 
 $jobOrders = new JobOrders($siteID);
@@ -118,14 +116,14 @@ foreach ($pipelinesRS as $rowIndex => $row)
     );
 }
 
+
 /* Filter the data. */
 if ($filterValue !== '')
 {
     $pipelinesRS = array_filter($pipelinesRS, function($row) use ($filterColumn, $filterOperator, $filterValue) {
         $fieldValue = strtolower(isset($row[$filterColumn]) ? $row[$filterColumn] : '');
-        $search = strtolower($filterValue);
-        switch ($filterOperator)
-        {
+        $search     = strtolower($filterValue);
+        switch ($filterOperator) {
             case '==': return $fieldValue == $search;
             case '=~': return strpos($fieldValue, $search) !== false;
             case '=>':  return $fieldValue >= $search;
@@ -167,10 +165,10 @@ if ($filterString !== '')
                 $col = urldecode(substr($filterItem, 0, $pos));
                 $val = strtolower(urldecode(substr($filterItem, $pos + strlen($op))));
                 $col = isset($columnMap[$col]) ? $columnMap[$col] : $col;
+
                 $pipelinesRS = array_filter($pipelinesRS, function($row) use ($col, $op, $val) {
                     $fieldValue = strtolower(isset($row[$col]) ? $row[$col] : '');
-                    switch ($op)
-                    {
+                    switch ($op) {
                         case '==': return $fieldValue == $val;
                         case '=~': return strpos($fieldValue, $val) !== false;
                         case '=>':  return $fieldValue >= $val;

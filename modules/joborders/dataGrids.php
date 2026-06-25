@@ -158,16 +158,15 @@ class PipelineCandidatesDataGrid extends CandidatesDataGrid
 {
     public function __construct($siteID, $parameters, $misc)
     {
-        $this->_tableWidth = new Width(100, '%');
+        $this->_tableWidth              = new Width(100, '%');
         $this->_defaultAlphabeticalSortBy = 'lastName';
-        $this->ajaxMode = false;
-        $this->showExportCheckboxes = false;
-        $this->showActionArea = false;
-        $this->showChooseColumnsBox = true;
-        $this->allowResizing = true;
-
-        $this->defaultSortBy = 'dateCreatedSort';
-        $this->defaultSortDirection = 'DESC';
+        $this->ajaxMode                 = false;
+        $this->showExportCheckboxes     = false;
+        $this->showActionArea           = false;
+        $this->showChooseColumnsBox     = true;
+        $this->allowResizing            = true;
+        $this->defaultSortBy            = 'dateCreatedSort';
+        $this->defaultSortDirection     = 'DESC';
 
         $this->_defaultColumns = array(
             array('name' => 'First Name', 'width' => 75),
@@ -176,8 +175,10 @@ class PipelineCandidatesDataGrid extends CandidatesDataGrid
             array('name' => 'Home Phone', 'width' => 80),
         );
 
-        parent::__construct("joborders:PipelineCandidatesDataGrid",
-                             $siteID, $parameters, $misc);
+        parent::__construct(
+            'joborders:PipelineCandidatesDataGrid',
+            $siteID, $parameters, $misc
+        );
     }
 }
 

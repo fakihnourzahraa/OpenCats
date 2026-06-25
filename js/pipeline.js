@@ -84,9 +84,10 @@ function PipelineJobOrder_populate(joborderID, page, entriesPerPage, sortBy,
     POSTData += '&indexFile=' + urlEncode(indexFile);
     POSTData += '&isPopup=' + urlEncode(isPopup);
 
-var filterAreaEl = document.getElementById(typeof pipelineDataGridFilterID !== 'undefined' ? pipelineDataGridFilterID : '');
-POSTData += '&filterString=' + urlEncode(filterAreaEl ? filterAreaEl.value : '');
-
+    var filterAreaEl = document.getElementById(
+    typeof pipelineDataGridFilterID !== 'undefined' ? pipelineDataGridFilterID : '');
+    POSTData += '&filterString=' + urlEncode(filterAreaEl ? filterAreaEl.value : '');
+    
     document.getElementById(indicatorID).style.display = '';
 
     /* Anonymous callback function triggered when HTTP response is received. */

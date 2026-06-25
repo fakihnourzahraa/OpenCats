@@ -819,7 +819,6 @@ CREATE TABLE `joborder` (
   `openings_available` int(11) DEFAULT '0',
   `questionnaire_id` int(11) DEFAULT NULL,
   `import_id` int(11) NOT NULL DEFAULT '0',
-  `address` text COLLATE utf8_unicode_ci,
   PRIMARY KEY (`joborder_id`),
   KEY `IDX_recruiter` (`recruiter`),
   KEY `IDX_title` (`title`),
