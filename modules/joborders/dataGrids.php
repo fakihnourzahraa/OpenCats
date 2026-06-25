@@ -34,6 +34,7 @@
 include_once(LEGACY_ROOT . '/lib/JobOrders.php');
 include_once(LEGACY_ROOT . '/lib/Hooks.php');
 include_once(LEGACY_ROOT . '/lib/Width.php');
+include_once(LEGACY_ROOT . '/lib/Candidates.php');
 
 class JobOrdersListByViewDataGrid extends JobOrdersDataGrid
 {
@@ -152,9 +153,6 @@ class joborderSavedListByViewDataGrid extends JobOrdersDataGrid
 
     }
 }
-
-
-include_once(LEGACY_ROOT . '/lib/Candidates.php');
 
 class PipelineCandidatesDataGrid extends CandidatesDataGrid
 {

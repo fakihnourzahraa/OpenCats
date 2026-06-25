@@ -11,7 +11,6 @@ use OpenCATS\UI\QuickActionMenu;
         <div id="main">
             <?php TemplateUtility::printQuickSearch(); ?>
 <?php endif; ?>
-<?php ini_set('display_errors', 1); error_reporting(E_ALL); ?>
         <div id="contents">
             <table>
                 <tr>

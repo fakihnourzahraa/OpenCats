@@ -47,7 +47,7 @@ include_once(LEGACY_ROOT . '/lib/Questionnaire.php');
 include_once(LEGACY_ROOT . '/lib/CommonErrors.php');
 include_once(LEGACY_ROOT . '/lib/JobOrderTypes.php');
 include_once(LEGACY_ROOT . '/lib/JobOrderStatuses.php');
-
+include_once(LEGACY_ROOT . '/modules/joborders/dataGrids.php');
 
 class JobOrdersUI extends UserInterface
 {
@@ -524,7 +524,8 @@ class JobOrdersUI extends UserInterface
         $this->_template->assign('sessionCookie', $_SESSION['CATS']->getCookie());
 
         if (!eval(Hooks::get('JO_SHOW'))) return;
-include_once(LEGACY_ROOT . '/modules/joborders/dataGrids.php');
+
+
 $dataGridProperties = DataGrid::getRecentParamaters("joborders:PipelineCandidatesDataGrid");
 if ($dataGridProperties == array())
 {
@@ -539,6 +540,8 @@ if ($dataGridProperties == array())
 $dataGrid = new PipelineCandidatesDataGrid($this->_siteID, $dataGridProperties, 0);
 $this->_template->assign('dataGrid', $dataGrid);
 $this->_template->assign('userID', $_SESSION['CATS']->getUserID());
+
+
         $this->_template->display('./modules/joborders/Show.tpl');
     }
 
