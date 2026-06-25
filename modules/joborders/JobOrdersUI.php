@@ -524,7 +524,21 @@ class JobOrdersUI extends UserInterface
         $this->_template->assign('sessionCookie', $_SESSION['CATS']->getCookie());
 
         if (!eval(Hooks::get('JO_SHOW'))) return;
+include_once(LEGACY_ROOT . '/modules/joborders/dataGrids.php');
+$dataGridProperties = DataGrid::getRecentParamaters("joborders:PipelineCandidatesDataGrid");
+if ($dataGridProperties == array())
+{
+    $dataGridProperties = array(
+        'rangeStart'    => 0,
+        'maxResults'    => 15,
+        'filterVisible' => true,
+        'filter'        => 'First+Name=~',
+    );
+}
 
+$dataGrid = new PipelineCandidatesDataGrid($this->_siteID, $dataGridProperties, 0);
+$this->_template->assign('dataGrid', $dataGrid);
+$this->_template->assign('userID', $_SESSION['CATS']->getUserID());
         $this->_template->display('./modules/joborders/Show.tpl');
     }
 

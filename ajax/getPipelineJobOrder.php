@@ -1,4 +1,6 @@
 <?php
+ini_set('display_errors', 1);
+error_reporting(E_ALL);
 /*
  * CATS
  * AJAX Job Order Pipeline HTML Interface
@@ -134,6 +136,55 @@ if ($filterValue !== '')
         }
     });
     $pipelinesRS = array_values($pipelinesRS);
+}
+
+$filterString = isset($_REQUEST['filterString']) ? trim($_REQUEST['filterString']) : '';
+
+$columnMap = array(
+    'First Name'       => 'firstName',
+    'Last Name'        => 'lastName',
+    'City'             => 'city',
+    'State'            => 'state',
+    'Source'           => 'source',
+    'Key Skills'       => 'keySkills',
+    'E-Mail'           => 'email1',
+    'Home Phone'       => 'phoneHome',
+    'Cell Phone'       => 'phoneCell',
+    'Work Phone'       => 'phoneWork',
+    'Current Employer' => 'currentEmployer',
+    'Misc Notes'       => 'notes',
+);
+
+if ($filterString !== '')
+{
+    $pipelineFilters = array_filter(explode(',', $filterString));
+    foreach ($pipelineFilters as $filterItem)
+    {
+        $operators = array('=~', '==', '=>', '=<');
+        foreach ($operators as $op)
+        {
+            $pos = strpos($filterItem, $op);
+            if ($pos !== false)
+            {
+                $col = urldecode(substr($filterItem, 0, $pos));
+                $val = strtolower(urldecode(substr($filterItem, $pos + strlen($op))));
+                $col = isset($columnMap[$col]) ? $columnMap[$col] : $col;
+                $pipelinesRS = array_filter($pipelinesRS, function($row) use ($col, $op, $val) {
+                    $fieldValue = strtolower(isset($row[$col]) ? $row[$col] : '');
+                    switch ($op)
+                    {
+                        case '==': return $fieldValue == $val;
+                        case '=~': return strpos($fieldValue, $val) !== false;
+                        case '=>':  return $fieldValue >= $val;
+                        case '=<':  return $fieldValue <= $val;
+                        default:    return true;
+                    }
+                });
+                $pipelinesRS = array_values($pipelinesRS);
+                break;
+            }
+        }
+    }
 }
 
 /* Sort the data. */

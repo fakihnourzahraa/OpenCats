@@ -83,9 +83,9 @@ function PipelineJobOrder_populate(joborderID, page, entriesPerPage, sortBy,
     POSTData += '&sortDirection=' + urlEncode(sortDirection);
     POSTData += '&indexFile=' + urlEncode(indexFile);
     POSTData += '&isPopup=' + urlEncode(isPopup);
-    POSTData += '&filterColumn=' + urlEncode(document.getElementById('pipelineFilterColumn') ? document.getElementById('pipelineFilterColumn').value : '');
-POSTData += '&filterOperator=' + urlEncode(document.getElementById('pipelineFilterOperator') ? document.getElementById('pipelineFilterOperator').value : '');
-POSTData += '&filterValue=' + urlEncode(document.getElementById('pipelineFilterValue') ? document.getElementById('pipelineFilterValue').value : '');
+
+var filterAreaEl = document.getElementById(typeof pipelineDataGridFilterID !== 'undefined' ? pipelineDataGridFilterID : '');
+POSTData += '&filterString=' + urlEncode(filterAreaEl ? filterAreaEl.value : '');
 
     document.getElementById(indicatorID).style.display = '';
 
