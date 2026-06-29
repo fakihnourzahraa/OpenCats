@@ -1,0 +1,12 @@
+INSTALL_BLOCK
+.buildpath
+.project
+.settings/*
+docker/data/*
+docker/persist/*
+vendor/*
+attachments/*
+temp/*
+# Ignore Mac DS_Store files
+.DS_Store
+/vendor/
