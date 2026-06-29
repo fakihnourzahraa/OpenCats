@@ -1080,10 +1080,16 @@ class DataGrid
                 {
                     continue;
                 }
-
                 $columnName = urldecode(substr($data, 0, strpos($data, '=')));
-                $argument = urldecode(substr($data, strpos($data, '=') + 2));
 
+                $eqPos = strpos($data, '=');
+                $operatorLength = 2;
+                if (substr($data, $eqPos, 3) === '=d>' || substr($data, $eqPos, 3) === '=d<')
+                {
+                    $operatorLength = 3;
+                }
+
+                $argument = urldecode(substr($data, $eqPos + $operatorLength));
                 /* Is this a valid column? */
                 if (!isset($this->_classColumns[$columnName]))
                 {
@@ -1260,6 +1266,24 @@ class DataGrid
                         
                         // TODO:  Actual geographic search?
                     }
+                    /* Date is less than (=d<) */
+if (strpos($data, '=d<') !== false)
+{
+    if (isset($this->_classColumns[$columnName]['filter']))
+    {
+        $whereSQL_or[] = $this->_classColumns[$columnName]['filter'] . ' <= STR_TO_DATE(' . $db->makeQueryString($argument) . ', \'%m-%d-%y\') ';
+    }
+}
+
+/* Date is greater than (=d>) */
+if (strpos($data, '=d>') !== false)
+{
+    if (isset($this->_classColumns[$columnName]['filter']))
+    {
+        $whereSQL_or[] = $this->_classColumns[$columnName]['filter'] . ' >= STR_TO_DATE(' . $db->makeQueryString($argument) . ', \'%m-%d-%y\') ';
+    }
+}
+                 
 
                 }
                 if (count($whereSQL_or) > 0)

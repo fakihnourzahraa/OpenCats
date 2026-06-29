@@ -550,6 +550,7 @@ class Pipelines
                 candidate.email1 AS candidateEmail,
                 candidate_joborder.status AS jobOrderStatus,
                 candidate.is_hot AS isHotCandidate,
+                candidate.gpa AS gpa,
                 DATE_FORMAT(
                     candidate_joborder.date_created, '%%m-%%d-%%y'
                 ) AS dateCreated,

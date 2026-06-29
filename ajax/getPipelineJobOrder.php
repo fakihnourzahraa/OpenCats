@@ -117,22 +117,6 @@ foreach ($pipelinesRS as $rowIndex => $row)
 }
 
 
-/* Filter the data. */
-if ($filterValue !== '')
-{
-    $pipelinesRS = array_filter($pipelinesRS, function($row) use ($filterColumn, $filterOperator, $filterValue) {
-        $fieldValue = strtolower(isset($row[$filterColumn]) ? $row[$filterColumn] : '');
-        $search     = strtolower($filterValue);
-        switch ($filterOperator) {
-            case '==': return $fieldValue == $search;
-            case '=~': return strpos($fieldValue, $search) !== false;
-            case '=>':  return $fieldValue >= $search;
-            case '=<':  return $fieldValue <= $search;
-            default:    return true;
-        }
-    });
-    $pipelinesRS = array_values($pipelinesRS);
-}
 
 $filterString = isset($_REQUEST['filterString']) ? trim($_REQUEST['filterString']) : '';
 
@@ -149,6 +133,8 @@ $columnMap = array(
     'Work Phone'       => 'phoneWork',
     'Current Employer' => 'currentEmployer',
     'Misc Notes'       => 'notes',
+    'GPA'              => 'gpa',
+    'Created'          => 'dateCreated'
 );
 
 if ($filterString !== '')
@@ -156,7 +142,7 @@ if ($filterString !== '')
     $pipelineFilters = array_filter(explode(',', $filterString));
     foreach ($pipelineFilters as $filterItem)
     {
-        $operators = array('=~', '==', '=>', '=<');
+        $operators = array('=d>', '=d<', '=~', '==', '=>', '=<');
         foreach ($operators as $op)
         {
             $pos = strpos($filterItem, $op);
@@ -166,16 +152,41 @@ if ($filterString !== '')
                 $val = strtolower(urldecode(substr($filterItem, $pos + strlen($op))));
                 $col = isset($columnMap[$col]) ? $columnMap[$col] : $col;
 
-                $pipelinesRS = array_filter($pipelinesRS, function($row) use ($col, $op, $val) {
-                    $fieldValue = strtolower(isset($row[$col]) ? $row[$col] : '');
-                    switch ($op) {
-                        case '==': return $fieldValue == $val;
-                        case '=~': return strpos($fieldValue, $val) !== false;
-                        case '=>':  return $fieldValue >= $val;
-                        case '=<':  return $fieldValue <= $val;
-                        default:    return true;
-                    }
-                });
+$pipelinesRS = array_filter($pipelinesRS, function($row) use ($col, $op, $val) {
+    $fieldValue = isset($row[$col]) ? $row[$col] : '';
+
+    if ($col === 'gpa') {
+        $fieldValue = (float) $fieldValue;
+        $val = (float) $val;
+        switch ($op) {
+            case '==': return $fieldValue == $val;
+            case '=>':  return $fieldValue >= $val;
+            case '=<':  return $fieldValue <= $val;
+            default:    return true;
+        }
+    }
+
+    if ($col === 'dateCreated') {
+        $fieldValue = strtotime($fieldValue);
+        $val = strtotime($val);
+        switch ($op) {
+            case '==':  return $fieldValue == $val;
+            case '=d>': return $fieldValue >= $val;
+            case '=d<': return $fieldValue <= $val;
+            default:    return true;
+        }
+    }
+
+    $fieldValue = strtolower($fieldValue);
+    $val = strtolower($val);
+    switch ($op) {
+        case '==': return $fieldValue == $val;
+        case '=~': return strpos($fieldValue, $val) !== false;
+        case '=>':  return $fieldValue >= $val;
+        case '=<':  return $fieldValue <= $val;
+        default:    return true;
+    }
+});
                 $pipelinesRS = array_values($pipelinesRS);
                 break;
             }

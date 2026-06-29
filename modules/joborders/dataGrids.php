@@ -65,6 +65,7 @@ class JobOrdersListByViewDataGrid extends JobOrdersDataGrid
             array('name' => 'Pipeline', 'width' => 18),
             array('name' => 'Recruiter', 'width' => 65),
             array('name' => 'Owner', 'width' => 55),
+            array('name' => 'gpa', 'width' => 55),
         );
    
         if (!eval(Hooks::get('JOBORDERS_DATAGRID_DEFAULTS'))) return;

@@ -2199,34 +2199,20 @@ class CandidatesDataGrid extends DataGrid
                                      'alphaNavigation' => true,
                                      'filter'         => 'CONCAT(owner_user.first_name, owner_user.last_name)'),
 
-            'Created' =>       array('select'   => 'DATE_FORMAT(candidate.date_created, \'%m-%d-%y\') AS dateCreated',
-                                     'pagerRender'      => 'return $rsData[\'dateCreated\'];',
-                                     'sortableColumn'     => 'dateCreatedSort',
-                                     'pagerWidth'    => 60,
-                                     'filterHaving' => 'DATE_FORMAT(candidate.date_created, \'%m-%d-%y\')'),
-
+'Created' => array('select'   => 'DATE_FORMAT(candidate.date_created, \'%m-%d-%y\') AS dateCreated',
+                   'pagerRender'      => 'return $rsData[\'dateCreated\'];',
+                   'sortableColumn'     => 'dateCreatedSort',
+                   'pagerWidth'    => 60,
+                   'filter'      => 'candidate.date_created',
+                   'filterHaving' => 'DATE_FORMAT(candidate.date_created, \'%m-%d-%y\')',
+                   'filterTypes'  => '=d>=d<=='),
             'Modified' =>      array('select'   => 'DATE_FORMAT(candidate.date_modified, \'%m-%d-%y\') AS dateModified',
                                      'pagerRender'      => 'return $rsData[\'dateModified\'];',
                                      'sortableColumn'     => 'dateModifiedSort',
                                      'pagerWidth'    => 60,
                                      'pagerOptional' => false,
                                      'filterHaving' => 'DATE_FORMAT(candidate.date_modified, \'%m-%d-%y\')'),
-            'GPA Min' => array(
-                'select'         => 'candidate.gpa AS gpa',
-                'sortableColumn' => 'gpa',
-                'pagerWidth'     => 60,
-                'pagerOptional'  => true,
-                'filter'         => 'candidate.gpa',
-                'filterTypes'    => '=>==',
-            ),
 
-            'GPA Max' => array(
-                'select'         => '',
-                'pagerWidth'     => 60,
-                'pagerOptional'  => true,
-                'filter'         => 'candidate.gpa',
-                'filterTypes'    => '=<==',
-            ),
             /* This one only works when called from the saved list view.  Thats why it is not optional, filterable, or exportable.
              * FIXME:  Somehow make this defined in the associated savedListDataGrid class child.
              */
@@ -2250,6 +2236,14 @@ class CandidatesDataGrid extends DataGrid
                                      'pagerOptional' => false,
                                      'filterable' => false,
                                      'filterDescription' => 'Only Hot Candidates'),
+            'GPA'  =>           array(
+                                    'select'         => 'candidate.gpa AS gpa',
+                                    'sortableColumn' => 'gpa',
+                                    'pagerWidth'     => 60,
+                                    'pagerOptional'  => true,
+                                    'filter'         => 'candidate.gpa',
+                                    'filterTypes'    => '=><==',
+                                ),
         // Tags filtering
         	'Tags'	=>			array(
                                      'select'	=> '(
