@@ -87,7 +87,7 @@ function PipelineJobOrder_populate(joborderID, page, entriesPerPage, sortBy,
     var filterAreaEl = document.getElementById(
     typeof pipelineDataGridFilterID !== 'undefined' ? pipelineDataGridFilterID : '');
     POSTData += '&filterString=' + urlEncode(filterAreaEl ? filterAreaEl.value : '');
-    
+
     document.getElementById(indicatorID).style.display = '';
 
     /* Anonymous callback function triggered when HTTP response is received. */

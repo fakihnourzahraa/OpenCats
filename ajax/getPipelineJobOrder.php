@@ -167,16 +167,16 @@ $pipelinesRS = array_filter($pipelinesRS, function($row) use ($col, $op, $val) {
     }
 
     if ($col === 'dateCreated') {
-        $fieldValue = strtotime($fieldValue);
-        $val = strtotime($val);
-        switch ($op) {
-            case '==':  return $fieldValue == $val;
-            case '=d>': return $fieldValue >= $val;
-            case '=d<': return $fieldValue <= $val;
-            default:    return true;
-        }
+    $fieldValue = DateTime::createFromFormat('m-d-y', $fieldValue);
+    $valDate    = DateTime::createFromFormat('m-d-y', $val);
+    if (!$fieldValue || !$valDate) return true;
+    switch ($op) {
+        case '==':  return $fieldValue == $valDate;
+        case '=d>': return $fieldValue >= $valDate;
+        case '=d<': return $fieldValue <= $valDate;
+        default:    return true;
     }
-
+}
     $fieldValue = strtolower($fieldValue);
     $val = strtolower($val);
     switch ($op) {
