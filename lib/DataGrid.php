@@ -1174,12 +1174,12 @@ class DataGrid
                     {
                         if (isset($this->_classColumns[$columnName]['filter']))
                         {
-                            $whereSQL_or[] = $this->_classColumns[$columnName]['filter'] . ' <= ' . $db->makeQueryInteger($argument) .' ';
+                            $whereSQL_or[] = $this->_classColumns[$columnName]['filter'] . ' <= ' . $db->makeQueryDouble($argument) .' ';
                         }
 
                         if (isset($this->_classColumns[$columnName]['filterHaving']))
                         {
-                            $havingSQL_or[] = $this->_classColumns[$columnName]['filterHaving'] . ' <= ' . $db->makeQueryInteger($argument)  .' ';
+                            $havingSQL_or[] = $this->_classColumns[$columnName]['filterHaving'] . ' <= ' . $db->makeQueryDouble($argument)  .' ';
                         }
                     }
 
@@ -1188,12 +1188,12 @@ class DataGrid
                     {
                         if (isset($this->_classColumns[$columnName]['filter']))
                         {
-                            $whereSQL_or[] = $this->_classColumns[$columnName]['filter'] . ' >= ' . $db->makeQueryInteger($argument) .' ';
+                            $whereSQL_or[] = $this->_classColumns[$columnName]['filter'] . ' >= ' . $db->makeQueryDouble($argument) .' ';
                         }
 
                         if (isset($this->_classColumns[$columnName]['filterHaving']))
                         {
-                            $havingSQL_or[] = $this->_classColumns[$columnName]['filterHaving'] . ' >= ' . $db->makeQueryInteger($argument)  .' ';
+                            $havingSQL_or[] = $this->_classColumns[$columnName]['filterHaving'] . ' >= ' . $db->makeQueryDouble($argument)  .' ';
                         }
                     }
 
