@@ -1,13 +1,12 @@
-# Pipeline Candidate Filter — Change Log
+# Candidate Filter in Job Order Details Page
 
-A summary of every file touched to add candidate filtering to the Job Order pipeline view, plus planned work not yet implemented.
+A summary of every file worked on to implement the feature.
 
 ---
 
 ## What Was Built
 
-Recruiters can now filter the candidate pipeline inside a Job Order using the same filter UI that exists on the Candidates list page. Filters apply in real time when the pipeline reloads.
-
+Recruiters can now filter the candidate pipeline inside a Job Order using the same filter that exists on the Candidates list page.++++++
 ---
 
 ## Files Changed
@@ -96,52 +95,87 @@ $this->_template->assign('userID', $_SESSION['CATS']->getUserID());
 **Change 2 — inserted filter block** between `<p class="note">Candidate in Job Order</p>` and `<p id="ajaxPipelineControl">`:
 
 ```php
-<?php $this->dataGrid->drawFilterArea(); ?>
+ <?php $this->dataGrid->drawFilterArea(); ?>
 
-<script type="text/javascript">
-document.addEventListener('DOMContentLoaded', function() {
-    var filterArea = document.getElementById(
-        'filterResultsArea<?php echo md5('joborders:PipelineCandidatesDataGrid'); ?>'
-    );
-    if (filterArea) filterArea.style.display = '';
-    showNewFilter<?php echo md5('joborders:PipelineCandidatesDataGrid'); ?>();
-});
-</script>
+            <script type="text/javascript">
+            document.addEventListener('DOMContentLoaded', function() {
+                var filterArea = document.getElementById(
+                    'filterResultsArea<?php echo md5('joborders:PipelineCandidatesDataGrid'); ?>'
+                );
+                if (filterArea) filterArea.style.display = '';
+                showNewFilter<?php echo md5('joborders:PipelineCandidatesDataGrid'); ?>();
+            });
+            </script>
 
-<input type="hidden"
-    id="filterArea<?php echo md5('joborders:PipelineCandidatesDataGrid'); ?>"
-    value="" />
+            <input type="hidden"
+                id="filterArea<?php echo md5('joborders:PipelineCandidatesDataGrid'); ?>"
+                value="" />
 
-<script type="text/javascript">
-var pipelineDataGridFilterID =
-    'filterArea<?php echo md5('joborders:PipelineCandidatesDataGrid'); ?>';
+            <script type="text/javascript">
+            var pipelineDataGridFilterID =
+                'filterArea<?php echo md5('joborders:PipelineCandidatesDataGrid'); ?>';
 
-submitFilter<?php echo md5('joborders:PipelineCandidatesDataGrid'); ?> =
-    function(retainFilterVisible) {
-        PipelineJobOrder_populate(
-            <?php $this->_($this->data['jobOrderID']); ?>,
-            0,
-            <?php $this->_($this->pipelineEntriesPerPage); ?>,
-            'dateCreatedInt', 'desc',
-            <?php if ($this->isPopup) echo(1); else echo(0); ?>,
-            'ajaxPipelineTable',
-            '<?php echo($this->sessionCookie); ?>',
-            'ajaxPipelineTableIndicator',
-            '<?php echo(CATSUtility::getIndexName()); ?>'
-        );
-    };
+            submitFilter<?php echo md5('joborders:PipelineCandidatesDataGrid'); ?> = function(retainFilterVisible) {
+                var filterAreaEl = document.getElementById(pipelineDataGridFilterID);
+                var filterString = filterAreaEl ? filterAreaEl.value : '';
+                var md5 = '<?php echo md5('joborders:PipelineCandidatesDataGrid'); ?>';
 
-var originalClearFilter = clearFilter;
-clearFilter = function(filterElementID) {
-    originalClearFilter(filterElementID);
-    var tableID =
-        'filterResultsAreaTable<?php echo md5('joborders:PipelineCandidatesDataGrid'); ?>';
-    var table = document.getElementById(tableID);
-    if (table) table.innerHTML = '';
-    newFilterCounter<?php echo md5('joborders:PipelineCandidatesDataGrid'); ?> = 0;
-    showNewFilter<?php echo md5('joborders:PipelineCandidatesDataGrid'); ?>();
-};
-</script>
+                var tableID = 'filterResultsAreaTable' + md5;
+                var table = document.getElementById(tableID);
+                if (table) {
+                    table.innerHTML = '';
+                    if (filterString !== '') {
+                        var filters = filterString.split(',');
+                        var counter = 0;
+                        filters.forEach(function(f) {
+                            var eqPos = f.indexOf('=');
+                            if (eqPos === -1) return;
+                            var col = decodeURIComponent(f.substring(0, eqPos));
+                            var op = f.substring(eqPos, eqPos + 2);
+                            var val = decodeURIComponent(f.substring(eqPos + 2));
+                            var opNames = {'==':'is equal to','=~':'contains','=>':'is greater than','=<':'is less than'};
+                            var span = document.createElement('span');
+                            span.className = 'filterArea';
+                            span.innerHTML = '<a href="javascript:void(0);" onclick="this.parentNode.style.display=\'none\'; removeColumnFromFilter(\'' + pipelineDataGridFilterID + '\', \'' + col + '\'); submitFilter' + md5 + '();">'
+                                + '<img src="images/actions/delete_small.gif" style="padding:0px;margin:0px;" border="0" title="Remove this Filter" /></a>&nbsp;'
+                                + '\'' + col + '\' ' + (opNames[op] || op) + ': '
+                            + '<select id="filterResultsAreaTable' + md5 + (counter+1) + 'columnName" disabled="disabled" class="inputbox" style="display:none;"><option value="' + col + '!@!===~">' + col + '</option></select>'
+                                + '<input class="inputbox" style="width:180px;" value="' + val + '" onchange="addColumnToFilter(\'' + pipelineDataGridFilterID + '\', \'' + col + '\', \'' + op + '\', this.value); submitFilter' + md5 + '();" />';
+                            table.appendChild(span);
+                            counter++;
+                        });
+                        newFilterCounter<?php echo md5('joborders:PipelineCandidatesDataGrid'); ?> = counter;
+                        } else {
+                        newFilterCounter<?php echo md5('joborders:PipelineCandidatesDataGrid'); ?> = 0;
+                        var filterArea = document.getElementById('filterResultsArea<?php echo md5('joborders:PipelineCandidatesDataGrid'); ?>');
+                        if (filterArea) filterArea.style.display = '';
+                        showNewFilter<?php echo md5('joborders:PipelineCandidatesDataGrid'); ?>();
+                    }
+                }
+
+                PipelineJobOrder_populate(
+                    <?php $this->_($this->data['jobOrderID']); ?>,
+                    0,
+                    <?php $this->_($this->pipelineEntriesPerPage); ?>,
+                    'dateCreatedInt', 'desc',
+                    <?php if ($this->isPopup) echo(1); else echo(0); ?>,
+                    'ajaxPipelineTable',
+                    '<?php echo($this->sessionCookie); ?>',
+                    'ajaxPipelineTableIndicator',
+                    '<?php echo(CATSUtility::getIndexName()); ?>'
+                );
+            };
+
+            var originalClearFilter = clearFilter;
+            clearFilter = function(filterElementID) {
+                originalClearFilter(filterElementID);
+                var tableID = 'filterResultsAreaTable<?php echo md5('joborders:PipelineCandidatesDataGrid'); ?>';
+                var table = document.getElementById(tableID);
+                if (table) table.innerHTML = '';
+                newFilterCounter<?php echo md5('joborders:PipelineCandidatesDataGrid'); ?> = 0;
+                showNewFilter<?php echo md5('joborders:PipelineCandidatesDataGrid'); ?>();
+            };
+            </script>
 ```
 
 ---
@@ -235,10 +269,10 @@ if ($filterString !== '')
 **Added** inside `PipelineJobOrder_populate`, after the `/* Build HTTP POST data. */` comment and before the indicator line:
 
 ```javascript
-var filterAreaEl = document.getElementById(
-    typeof pipelineDataGridFilterID !== 'undefined' ? pipelineDataGridFilterID : ''
-);
-POSTData += '&filterString=' + urlEncode(filterAreaEl ? filterAreaEl.value : '');
+    var filterAreaEl = document.getElementById(
+    typeof pipelineDataGridFilterID !== 'undefined' ? pipelineDataGridFilterID : '');
+    POSTData += '&filterString=' + urlEncode(filterAreaEl ? filterAreaEl.value : '');
+    
 ```
 
 ---
