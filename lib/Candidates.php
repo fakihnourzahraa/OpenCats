@@ -88,6 +88,7 @@ class Candidates
      * @param string EEO gender, or '' to not specify.
      * @param string EEO veteran status, or '' to not specify.
      * @param string EEO disability status, or '' to not specify.
+     * @param string gpa
      * @param boolean Skip creating a history entry?
      * @return integer Candidate ID of new candidate, or -1 on failure.
      */
@@ -95,7 +96,7 @@ class Candidates
         $phoneHome, $phoneCell, $phoneWork, $address, $city, $state, $zip,
         $source, $keySkills, $dateAvailable, $currentEmployer, $canRelocate,
         $currentPay, $desiredPay, $notes, $webSite, $bestTimeToCall, $enteredBy, $owner,
-        $gender = '', $race = '', $veteran = '', $disability = '',
+        $gender = '', $race = '', $veteran = '', $disability = '', $gpa = '',
         $skipHistory = false)
     {
         $sql = sprintf(
@@ -131,7 +132,8 @@ class Candidates
                 eeo_ethnic_type_id,
                 eeo_veteran_type_id,
                 eeo_disability_status,
-                eeo_gender
+                eeo_gender,
+                gpa
             )
             VALUES (
                 %s,
@@ -165,6 +167,7 @@ class Candidates
                 %s,
                 %s,
                 %s,
+                %s,
                 %s
             )",
             $this->_db->makeQueryString($firstName),
@@ -195,7 +198,8 @@ class Candidates
             $this->_db->makeQueryInteger($race),
             $this->_db->makeQueryInteger($veteran),
             $this->_db->makeQueryString($disability),
-            $this->_db->makeQueryString($gender)
+            $this->_db->makeQueryString($gender),
+            $this->_db->makeQueryDouble($gpa)
         );
         $queryResult = $this->_db->query($sql);
         if (!$queryResult)
@@ -244,6 +248,7 @@ class Candidates
      * @param string EEO gender, or '' to not specify.
      * @param string EEO veteran status, or '' to not specify.
      * @param string EEO disability status, or '' to not specify.
+     * @param string gpa
      * @return boolean True if successful; false otherwise.
      */
     public function update($candidateID, $isActive, $firstName, $middleName, $lastName,
@@ -251,7 +256,7 @@ class Candidates
         $city, $state, $zip, $source, $keySkills, $dateAvailable,
         $currentEmployer, $canRelocate, $currentPay, $desiredPay,
         $notes, $webSite, $bestTimeToCall, $owner, $isHot, $email, $emailAddress,
-        $gender = '', $race = '', $veteran = '', $disability = '')
+        $gender = '', $race = '', $veteran = '', $disability = '', $gpa ='')
     {
         $sql = sprintf(
             "UPDATE
@@ -286,7 +291,8 @@ class Candidates
                 eeo_ethnic_type_id    = %s,
                 eeo_veteran_type_id   = %s,
                 eeo_disability_status = %s,
-                eeo_gender            = %s
+                eeo_gender            = %s,
+                gpa                   = %s
             WHERE
                 candidate_id = %s
             AND
@@ -320,6 +326,7 @@ class Candidates
             $this->_db->makeQueryInteger($veteran),
             $this->_db->makeQueryString($disability),
             $this->_db->makeQueryString($gender),
+            $this->_db->makeQueryDouble($gpa),
             $this->_db->makeQueryInteger($candidateID),
             $this->_siteID
         );
@@ -485,6 +492,7 @@ class Candidates
                 candidate.best_time_to_call AS bestTimeToCall,
                 candidate.is_hot AS isHot,
                 candidate.is_admin_hidden AS isAdminHidden,
+                candidate.gpa AS gpa,
                 DATE_FORMAT(
                     candidate.date_created, '%%m-%%d-%%y (%%h:%%i %%p)'
                 ) AS dateCreated,
@@ -625,6 +633,7 @@ class Candidates
                 candidate.eeo_disability_status AS eeoDisabilityStatus,
                 candidate.eeo_gender AS eeoGender,
                 candidate.is_admin_hidden AS isAdminHidden,
+                candidate.gpa AS gpa,
                 DATE_FORMAT(
                     candidate.date_available, '%%m-%%d-%%y'
                 ) AS dateAvailable
@@ -2202,7 +2211,22 @@ class CandidatesDataGrid extends DataGrid
                                      'pagerWidth'    => 60,
                                      'pagerOptional' => false,
                                      'filterHaving' => 'DATE_FORMAT(candidate.date_modified, \'%m-%d-%y\')'),
+            'GPA Min' => array(
+                'select'         => 'candidate.gpa AS gpa',
+                'sortableColumn' => 'gpa',
+                'pagerWidth'     => 60,
+                'pagerOptional'  => true,
+                'filter'         => 'candidate.gpa',
+                'filterTypes'    => '=>==',
+            ),
 
+            'GPA Max' => array(
+                'select'         => '',
+                'pagerWidth'     => 60,
+                'pagerOptional'  => true,
+                'filter'         => 'candidate.gpa',
+                'filterTypes'    => '=<==',
+            ),
             /* This one only works when called from the saved list view.  Thats why it is not optional, filterable, or exportable.
              * FIXME:  Somehow make this defined in the associated savedListDataGrid class child.
              */

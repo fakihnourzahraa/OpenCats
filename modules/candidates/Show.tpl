@@ -208,6 +208,10 @@ use OpenCATS\UI\CandidateDuplicateQuickActionMenu;
                                 <td class="vertical">Owner:</td>
                                 <td class="data"><?php $this->_($this->data['ownerFullName']); ?></td>
                             </tr>
+                                                        <tr>
+                                <td class="vertical">GPA:</td>
+                                <td class="data"><?php $this->_($this->data['gpa']); ?></td>
+                            </tr>
 
                             <?php for ($i = (intval(count($this->extraFieldRS))/2); $i < (count($this->extraFieldRS)); $i++): ?>
                                 <tr>

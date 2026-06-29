@@ -491,6 +491,15 @@
                             <textarea class="inputbox" tabindex="<?php echo($tabIndex++); ?>" name="notes" id="notes" rows="5" cols="40" style="width: 400px;"><?php if (isset($this->preassignedFields['notes'])) $this->_($this->preassignedFields['notes']); ?></textarea>
                         </td>
                     </tr>
+
+                    <tr>
+                        <td class="tdVertical">
+                            <label id="gpaLabel" for="gpa">GPA:</label>
+                        </td>
+                        <td class="tdData">
+                            <input type="number" class="inputbox" tabindex="<?php echo($tabIndex++); ?>" name="gpa" id="gpa" min="0" max="4" step="0.01" style="width: 50px;" value="<?php if (isset($this->preassignedFields['gpa'])) $this->_($this->preassignedFields['gpa']); ?>" />
+                        </td>
+                    </tr>
                 </table>
 
                 <input type="submit" tabindex="<?php echo($tabIndex++); ?>" class="button" value="Add Candidate" />&nbsp;

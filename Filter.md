@@ -6,7 +6,7 @@ A summary of every file worked on to implement the feature.
 
 ## What Was Built
 
-Recruiters can now filter the candidate pipeline inside a Job Order using the same filter that exists on the Candidates list page.++++++
+Recruiters can now filter the candidate pipeline inside a Job Order using the same filter that exists on the Candidates list page.
 ---
 
 ## Files Changed
@@ -59,12 +59,18 @@ class PipelineCandidatesDataGrid extends CandidatesDataGrid
 
 **What:** Instantiated `PipelineCandidatesDataGrid` and assigned it to the template inside the show function before:
 
-$this->_template->display('./modules/joborders/Show.tpl');
-
-**Added inside the show function:**
+**Dependencies added at top of file:**
 ```php
 include_once(LEGACY_ROOT . '/modules/joborders/dataGrids.php');
+```
 
+**Inside the show function, after:**
+```php
+$this->_template->display('./modules/joborders/Show.tpl');
+```
+
+**Add:**
+```php
 $dataGridProperties = DataGrid::getRecentParamaters('joborders:PipelineCandidatesDataGrid');
 if ($dataGridProperties == array())
 {

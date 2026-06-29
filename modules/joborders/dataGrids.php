@@ -158,21 +158,28 @@ class PipelineCandidatesDataGrid extends CandidatesDataGrid
 {
     public function __construct($siteID, $parameters, $misc)
     {
-        $this->_tableWidth              = new Width(100, '%');
+        /* Pager configuration. */
+        $this->_tableWidth = new Width(100, '%');
         $this->_defaultAlphabeticalSortBy = 'lastName';
-        $this->ajaxMode                 = false;
-        $this->showExportCheckboxes     = false;
-        $this->showActionArea           = false;
-        $this->showChooseColumnsBox     = true;
-        $this->allowResizing            = true;
-        $this->defaultSortBy            = 'dateCreatedSort';
-        $this->defaultSortDirection     = 'DESC';
+        $this->ajaxMode = false;
+        $this->showExportCheckboxes = true; //BOXES WILL NOT APPEAR UNLESS SQL ROW exportID IS RETURNED!
+        $this->showActionArea = true;
+        $this->showChooseColumnsBox = true;
+        $this->allowResizing = true;
+
+        $this->defaultSortBy = 'dateModifiedSort';
+        $this->defaultSortDirection = 'DESC';
 
         $this->_defaultColumns = array(
+            array('name' => 'Attachments', 'width' => 31),
             array('name' => 'First Name', 'width' => 75),
-            array('name' => 'Last Name',  'width' => 85),
-            array('name' => 'E-Mail',     'width' => 80),
-            array('name' => 'Home Phone', 'width' => 80),
+            array('name' => 'Last Name', 'width' => 85),
+            array('name' => 'City', 'width' => 75),
+            array('name' => 'State', 'width' => 50),
+            array('name' => 'Key Skills', 'width' => 215),
+            array('name' => 'Owner', 'width' => 65),
+            array('name' => 'Created', 'width' => 60),
+            array('name' => 'Modified', 'width' => 60),
         );
 
         parent::__construct(
