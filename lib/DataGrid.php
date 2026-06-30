@@ -850,6 +850,7 @@ class DataGrid
                     case '=#':
                         $filterOperatorHuman = ' has element';
                         break;
+                        
                     case '=d>':
                         $filterOperatorHuman = ' from';
                         break;

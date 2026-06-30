@@ -78,6 +78,41 @@ in lib/datagrid change
 
 for  >=, <=, == change makeQueryInteger to makeQueryDouble, e.g
 
+add dates:
+                $filterOperatorHuman = '';
+                switch ($filterOperator)
+                {
+                    case '==':
+                        $filterOperatorHuman = ' is equal to';
+                        break;
+
+                    case '=~':
+                        $filterOperatorHuman = ' contains';
+                        break;
+
+                    case '=>':
+                        $filterOperatorHuman = ' is greater than';
+                        break;
+
+                    case '=<':
+                        $filterOperatorHuman = ' is less than';
+                        break;
+
+                    case '=#':
+                        $filterOperatorHuman = ' has element';
+                        break;
+                        
+                    case '=d>':
+                        $filterOperatorHuman = ' from';
+                        break;
+
+                    case '=d<':
+                        $filterOperatorHuman = ' to';
+                        break;
+                }
+
+
+
                     /* Is less than (=<) */
                     if (strpos($data, '=<') !== false)
                     {
@@ -91,7 +126,7 @@ for  >=, <=, == change makeQueryInteger to makeQueryDouble, e.g
                             $havingSQL_or[] = $this->_classColumns[$columnName]['filterHaving'] . ' <= ' . $db->makeQueryDouble($argument)  .' ';
                         }
                     }
-                    
+
 
                 $eqPos = strpos($data, '=');
                 $operatorLength = 2;
@@ -144,6 +179,8 @@ in createFromPossibleOperatorType:
 
 at the end:
 
+
+
 filter.GPAFilter = function(defaultValue, filterCounter, filterAreaID, selectableColumns, instanceName) {
     this.defaultValue = defaultValue;
     this.filterCounter = filterCounter;
@@ -170,9 +207,10 @@ filter.GPAFilter.prototype.render = function() {
         className: 'inputbox',
         style: 'width: 120px'
     });
+    operatorSelect.appendChild(this.createOption('between', 'is between'));
     operatorSelect.appendChild(this.createOption('==', 'is equal to'));
     
-    operatorSelect.appendChild(this.createOption('between', 'is between'));
+
     filterDiv.appendChild(operatorSelect);
 
     /* Single value input */
@@ -210,9 +248,8 @@ filter.GPAFilter.prototype.render = function() {
         step: '0.01',
         style: 'width: 60px;'
     });
-    rangeSpan.appendChild(this.createElement('span', { innerHTML: ' and ' }));
     rangeSpan.appendChild(minInput);
-    rangeSpan.appendChild(this.createElement('span', { innerHTML: ' to ' }));
+    rangeSpan.appendChild(this.createElement('span', { innerHTML: ' and ' }));
     rangeSpan.appendChild(maxInput);
     filterDiv.appendChild(rangeSpan);
 
@@ -232,6 +269,7 @@ filter.GPAFilter.prototype.render = function() {
     };
 
     operatorSelect.addEventListener('change', updateHandler);
+    setTimeout(updateHandler, 0);
     singleInput.addEventListener('change', function() {
         applyGPAFilter(me.filterAreaID, me.filterCounter, me.instanceName);
     });
@@ -296,10 +334,11 @@ filter.DateRangeFilter.prototype.render = function() {
         className: 'inputbox',
         style: 'width: 120px'
     });
+    operatorSelect.appendChild(this.createOption('between', 'is between'));
     operatorSelect.appendChild(this.createOption('==', 'is equal to'));
     operatorSelect.appendChild(this.createOption('=>', 'is after'));
     operatorSelect.appendChild(this.createOption('=<', 'is before'));
-    operatorSelect.appendChild(this.createOption('between', 'is between'));
+ 
     filterDiv.appendChild(operatorSelect);
 
     /* Single date input */
@@ -353,6 +392,7 @@ filter.DateRangeFilter.prototype.render = function() {
     };
 
     operatorSelect.addEventListener('change', updateHandler);
+    setTimeout(updateHandler, 0);
     singleInput.addEventListener('change', function() {
         applyDateRangeFilter(me.filterAreaID, me.filterCounter, me.instanceName, 'Created');
     });
@@ -393,6 +433,8 @@ function applyDateRangeFilter(filterAreaID, filterCounter, instanceName, columnN
     filterArea.value = filterVal;
 }
 
+
+
 modified:   lib/Candidates.php
 
 
@@ -412,6 +454,25 @@ modified:   lib/Candidates.php
                                     'filter'         => 'candidate.gpa',
                                     'filterTypes'    => '=><==',
                                 ),
+
+                        line 99:
+                        $gender = '', $race = '', $veteran = '', $disability = '', $gpa = '',
+
+                        line 136 add gpa, line 170 add %s
+                        line 201
+                            $this->_db->makeQueryString($gender),
+            $this->_db->makeQueryDouble($gpa)
+
+            update function param line 259:
+              $gender = '', $race = '', $veteran = '', $disability = '', $gpa ='')
+
+              296:
+                gpa = %s
+                line 329:
+                $this->_db->makeQueryDouble($gpa),
+
+            495:        candidate.gpa AS gpa,
+            636:       candidate.gpa AS gpa,
 	modified:   modules/candidates/Add.tpl
 
 
@@ -425,6 +486,13 @@ modified:   lib/Candidates.php
                     </tr>
 
 	modified:   modules/candidates/CandidatesUI.php
+        'isFromParser'    => true,
+                'gpa'=> $this->getTrimmedInput('gpa', $_POST),
+
+                $gpa      = $this->getTrimmedInput('gpa', $_POST);
+        1380:            ,$gpa
+        2610:       $gpa      = $this->getTrimmedInput('gpa', $_POST);
+        2663: ,   $gpa
 	modified:   modules/candidates/Edit.tpl
 
                         <tr>
@@ -443,7 +511,16 @@ modified:   lib/Candidates.php
                                 <td class="data"><?php $this->_($this->data['gpa']); ?></td>
                             </tr>
 
+
+    modules/joborders/Show.tpl
+
+                              var opLen = (f.substr(eqPos, 3) === '=d>' || f.substr(eqPos, 3) === '=d<') ? 3 : 2;
+var op = f.substring(eqPos, eqPos + opLen);
+var val = decodeURIComponent(f.substring(eqPos + opLen));
+                            var opNames = {'==':'is equal to','=~':'contains','=>':'is greater than','=<':'is less than','=d>':'from','=d<':'to'};
+
 modules/joborder/dataGrids.php
 
 in default columns:
             array('name' => 'gpa', 'width' => 55),
+

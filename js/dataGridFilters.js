@@ -358,7 +358,6 @@ filter.GPAFilter.prototype.render = function() {
         applyGPAFilter(me.filterAreaID, me.filterCounter, me.instanceName);
     };
 
-    operatorSelect.value = 'between';
     operatorSelect.addEventListener('change', updateHandler);
     setTimeout(updateHandler, 0);
     singleInput.addEventListener('change', function() {
@@ -425,10 +424,11 @@ filter.DateRangeFilter.prototype.render = function() {
         className: 'inputbox',
         style: 'width: 120px'
     });
+    operatorSelect.appendChild(this.createOption('between', 'is between'));
     operatorSelect.appendChild(this.createOption('==', 'is equal to'));
     operatorSelect.appendChild(this.createOption('=>', 'is after'));
     operatorSelect.appendChild(this.createOption('=<', 'is before'));
-    operatorSelect.appendChild(this.createOption('between', 'is between'));
+ 
     filterDiv.appendChild(operatorSelect);
 
     /* Single date input */
@@ -482,6 +482,7 @@ filter.DateRangeFilter.prototype.render = function() {
     };
 
     operatorSelect.addEventListener('change', updateHandler);
+    setTimeout(updateHandler, 0);
     singleInput.addEventListener('change', function() {
         applyDateRangeFilter(me.filterAreaID, me.filterCounter, me.instanceName, 'Created');
     });
