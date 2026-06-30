@@ -405,9 +405,11 @@ use OpenCATS\UI\QuickActionMenu;
                             var eqPos = f.indexOf('=');
                             if (eqPos === -1) return;
                             var col = decodeURIComponent(f.substring(0, eqPos));
-                            var op = f.substring(eqPos, eqPos + 2);
-                            var val = decodeURIComponent(f.substring(eqPos + 2));
-                            var opNames = {'==':'is equal to','=~':'contains','=>':'is greater than','=<':'is less than'};
+                           var opLen = (f.substr(eqPos, 3) === '=d>' || f.substr(eqPos, 3) === '=d<') ? 3 : 2;
+var op = f.substring(eqPos, eqPos + opLen);
+var val = decodeURIComponent(f.substring(eqPos + opLen));
+                            var opNames = {'==':'is equal to','=~':'contains','=>':'is greater than','=<':'is less than','=d>':'from','=d<':'to'};
+                    
                             var span = document.createElement('span');
                             span.className = 'filterArea';
                             span.innerHTML = '<a href="javascript:void(0);" onclick="this.parentNode.style.display=\'none\'; removeColumnFromFilter(\'' + pipelineDataGridFilterID + '\', \'' + col + '\'); submitFilter' + md5 + '();">'

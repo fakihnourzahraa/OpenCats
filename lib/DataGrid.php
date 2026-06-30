@@ -850,6 +850,13 @@ class DataGrid
                     case '=#':
                         $filterOperatorHuman = ' has element';
                         break;
+                    case '=d>':
+                        $filterOperatorHuman = ' from';
+                        break;
+
+                    case '=d<':
+                        $filterOperatorHuman = ' to';
+                        break;
                 }
 
                 echo '<span class="filterArea">';
@@ -1266,23 +1273,23 @@ class DataGrid
                         
                         // TODO:  Actual geographic search?
                     }
-                    /* Date is less than (=d<) */
-if (strpos($data, '=d<') !== false)
-{
-    if (isset($this->_classColumns[$columnName]['filter']))
-    {
-        $whereSQL_or[] = $this->_classColumns[$columnName]['filter'] . ' <= STR_TO_DATE(' . $db->makeQueryString($argument) . ', \'%m-%d-%y\') ';
-    }
-}
+                   
+                    if (strpos($data, '=d<') !== false)
+                    {
+                        if (isset($this->_classColumns[$columnName]['filter']))
+                        {
+                            $whereSQL_or[] = $this->_classColumns[$columnName]['filter'] . ' <= STR_TO_DATE(' . $db->makeQueryString($argument) . ', \'%m-%d-%y\') ';
+                        }
+                    }
 
-/* Date is greater than (=d>) */
-if (strpos($data, '=d>') !== false)
-{
-    if (isset($this->_classColumns[$columnName]['filter']))
-    {
-        $whereSQL_or[] = $this->_classColumns[$columnName]['filter'] . ' >= STR_TO_DATE(' . $db->makeQueryString($argument) . ', \'%m-%d-%y\') ';
-    }
-}
+
+                    if (strpos($data, '=d>') !== false)
+                    {
+                        if (isset($this->_classColumns[$columnName]['filter']))
+                        {
+                            $whereSQL_or[] = $this->_classColumns[$columnName]['filter'] . ' >= STR_TO_DATE(' . $db->makeQueryString($argument) . ', \'%m-%d-%y\') ';
+                        }
+                    }
                  
 
                 }

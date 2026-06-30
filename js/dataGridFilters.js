@@ -297,9 +297,10 @@ filter.GPAFilter.prototype.render = function() {
         className: 'inputbox',
         style: 'width: 120px'
     });
+    operatorSelect.appendChild(this.createOption('between', 'is between'));
     operatorSelect.appendChild(this.createOption('==', 'is equal to'));
     
-    operatorSelect.appendChild(this.createOption('between', 'is between'));
+
     filterDiv.appendChild(operatorSelect);
 
     /* Single value input */
@@ -337,9 +338,8 @@ filter.GPAFilter.prototype.render = function() {
         step: '0.01',
         style: 'width: 60px;'
     });
-    rangeSpan.appendChild(this.createElement('span', { innerHTML: ' and ' }));
     rangeSpan.appendChild(minInput);
-    rangeSpan.appendChild(this.createElement('span', { innerHTML: ' to ' }));
+    rangeSpan.appendChild(this.createElement('span', { innerHTML: ' and ' }));
     rangeSpan.appendChild(maxInput);
     filterDiv.appendChild(rangeSpan);
 
@@ -358,7 +358,9 @@ filter.GPAFilter.prototype.render = function() {
         applyGPAFilter(me.filterAreaID, me.filterCounter, me.instanceName);
     };
 
+    operatorSelect.value = 'between';
     operatorSelect.addEventListener('change', updateHandler);
+    setTimeout(updateHandler, 0);
     singleInput.addEventListener('change', function() {
         applyGPAFilter(me.filterAreaID, me.filterCounter, me.instanceName);
     });

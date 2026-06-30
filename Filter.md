@@ -199,7 +199,7 @@ $filterOperator = isset($_REQUEST['filterOperator']) ? trim($_REQUEST['filterOpe
 
 **Change 2 — added filter logic** right before the sort block:
 ```php
-/* Filter the data. */
+/* Filter the data. */ nope?
 if ($filterValue !== '')
 {
     $pipelinesRS = array_filter($pipelinesRS, function($row) use ($filterColumn, $filterOperator, $filterValue) {
