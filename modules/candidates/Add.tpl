@@ -500,6 +500,25 @@
                             <input type="number" class="inputbox" tabindex="<?php echo($tabIndex++); ?>" name="gpa" id="gpa" min="0" max="4" step="0.01" style="width: 50px;" value="<?php if (isset($this->preassignedFields['gpa'])) $this->_($this->preassignedFields['gpa']); ?>" />
                         </td>
                     </tr>
+
+                     <tr>
+                        <td class="tdVertical">
+                            <label id="universityIDLabel" for="universityID">University:</label>
+                        </td>
+                        <td class="tdData">
+                            <select tabindex="X" id="universityID" name="universityID" class="inputbox" style="width: 250px;">
+                                <option value="-1">-- Select University --</option>
+
+                                <?php foreach ($this->universitiesRS as $universityData): ?>
+                                    <option value="<?php $this->_($universityData['universityID']) ?>">
+                                        <?php $this->_($universityData['shortName']) ?> &mdash; <?php $this->_($universityData['canonicalName']) ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </td>
+                    </tr>
+
+
                 </table>
 
                 <input type="submit" tabindex="<?php echo($tabIndex++); ?>" class="button" value="Add Candidate" />&nbsp;

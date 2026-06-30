@@ -388,11 +388,29 @@
                     </tr>
 
                     <tr>
+                        <td class="tdVertical">
+                            <label id="gpaLabel" for="gpa">GPA:</label>
+                        </td>
+                        <td class="tdData">
+                            <input type="number" class="inputbox" tabindex="<?php echo($tabIndex++); ?>" name="gpa" id="gpa" min="0" max="4" step="0.01" style="width: 60px;" value="<?php $this->_($this->data['gpa']); ?>" />
+                        </td>
+                    </tr>
+
+                <tr>
                     <td class="tdVertical">
-                        <label id="gpaLabel" for="gpa">GPA:</label>
+                        <label id="universityIDLabel" for="universityID">University:</label>
                     </td>
                     <td class="tdData">
-                        <input type="number" class="inputbox" tabindex="<?php echo($tabIndex++); ?>" name="gpa" id="gpa" min="0" max="4" step="0.01" style="width: 60px;" value="<?php $this->_($this->data['gpa']); ?>" />
+                        <select tabindex="X" id="universityID" name="universityID" class="inputbox" style="width: 250px;">
+                            <option value="-1">-- Select University --</option>
+
+                            <?php foreach ($this->universitiesRS as $universityData): ?>
+                                <option value="<?php $this->_($universityData['universityID']) ?>"
+                                    <?php if (isset($this->data['universityID']) && $this->data['universityID'] == $universityData['universityID']) echo('selected'); ?>>
+                                    <?php $this->_($universityData['shortName']) ?> &mdash; <?php $this->_($universityData['canonicalName']) ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
                     </td>
                 </tr>
                 </table>

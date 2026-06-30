@@ -546,7 +546,16 @@ class CandidatesUI extends UserInterface
         {
             $data['titleClass'] = 'jobTitleCold';
         }
-
+        
+        if (!empty($data['universityID']))
+        {
+            $data['university'] = $data['universityShortName'] . ' — ' . $data['universityCanonicalName'];
+        }
+        else
+        {
+            $data['university'] = '';
+        }
+        
         $attachments = new Attachments($this->_siteID);
         $attachmentsRS = $attachments->getAll(
             DATA_ITEM_CANDIDATE, $candidateID
@@ -758,6 +767,8 @@ class CandidatesUI extends UserInterface
         $sourcesRS = $candidates->getPossibleSources();
         $sourcesString = ListEditor::getStringFromList($sourcesRS, 'name');
 
+        $universitiesRS = $candidates->getPossibleUniversities();
+
         /* Get extra fields. */
         $extraFieldRS = $candidates->extraFields->getValuesForAdd();
 
@@ -883,6 +894,7 @@ class CandidatesUI extends UserInterface
         $this->_template->assign('associatedFileResume', $associatedFileResume);
         $this->_template->assign('EEOSettingsRS', $EEOSettingsRS);
         $this->_template->assign('isModal', false);
+        $this->_template->assign('universitiesRS', $universitiesRS);
 
         /* REMEMBER TO ALSO UPDATE JobOrdersUI::addCandidateModal() IF
          * APPLICABLE.
@@ -1103,6 +1115,7 @@ class CandidatesUI extends UserInterface
         $sourcesRS = $candidates->getPossibleSources();
         $sourcesString = ListEditor::getStringFromList($sourcesRS, 'name');
 
+        $universitiesRS = $candidates->getPossibleUniversities();
         /* Is current source a possible source? */
         // FIXME: Use array search functions!
         $sourceInRS = false;
@@ -1165,6 +1178,7 @@ class CandidatesUI extends UserInterface
         $this->_template->assign('canEmail', $canEmail);
         $this->_template->assign('EEOSettingsRS', $EEOSettingsRS);
         $this->_template->assign('emailTemplateDisabled', $emailTemplateDisabled);
+        $this->_template->assign('universitiesRS', $universitiesRS);
         $this->_template->display('./modules/candidates/Edit.tpl');
     }
 
@@ -1332,10 +1346,11 @@ class CandidatesUI extends UserInterface
         $race            = $this->getTrimmedInput('race', $_POST);
         $veteran         = $this->getTrimmedInput('veteran', $_POST);
         $disability      = $this->getTrimmedInput('disability', $_POST);
-        $gpa      = $this->getTrimmedInput('gpa', $_POST);
+        $gpa             = $this->getTrimmedInput('gpa', $_POST);
         /* Candidate source list editor. */
-        $sourceCSV = $this->getTrimmedInput('sourceCSV', $_POST);
-
+        $sourceCSV       = $this->getTrimmedInput('sourceCSV', $_POST);
+        $universityID = $this->getTrimmedInput('universityID', $_POST);
+        $universityID = ($universityID > 0) ? $universityID : null;
         /* Bail out if any of the required fields are empty. */
         if (empty($firstName) || empty($lastName))
         {
@@ -1378,7 +1393,8 @@ class CandidatesUI extends UserInterface
             $race,
             $veteran,
             $disability,
-            $gpa
+            $gpa,
+            $universityID
         );
         if (!$updateSuccess)
         {
@@ -2607,8 +2623,9 @@ class CandidatesUI extends UserInterface
         $race            = $this->getTrimmedInput('race', $_POST);
         $veteran         = $this->getTrimmedInput('veteran', $_POST);
         $disability      = $this->getTrimmedInput('disability', $_POST);
-        $gpa      = $this->getTrimmedInput('gpa', $_POST);
-
+        $gpa             = $this->getTrimmedInput('gpa', $_POST);
+        $universityID = $this->getTrimmedInput('universityID', $_POST);
+        $universityID = ($universityID > 0) ? $universityID : null;
         /* Candidate source list editor. */
         $sourceCSV = $this->getTrimmedInput('sourceCSV', $_POST);
 
@@ -2660,7 +2677,8 @@ class CandidatesUI extends UserInterface
             $race,
             $veteran,
             $disability,
-            $gpa
+            $gpa,
+            $universityID
         );
 
         

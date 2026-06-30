@@ -96,7 +96,7 @@ class Candidates
         $phoneHome, $phoneCell, $phoneWork, $address, $city, $state, $zip,
         $source, $keySkills, $dateAvailable, $currentEmployer, $canRelocate,
         $currentPay, $desiredPay, $notes, $webSite, $bestTimeToCall, $enteredBy, $owner,
-        $gender = '', $race = '', $veteran = '', $disability = '', $gpa = '',
+        $gender = '', $race = '', $veteran = '', $disability = '', $gpa = '', $universityID = 0,
         $skipHistory = false)
     {
         $sql = sprintf(
@@ -133,7 +133,8 @@ class Candidates
                 eeo_veteran_type_id,
                 eeo_disability_status,
                 eeo_gender,
-                gpa
+                gpa,
+                university_id
             )
             VALUES (
                 %s,
@@ -164,6 +165,7 @@ class Candidates
                 %s,
                 NOW(),
                 NOW(),
+                %s,
                 %s,
                 %s,
                 %s,
@@ -199,7 +201,8 @@ class Candidates
             $this->_db->makeQueryInteger($veteran),
             $this->_db->makeQueryString($disability),
             $this->_db->makeQueryString($gender),
-            $this->_db->makeQueryDouble($gpa)
+            $this->_db->makeQueryDouble($gpa),
+            $this->_db->makeQueryInteger($universityID)
         );
         $queryResult = $this->_db->query($sql);
         if (!$queryResult)
@@ -256,7 +259,7 @@ class Candidates
         $city, $state, $zip, $source, $keySkills, $dateAvailable,
         $currentEmployer, $canRelocate, $currentPay, $desiredPay,
         $notes, $webSite, $bestTimeToCall, $owner, $isHot, $email, $emailAddress,
-        $gender = '', $race = '', $veteran = '', $disability = '', $gpa ='')
+        $gender = '', $race = '', $veteran = '', $disability = '', $gpa ='', $universityID = 0)
     {
         $sql = sprintf(
             "UPDATE
@@ -292,7 +295,8 @@ class Candidates
                 eeo_veteran_type_id   = %s,
                 eeo_disability_status = %s,
                 eeo_gender            = %s,
-                gpa                   = %s
+                gpa                   = %s,
+                university_id         = %s
             WHERE
                 candidate_id = %s
             AND
@@ -327,6 +331,7 @@ class Candidates
             $this->_db->makeQueryString($disability),
             $this->_db->makeQueryString($gender),
             $this->_db->makeQueryDouble($gpa),
+            $this->_db->makeQueryInteger($universityID),
             $this->_db->makeQueryInteger($candidateID),
             $this->_siteID
         );
@@ -493,6 +498,9 @@ class Candidates
                 candidate.is_hot AS isHot,
                 candidate.is_admin_hidden AS isAdminHidden,
                 candidate.gpa AS gpa,
+                candidate.university_id AS universityID,
+                university.canonical_name AS universityCanonicalName,
+                university.short_name AS universityShortName,
                 DATE_FORMAT(
                     candidate.date_created, '%%m-%%d-%%y (%%h:%%i %%p)'
                 ) AS dateCreated,
@@ -549,6 +557,8 @@ class Candidates
                 ON eeo_ethnic_type.eeo_ethnic_type_id = candidate.eeo_ethnic_type_id
             LEFT JOIN eeo_veteran_type
                 ON eeo_veteran_type.eeo_veteran_type_id = candidate.eeo_veteran_type_id
+            LEFT JOIN university
+                ON university.university_id = candidate.university_id
             WHERE
                 candidate.candidate_id = %s
             AND
@@ -634,6 +644,7 @@ class Candidates
                 candidate.eeo_gender AS eeoGender,
                 candidate.is_admin_hidden AS isAdminHidden,
                 candidate.gpa AS gpa,
+                candidate.university_id AS universityID,
                 DATE_FORMAT(
                     candidate.date_available, '%%m-%%d-%%y'
                 ) AS dateAvailable
@@ -1008,6 +1019,22 @@ class Candidates
             ORDER BY
                 candidate_source.name ASC",
             $this->_siteID
+        );
+
+        return $this->_db->getAllAssoc($sql);
+    }
+
+    public function getPossibleUniversities()
+    {
+        $sql = sprintf(
+            "SELECT
+                university.university_id AS universityID,
+                university.canonical_name AS canonicalName,
+                university.short_name AS shortName
+            FROM
+                university
+            ORDER BY
+                university.canonical_name ASC"
         );
 
         return $this->_db->getAllAssoc($sql);
