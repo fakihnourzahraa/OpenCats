@@ -33,54 +33,6 @@ CREATE TABLE `university` (
 
 ALTER TABLE `candidate`
   ADD COLUMN `university_id` int(11) DEFAULT NULL;
-
-
-  INSERT INTO `university` (`canonical_name`, `short_name`) VALUES
-('Académie Libanaise des Beaux-Arts', 'ALBA'),
-('Al-Kafaàt University', 'AKU'),
-('Al Maaref University', 'MU'),
-('American University of Beirut', 'AUB'),
-('American University of Culture & Education', 'AUCE'),
-('American University of Science and Technology', 'AUST'),
-('American University of Technology', 'AUT'),
-('Antonine University', 'UA'),
-('Arab Open University', 'AOU'),
-('Arts, Sciences and Technology University in Lebanon', 'AUL'),
-('Beirut Arab University', 'BAU'),
-('Beirut Islamic University', 'BIU'),
-('Conservatoire National des Arts et Métiers', 'Cnam'),
-('East International University', 'EIU'),
-('Ecole Superieure des Affaires', 'ESA'),
-('Global University', 'GU'),
-('Haigazian University', 'HU'),
-('Islamic University of Lebanon', 'IUL'),
-('Jinan University', 'JU'),
-('Lebanese American University', 'LAU'),
-('Lebanese Canadian University', 'LCU'),
-('Lebanese German University', 'LGU'),
-('Lebanese International University', 'LIU'),
-('Lebanese National Higher Conservatory of Music', 'LNHCM'),
-('Lebanese University', 'UL'),
-('Makassed University of Beirut', 'MUB'),
-('Middle East University', 'MEU'),
-('Modern University for Business and Science', 'MUBS'),
-('Notre Dame University - Louaize', 'NDU'),
-('Phoenicia University', 'PU'),
-('Rafik Hariri University', 'RHU'),
-('Saint George University of Beirut', 'SGU'),
-('Saint Joseph University of Beirut', 'USJ'),
-('Tripoli University Institute for Islamic Studies', 'UT'),
-('Université La Sagesse', 'ULS'),
-('Université Libano-Française de Technologie et des Sciences Appliqués', 'ULF'),
-('University of Balamand', 'UoB'),
-('University of Sciences & Arts in Lebanon', 'USAL'),
-('Université Saint-Esprit de Kaslik', 'USEK'),
-('Université Sainte Famille', 'USF'),
-('Joyaa University Institute of Technology', 'JUIT'),
-('Ouzai University College', 'OUC'),
-('Matn University College', 'MUC'),
-('Sidoon University College', 'SUC'),
-('Saint Paul Institute of Philosophy & Theology', 'NEST');
 ```
 
 Seeded with 45 Lebanese universities and institutes (sourced from the
@@ -134,6 +86,11 @@ public function getPossibleUniversities()
 
     return $this->_db->getAllAssoc($sql);
 }
+```
+
+Note: the `University` data grid column definition (used by the candidate
+list/filter page) lives in `modules/candidates/dataGrids.php`
+(`CandidatesDataGrid` class), not in this file — see Section 7 below.
 ```
 
 ---
@@ -253,6 +210,153 @@ Added after the GPA row:
 
 ---
 
+## 7. `modules/candidates/dataGrids.php` (`CandidatesDataGrid` class)
+
+Added a `University` column definition alongside the other `_classColumns`
+entries (e.g. next to `'GPA'`). Filters on `university.short_name` (not
+the numeric ID) so the applied filter reads as a name (e.g. "LAU") rather
+than an opaque integer:
+
+```php
+'University' => array(
+                    'select'         => 'university.canonical_name AS universityCanonicalName,
+                                         university.short_name AS universityShortName',
+                    'join'           => 'LEFT JOIN university ON university.university_id = candidate.university_id',
+                    'pagerRender'    => 'return !empty($rsData[\'universityShortName\']) ? htmlspecialchars($rsData[\'universityShortName\']) : \'\';',
+                    'sortableColumn' => 'universityCanonicalName',
+                    'pagerWidth'     => 100,
+                    'pagerOptional'  => true,
+                    'filter'         => 'university.short_name',
+                    'filterTypes'    => '==',
+                ),
+```
+
+---
+
+## 8. `modules/candidates/CandidatesUI.php` — `listByView()`
+
+After the existing `$this->_template->assign(...)` block, fetch and assign
+the university list so the filter dropdown can be populated:
+
+```php
+$universitiesRS = $candidates->getPossibleUniversities();
+$this->_template->assign('universitiesRS', $universitiesRS);
+```
+
+---
+
+## 9. `modules/candidates/Candidates.tpl`
+
+Added near the top of the page (before the data grid is drawn), so the
+options exist in global scope before the filter widget is rendered:
+
+```php
+<script type="text/javascript">
+    var universityFilterOptions = [
+        <?php foreach ($this->universitiesRS as $i => $u): ?>
+            { shortName: '<?php echo addslashes($u['shortName']); ?>', label: '<?php echo addslashes($u['shortName'] . ' — ' . $u['canonicalName']); ?>' }<?php echo ($i < count($this->universitiesRS) - 1) ? ',' : ''; ?>
+        <?php endforeach; ?>
+    ];
+</script>
+```
+
+---
+
+## 10. `js/dataGridFilters.js`
+
+The standard filter system (`filter.DefaultFilter`) only renders a free
+text box for any column, which would have required recruiters to type a
+raw university name (or worse, an ID) by hand. To give a real dropdown
+filter, a new filter class was added and registered in the factory,
+following the same pattern as the existing `GPAFilter` / `DateRangeFilter`
+custom filter types.
+
+**`filter.FilterFactory.createFromPossibleOperatorType()`** — added a
+branch to route the `University` column to the new filter class:
+
+```javascript
+} else if (getFilterColumnNameFromOptionValue(possibleOperatorType) == 'University') {
+    return new filter.UniversityFilter(possibleOperatorType, filterCounter, filterAreaID, selectableColumns, instanceName);
+}
+```
+
+**New `filter.UniversityFilter` class** — renders an "is equal to"
+operator (only one, since university selection isn't a range) plus a
+`<select>` populated from `universityFilterOptions` (defined in
+`Candidates.tpl`). The dropdown's `value` is the university's
+`short_name` (not its ID), so the filter applies against
+`university.short_name` and displays human-readable in the applied
+filter list:
+
+```javascript
+filter.UniversityFilter = function(defaultValue, filterCounter, filterAreaID, selectableColumns, instanceName) {
+    this.defaultValue = defaultValue;
+    this.filterCounter = filterCounter;
+    this.filterAreaID = filterAreaID;
+    this.selectableColumns = selectableColumns;
+    this.instanceName = instanceName;
+}
+
+filter.UniversityFilter.prototype = Object.create(filter.Filter.prototype);
+
+filter.UniversityFilter.prototype.render = function() {
+    var me = this;
+    var filterDiv = document.createElement('div');
+
+    var selectColumn = this.createFieldSelect(this.defaultValue, this.filterAreaID, this.filterCounter, this.selectableColumns);
+    selectColumn.addEventListener('change', this.createSelectAreaChangeHandler(
+        selectColumn, this.filterCounter, this.filterAreaID, this.selectableColumns, this.instanceName
+    ));
+    filterDiv.appendChild(selectColumn);
+
+    /* Operator: equal to only */
+    var operatorSelect = this.createElement('select', {
+        id: this.filterAreaID + this.filterCounter + 'operator',
+        className: 'inputbox',
+        style: 'width: 120px'
+    });
+    operatorSelect.appendChild(this.createOption('==', 'is equal to'));
+    filterDiv.appendChild(operatorSelect);
+
+    /* University dropdown, populated from universityFilterOptions */
+    var universitySelect = this.createElement('select', {
+        id: this.filterAreaID + this.filterCounter + 'value',
+        className: 'inputbox',
+        style: 'width: 220px;'
+    });
+    universitySelect.appendChild(this.createOption('', '-- Select University --'));
+
+    var options = (typeof universityFilterOptions !== 'undefined') ? universityFilterOptions : [];
+    for (var i = 0; i < options.length; i++) {
+        universitySelect.appendChild(this.createOption(options[i].shortName, options[i].label));
+    }
+    filterDiv.appendChild(universitySelect);
+
+    var applyHandler = function() {
+        applyUniversityFilter(me.filterAreaID, me.filterCounter, me.instanceName);
+    };
+    universitySelect.addEventListener('change', applyHandler);
+
+    filterDiv.style.float = 'left';
+    return filterDiv;
+}
+
+function applyUniversityFilter(filterAreaID, filterCounter, instanceName) {
+    var filterArea = document.getElementById('filterArea' + instanceName);
+    var filterVal = filterArea.value;
+
+    filterVal = filterVal.replace(/,?University==[^,]*/g, '');
+    filterVal = filterVal.replace(/^,/, '');
+
+    var val = document.getElementById(filterAreaID + filterCounter + 'value').value;
+    if (val !== '') filterVal += (filterVal ? ',' : '') + 'University==' + val;
+
+    filterArea.value = filterVal;
+}
+```
+
+---
+
 ## Status
 
 - [x] `university` reference table created and seeded (45 rows)
@@ -260,10 +364,22 @@ Added after the GPA row:
 - [x] Add Candidate page — dropdown, save
 - [x] Edit Candidate page — dropdown (pre-selected), save
 - [x] Candidate Details page — display formatted name
-- [ ] Candidate search/filter page — filter by university
+- [x] Candidate list/filter page — `University` column (shows short name,
+      sortable by canonical name) and a custom dropdown filter widget
+      (filters on `university.short_name`, displayed as a readable name
+      rather than a raw ID)
 - [ ] Migration plan for legacy `extra_field` / free-text `university`
       column data (not in scope for this implementer; needs DB access
       to execute)
+
+## Open item to verify
+
+The `getPossibleUniversities()` fetch + `$this->_template->assign('universitiesRS', ...)`
+in `listByView()` must run before `Candidates.tpl` renders, or the
+`universityFilterOptions` JS array will be empty and the filter dropdown
+will show no options (it will not error, just appear blank under
+"-- Select University --"). Confirm this assign is actually inside
+`listByView()` and not accidentally left in `add()`/`edit()` only.
 
 ## Known bug fixed during implementation
 

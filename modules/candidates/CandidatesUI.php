@@ -446,8 +446,10 @@ class CandidatesUI extends UserInterface
         $this->_template->assign('errMessage', $errMessage);
         $this->_template->assign('topLog', $topLog);
         $this->_template->assign('tagsRS', $tagsRS);
+
         $universitiesRS = $candidates->getPossibleUniversities();
-$this->_template->assign('universitiesRS', $universitiesRS);
+        $this->_template->assign('universitiesRS', $universitiesRS);
+        
         if (!eval(Hooks::get('CANDIDATE_LIST_BY_VIEW'))) return;
 
         $this->_template->display('./modules/candidates/Candidates.tpl');
