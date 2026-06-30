@@ -57,7 +57,10 @@ filter.FilterFactory.createFromPossibleOperatorType = function(
         return new filter.GPAFilter(possibleOperatorType, filterCounter, filterAreaID, selectableColumns, instanceName);
     } else if (getFilterColumnNameFromOptionValue(possibleOperatorType) == 'Created') {
         return new filter.DateRangeFilter(possibleOperatorType, filterCounter, filterAreaID, selectableColumns, instanceName); 
-    } else {
+    } else if (getFilterColumnNameFromOptionValue(possibleOperatorType) == 'University') {
+        return new filter.UniversityFilter(possibleOperatorType, filterCounter, filterAreaID, selectableColumns, instanceName);
+    }
+     else {
         return new filter.DefaultFilter(possibleOperatorType, filterCounter, filterAreaID, selectableColumns, instanceName);
     }
 }
@@ -394,6 +397,71 @@ function applyGPAFilter(filterAreaID, filterCounter, instanceName) {
         if (min !== '') filterVal += (filterVal ? ',' : '') + 'GPA=>' + min;
         if (max !== '') filterVal += (filterVal ? ',' : '') + 'GPA=<' + max;
     }
+
+    filterArea.value = filterVal;
+}
+
+filter.UniversityFilter = function(defaultValue, filterCounter, filterAreaID, selectableColumns, instanceName) {
+    this.defaultValue = defaultValue;
+    this.filterCounter = filterCounter;
+    this.filterAreaID = filterAreaID;
+    this.selectableColumns = selectableColumns;
+    this.instanceName = instanceName;
+}
+
+filter.UniversityFilter.prototype = Object.create(filter.Filter.prototype);
+
+filter.UniversityFilter.prototype.render = function() {
+    var me = this;
+    var filterDiv = document.createElement('div');
+
+    var selectColumn = this.createFieldSelect(this.defaultValue, this.filterAreaID, this.filterCounter, this.selectableColumns);
+    selectColumn.addEventListener('change', this.createSelectAreaChangeHandler(
+        selectColumn, this.filterCounter, this.filterAreaID, this.selectableColumns, this.instanceName
+    ));
+    filterDiv.appendChild(selectColumn);
+
+    /* Operator: equal to only */
+    var operatorSelect = this.createElement('select', {
+        id: this.filterAreaID + this.filterCounter + 'operator',
+        className: 'inputbox',
+        style: 'width: 120px'
+    });
+    operatorSelect.appendChild(this.createOption('==', 'is equal to'));
+    filterDiv.appendChild(operatorSelect);
+
+    /* University dropdown, populated from window.universityFilterOptions */
+    var universitySelect = this.createElement('select', {
+        id: this.filterAreaID + this.filterCounter + 'value',
+        className: 'inputbox',
+        style: 'width: 220px;'
+    });
+    universitySelect.appendChild(this.createOption('', '-- Select University --'));
+
+    var options = (typeof universityFilterOptions !== 'undefined') ? universityFilterOptions : [];
+    for (var i = 0; i < options.length; i++) {
+        universitySelect.appendChild(this.createOption(options[i].shortName, options[i].label));
+    }
+    filterDiv.appendChild(universitySelect);
+
+    var applyHandler = function() {
+        applyUniversityFilter(me.filterAreaID, me.filterCounter, me.instanceName);
+    };
+    universitySelect.addEventListener('change', applyHandler);
+
+    filterDiv.style.float = 'left';
+    return filterDiv;
+}
+
+function applyUniversityFilter(filterAreaID, filterCounter, instanceName) {
+    var filterArea = document.getElementById('filterArea' + instanceName);
+    var filterVal = filterArea.value;
+
+    filterVal = filterVal.replace(/,?University==[^,]*/g, '');
+    filterVal = filterVal.replace(/^,/, '');
+
+    var val = document.getElementById(filterAreaID + filterCounter + 'value').value;
+    if (val !== '') filterVal += (filterVal ? ',' : '') + 'University==' + val;
 
     filterArea.value = filterVal;
 }

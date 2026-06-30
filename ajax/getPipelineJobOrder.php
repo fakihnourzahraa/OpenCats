@@ -134,7 +134,8 @@ $columnMap = array(
     'Current Employer' => 'currentEmployer',
     'Misc Notes'       => 'notes',
     'GPA'              => 'gpa',
-    'Created'          => 'dateCreated'
+    'Created'          => 'dateCreated',
+    'university_id'       => 'universiy_id'
 );
 
 if ($filterString !== '')

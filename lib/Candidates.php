@@ -2271,6 +2271,17 @@ class CandidatesDataGrid extends DataGrid
                                     'filter'         => 'candidate.gpa',
                                     'filterTypes'    => '=><==',
                                 ),
+            'University' => array(
+                                'select'         => 'university.canonical_name AS universityCanonicalName,
+                                                    university.short_name AS universityShortName',
+                                'join'           => 'LEFT JOIN university ON university.university_id = candidate.university_id',
+                                'pagerRender'    => 'return !empty($rsData[\'universityShortName\']) ? htmlspecialchars($rsData[\'universityShortName\']) : \'\';',
+                                'sortableColumn' => 'universityCanonicalName',
+                                'pagerWidth'     => 100,
+                                'pagerOptional'  => true,
+                                'filter'         => 'university.short_name',
+                                'filterTypes'    => '==',
+                            ),
         // Tags filtering
         	'Tags'	=>			array(
                                      'select'	=> '(
