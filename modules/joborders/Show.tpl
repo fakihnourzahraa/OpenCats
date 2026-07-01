@@ -11,7 +11,18 @@ use OpenCATS\UI\QuickActionMenu;
         <div id="main">
             <?php TemplateUtility::printQuickSearch(); ?>
 <?php endif; ?>
-
+<script type="text/javascript">
+    filterDropDownRegistry['University'] = [
+        <?php foreach ($this->universitiesRS as $i => $u): ?>
+            { value: '<?php echo addslashes($u['shortName']); ?>', label: '<?php echo addslashes($u['shortName'] . ' — ' . $u['optionLabel']); ?>' }<?php echo ($i < count($this->universitiesRS) - 1) ? ',' : ''; ?>
+        <?php endforeach; ?>
+    ];
+    filterDropDownRegistry['Nationality'] = [
+        <?php foreach ($this->nationalitiesRS as $i => $n): ?>
+            { value: '<?php echo addslashes($n['optionValue']); ?>', label: '<?php echo addslashes($n['optionLabel']); ?>' }<?php echo ($i < count($this->nationalitiesRS) - 1) ? ',' : ''; ?>
+        <?php endforeach; ?>
+    ];
+</script>
         <div id="contents">
             <table>
                 <tr>

@@ -135,7 +135,8 @@ $columnMap = array(
     'Misc Notes'       => 'notes',
     'GPA'              => 'gpa',
     'Created'          => 'dateCreated',
-    'university_id'       => 'universiy_id'
+    'University'       => 'universityShortName',
+    'Nationality'      => 'nationality'
 );
 
 if ($filterString !== '')

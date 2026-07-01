@@ -524,6 +524,12 @@ class JobOrdersUI extends UserInterface
         $this->_template->assign('privledgedUser', $privledgedUser);
         $this->_template->assign('sessionCookie', $_SESSION['CATS']->getCookie());
 
+        $candidates = new Candidates($this->_siteID);
+        $universitiesRS = $candidates->getPossibleDropDownOptions('university', 'university_id', 'canonical_name', 'short_name');
+        $nationalitiesRS = $candidates->getPossibleDropDownOptions('nationality', 'name', 'name');
+        $this->_template->assign('universitiesRS', $universitiesRS);
+        $this->_template->assign('nationalitiesRS', $nationalitiesRS);
+
         if (!eval(Hooks::get('JO_SHOW'))) return;
 
         $dataGridProperties = DataGrid::getRecentParamaters('joborders:PipelineCandidatesDataGrid');
