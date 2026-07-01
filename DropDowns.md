@@ -137,6 +137,13 @@ INSERT INTO `nationality` (`name`) VALUES
 ('Wallisian'),('Welsh'),
 ('Yemeni'),
 ('Zambian'),('Zimbabwean');
+
+ALTER TABLE `nationality` ADD COLUMN `sort_order` int(11) NOT NULL DEFAULT 99;
+
+UPDATE `nationality` SET `sort_order` = 1 WHERE `name` = 'Lebanese';
+UPDATE `nationality` SET `sort_order` = 2 WHERE `name` = 'Palestinian';
+UPDATE `nationality` SET `sort_order` = 3 WHERE `name` = 'Syrian';
+UPDATE `nationality` SET `sort_order` = 4 WHERE `name` = 'Armenian';
 ```
 
 Notes on nationality table design:
@@ -152,10 +159,19 @@ Notes on nationality table design:
 Replaces the old `getPossibleUniversities()`. Used for both university and nationality, and can be reused for any future reference-table dropdown by passing the table/column names as parameters.
 
 ```php
-public function getPossibleDropDownOptions($table, $valueColumn, $labelColumn, $shortColumn = null, $orderBy = null)
-{
-    $orderBy = $orderBy ? $orderBy : $labelColumn;
+    public function getPossibleDropDownOptions($table, $valueColumn, $labelColumn, $shortColumn = null, $orderBy = null)
+    {
     $shortSelect = $shortColumn ? ", $table.$shortColumn AS shortName" : ", $table.$labelColumn AS shortName";
+
+    if ($orderBy === false) {
+        $orderByClause = '';
+    } elseif ($orderBy !== null && (strpos($orderBy, ' ') !== false || strpos($orderBy, ',') !== false)) {
+        // Raw expression passed — use as-is
+        $orderByClause = "ORDER BY $orderBy";
+    } else {
+        $col = $orderBy ? $orderBy : $labelColumn;
+        $orderByClause = "ORDER BY $table.$col ASC";
+    }
 
     $sql = sprintf(
         "SELECT
@@ -164,13 +180,12 @@ public function getPossibleDropDownOptions($table, $valueColumn, $labelColumn, $
             %s
         FROM
             %s
-        ORDER BY
-            %s.%s ASC",
+        %s",
         $table, $valueColumn,
         $table, $labelColumn,
         $shortSelect,
         $table,
-        $table, $orderBy
+        $orderByClause
     );
 
     return $this->_db->getAllAssoc($sql);
@@ -297,7 +312,7 @@ $sourcesRS = $candidates->getPossibleSources();
 $this->_template->assign('sourcesRS', $sourcesRS);
 $universitiesRS = $candidates->getPossibleDropDownOptions('university', 'university_id', 'canonical_name', 'short_name');
 $this->_template->assign('universitiesRS', $universitiesRS);
-$nationalitiesRS = $candidates->getPossibleDropDownOptions('nationality', 'name', 'name');
+$nationalitiesRS = $candidates->getPossibleDropDownOptions('nationality', 'name', 'name', null, 'sort_order ASC, name ASC');
 $this->_template->assign('nationalitiesRS', $nationalitiesRS);
 ```
 
@@ -306,7 +321,7 @@ $this->_template->assign('nationalitiesRS', $nationalitiesRS);
 After `$sourcesRS`/`$sourcesString` block:
 ```php
 $universitiesRS = $candidates->getPossibleDropDownOptions('university', 'university_id', 'canonical_name', 'short_name');
-$nationalitiesRS = $candidates->getPossibleDropDownOptions('nationality', 'name', 'name');
+$nationalitiesRS = $candidates->getPossibleDropDownOptions('nationality', 'name', 'name', null, 'sort_order ASC, name ASC');
 $this->_template->assign('universitiesRS', $universitiesRS);
 $this->_template->assign('nationalitiesRS', $nationalitiesRS);
 ```
@@ -316,7 +331,7 @@ $this->_template->assign('nationalitiesRS', $nationalitiesRS);
 After `$sourcesString` line:
 ```php
 $universitiesRS = $candidates->getPossibleDropDownOptions('university', 'university_id', 'canonical_name', 'short_name');
-$nationalitiesRS = $candidates->getPossibleDropDownOptions('nationality', 'name', 'name');
+$nationalitiesRS = $candidates->getPossibleDropDownOptions('nationality', 'name', 'name', null, 'sort_order ASC, name ASC');
 $this->_template->assign('universitiesRS', $universitiesRS);
 $this->_template->assign('nationalitiesRS', $nationalitiesRS);
 ```
@@ -648,7 +663,7 @@ $candidates = new Candidates($this->_siteID);
 $sourcesRS = $candidates->getPossibleSources();
 $this->_template->assign('sourcesRS', $sourcesRS);
 $universitiesRS = $candidates->getPossibleDropDownOptions('university', 'university_id', 'canonical_name', 'short_name');
-$nationalitiesRS = $candidates->getPossibleDropDownOptions('nationality', 'name', 'name');
+$nationalitiesRS = $candidates->getPossibleDropDownOptions('nationality', 'name', 'name', null, 'sort_order ASC, name ASC');
 $this->_template->assign('universitiesRS', $universitiesRS);
 $this->_template->assign('nationalitiesRS', $nationalitiesRS);
 ```

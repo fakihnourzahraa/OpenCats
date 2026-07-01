@@ -530,7 +530,7 @@ class JobOrdersUI extends UserInterface
 $this->_template->assign('sourcesRS', $sourcesRS);
 
         $universitiesRS = $candidates->getPossibleDropDownOptions('university', 'university_id', 'canonical_name', 'short_name');
-        $nationalitiesRS = $candidates->getPossibleDropDownOptions('nationality', 'name', 'name');
+        $nationalitiesRS = $candidates->getPossibleDropDownOptions('nationality', 'name', 'name', null, 'sort_order ASC, name ASC');
         $this->_template->assign('universitiesRS', $universitiesRS);
         $this->_template->assign('nationalitiesRS', $nationalitiesRS);
 

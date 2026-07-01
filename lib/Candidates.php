@@ -1031,29 +1031,61 @@ class Candidates
         return $this->_db->getAllAssoc($sql);
     }
 
+    // public function getPossibleDropDownOptions($table, $valueColumn, $labelColumn, $shortColumn = null, $orderBy = null)
+    // {
+    //     $orderBy = $orderBy ? $orderBy : $labelColumn;
+    //     $shortSelect = $shortColumn ? ", $table.$shortColumn AS shortName" : ", $table.$labelColumn AS shortName";
+
+    //     $sql = sprintf(
+    //         "SELECT
+    //             %s.%s AS optionValue,
+    //             %s.%s AS optionLabel
+    //             %s
+    //         FROM
+    //             %s
+    //         ORDER BY
+    //             %s.%s ASC",
+    //         $table, $valueColumn,
+    //         $table, $labelColumn,
+    //         $shortSelect,
+    //         $table,
+    //         $table, $orderBy
+    //     );
+
+    //     return $this->_db->getAllAssoc($sql);
+    // }
+
     public function getPossibleDropDownOptions($table, $valueColumn, $labelColumn, $shortColumn = null, $orderBy = null)
-    {
-        $orderBy = $orderBy ? $orderBy : $labelColumn;
-        $shortSelect = $shortColumn ? ", $table.$shortColumn AS shortName" : ", $table.$labelColumn AS shortName";
+{
+    $shortSelect = $shortColumn ? ", $table.$shortColumn AS shortName" : ", $table.$labelColumn AS shortName";
 
-        $sql = sprintf(
-            "SELECT
-                %s.%s AS optionValue,
-                %s.%s AS optionLabel
-                %s
-            FROM
-                %s
-            ORDER BY
-                %s.%s ASC",
-            $table, $valueColumn,
-            $table, $labelColumn,
-            $shortSelect,
-            $table,
-            $table, $orderBy
-        );
-
-        return $this->_db->getAllAssoc($sql);
+    if ($orderBy === false) {
+        $orderByClause = '';
+    } elseif ($orderBy !== null && (strpos($orderBy, ' ') !== false || strpos($orderBy, ',') !== false)) {
+        // Raw expression passed — use as-is
+        $orderByClause = "ORDER BY $orderBy";
+    } else {
+        $col = $orderBy ? $orderBy : $labelColumn;
+        $orderByClause = "ORDER BY $table.$col ASC";
     }
+
+    $sql = sprintf(
+        "SELECT
+            %s.%s AS optionValue,
+            %s.%s AS optionLabel
+            %s
+        FROM
+            %s
+        %s",
+        $table, $valueColumn,
+        $table, $labelColumn,
+        $shortSelect,
+        $table,
+        $orderByClause
+    );
+
+    return $this->_db->getAllAssoc($sql);
+}
 
 
     /**

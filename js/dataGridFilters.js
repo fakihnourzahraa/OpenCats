@@ -83,6 +83,7 @@ filter.Filter.prototype.createFieldSelect = function(defaultValue, filterAreaID,
     return selectColumn;
 }
 
+
 filter.Filter.prototype.createOption = function(value, innerHtml, isSelected) {
     var option = document.createElement('option');
     option.value = value;
@@ -91,6 +92,92 @@ filter.Filter.prototype.createOption = function(value, innerHtml, isSelected) {
         option.selected = 'selected';
     } 
     return option;
+}
+
+filter.Filter.prototype.createSearchableFieldSelect = function(defaultValue, filterAreaID, filterCounter, selectableColumns) {
+    var selectColumn = this.createFieldSelect(defaultValue, filterAreaID, filterCounter, selectableColumns);
+    selectColumn.style.display = 'none';
+
+    var colWrapper = document.createElement('div');
+    colWrapper.style.cssText = 'display:inline-block; position:relative; vertical-align:middle;';
+
+    var colDisplay = document.createElement('div');
+    colDisplay.className = 'inputbox';
+    colDisplay.style.cssText = 'width:160px; cursor:pointer; padding:2px 4px; background:#fff; border:1px solid #999; display:inline-block;';
+    colDisplay.innerHTML = getFilterColumnNameFromOptionValue(defaultValue);
+
+    var colPanel = document.createElement('div');
+    colPanel.style.cssText = 'display:none; position:absolute; z-index:9999; background:#fff; border:1px solid #999; width:160px; box-shadow:2px 2px 4px rgba(0,0,0,0.2);';
+
+    var colSearch = document.createElement('input');
+    colSearch.type = 'text';
+    colSearch.placeholder = 'Search...';
+    colSearch.className = 'inputbox';
+    colSearch.style.cssText = 'width:100%; box-sizing:border-box; padding:2px 4px;';
+
+    var colOptionList = document.createElement('div');
+    colOptionList.style.cssText = 'max-height:200px; overflow-y:auto;';
+
+    var colOptions = [];
+    for (var i = 0; i < selectableColumns.length; i++) {
+        colOptions.push({
+            value: selectableColumns[i],
+            label: getFilterColumnNameFromOptionValue(selectableColumns[i])
+        });
+    }
+
+    function buildColList(query) {
+        colOptionList.innerHTML = '';
+        for (var i = 0; i < colOptions.length; i++) {
+            if (!query || colOptions[i].label.toLowerCase().indexOf(query.toLowerCase()) !== -1) {
+                (function(opt) {
+                    var item = document.createElement('div');
+                    item.style.cssText = 'padding:3px 6px; cursor:pointer;';
+                    item.innerHTML = opt.label;
+                    item.addEventListener('mouseover', function() { item.style.background = '#3366cc'; item.style.color = '#fff'; });
+                    item.addEventListener('mouseout', function() { item.style.background = ''; item.style.color = ''; });
+                    item.addEventListener('mousedown', function(e) {
+                        e.preventDefault();
+                        colDisplay.innerHTML = opt.label;
+                        colPanel.style.display = 'none';
+                        selectColumn.value = opt.value;
+                        var ev = document.createEvent('Event');
+                        ev.initEvent('change', true, true);
+                        selectColumn.dispatchEvent(ev);
+                    });
+                    colOptionList.appendChild(item);
+                })(colOptions[i]);
+            }
+        }
+    }
+
+    buildColList('');
+    colSearch.addEventListener('keyup', function() { buildColList(colSearch.value); });
+    colPanel.appendChild(colSearch);
+    colPanel.appendChild(colOptionList);
+
+    colDisplay.addEventListener('click', function() {
+        if (colPanel.style.display === 'none') {
+            colPanel.style.display = 'block';
+            colSearch.value = '';
+            buildColList('');
+            colSearch.focus();
+        } else {
+            colPanel.style.display = 'none';
+        }
+    });
+
+    document.addEventListener('click', function(e) {
+        if (!colWrapper.contains(e.target)) {
+            colPanel.style.display = 'none';
+        }
+    });
+
+    colWrapper.appendChild(colDisplay);
+    colWrapper.appendChild(colPanel);
+    colWrapper.appendChild(selectColumn);
+
+    return colWrapper;
 }
 
 filter.Filter.prototype.createElement = function(tagName, properties, eventListeners) {
@@ -184,24 +271,38 @@ filter.DefaultFilter.prototype.createInputArea = function(filterAreaID, filterCo
     return inputArea;
 }
 
+// filter.DefaultFilter.prototype.render = function() {
+//     var filterDiv = document.createElement('div');
+//     var selectColumn = this.createFieldSelect(this.defaultValue, this.filterAreaID, this.filterCounter, this.selectableColumns);
+//     filterDiv.appendChild(selectColumn);
+//     var operatorSelectColumn = this.createOperatorSelect(selectColumn.value, this.filterAreaID, this.filterCounter);
+//     filterDiv.appendChild(operatorSelectColumn);
+//     selectColumn.addEventListener('change', this.createSelectAreaChangeHandler(
+//         selectColumn,
+//         this.filterCounter,
+//         this.filterAreaID,
+//         this.selectableColumns,
+//         this.instanceName
+//     ));
+//     var inputArea = this.createInputArea(this.filterAreaID, this.filterCounter, this.instanceName);
+//     filterDiv.appendChild(inputArea);
+//     filterDiv.style.float='left';
+//     return filterDiv;
+// }
+
 filter.DefaultFilter.prototype.render = function() {
     var filterDiv = document.createElement('div');
-    var selectColumn = this.createFieldSelect(this.defaultValue, this.filterAreaID, this.filterCounter, this.selectableColumns);
-    filterDiv.appendChild(selectColumn);
+    var colWrapper = this.createSearchableFieldSelect(this.defaultValue, this.filterAreaID, this.filterCounter, this.selectableColumns);
+    var selectColumn = colWrapper.querySelector('select');
+    filterDiv.appendChild(colWrapper);
     var operatorSelectColumn = this.createOperatorSelect(selectColumn.value, this.filterAreaID, this.filterCounter);
     filterDiv.appendChild(operatorSelectColumn);
-    selectColumn.addEventListener('change', this.createSelectAreaChangeHandler(
-        selectColumn,
-        this.filterCounter,
-        this.filterAreaID,
-        this.selectableColumns,
-        this.instanceName
-    ));
     var inputArea = this.createInputArea(this.filterAreaID, this.filterCounter, this.instanceName);
     filterDiv.appendChild(inputArea);
-    filterDiv.style.float='left';
+    filterDiv.style.float = 'left';
     return filterDiv;
 }
+
 
 filter.NearZipCodeFilter = function(defaultValue, filterCounter, filterAreaID, selectableColumns, instanceName) {
     this.defaultValue = defaultValue;
@@ -415,16 +516,15 @@ filter.DropDownFilter = function(defaultValue, filterCounter, filterAreaID, sele
 
 filter.DropDownFilter.prototype = Object.create(filter.Filter.prototype);
 
+
 filter.DropDownFilter.prototype.render = function() {
     var me = this;
     var columnName = getFilterColumnNameFromOptionValue(this.defaultValue);
     var filterDiv = document.createElement('div');
 
-    var selectColumn = this.createFieldSelect(this.defaultValue, this.filterAreaID, this.filterCounter, this.selectableColumns);
-    selectColumn.addEventListener('change', this.createSelectAreaChangeHandler(
-        selectColumn, this.filterCounter, this.filterAreaID, this.selectableColumns, this.instanceName
-    ));
-    filterDiv.appendChild(selectColumn);
+    var colWrapper = this.createSearchableFieldSelect(this.defaultValue, this.filterAreaID, this.filterCounter, this.selectableColumns);
+    var selectColumn = colWrapper.querySelector('select');
+    filterDiv.appendChild(colWrapper);
 
     var operatorSelect = this.createElement('select', {
         id: this.filterAreaID + this.filterCounter + 'operator',
@@ -434,26 +534,91 @@ filter.DropDownFilter.prototype.render = function() {
     operatorSelect.appendChild(this.createOption('==', 'is equal to'));
     filterDiv.appendChild(operatorSelect);
 
-    var valueSelect = this.createElement('select', {
-        id: this.filterAreaID + this.filterCounter + 'value',
-        className: 'inputbox',
-        style: 'width: 220px;'
-    });
-    valueSelect.appendChild(this.createOption('', '-- Select --'));
+    var wrapper = document.createElement('div');
+    wrapper.style.cssText = 'display:inline-block; position:relative; vertical-align:middle;';
 
+    var display = document.createElement('div');
+    display.className = 'inputbox';
+    display.style.cssText = 'width:220px; cursor:pointer; padding:2px 4px; background:#fff; border:1px solid #999; display:inline-block;';
+    display.innerHTML = '-- Select --';
+
+    var panel = document.createElement('div');
+    panel.style.cssText = 'display:none; position:absolute; z-index:9999; background:#fff; border:1px solid #999; width:220px; box-shadow:2px 2px 4px rgba(0,0,0,0.2);';
+
+    var searchInput = document.createElement('input');
+    searchInput.type = 'text';
+    searchInput.placeholder = 'Search...';
+    searchInput.className = 'inputbox';
+    searchInput.style.cssText = 'width:100%; box-sizing:border-box; padding:2px 4px;';
+
+    var optionList = document.createElement('div');
+    optionList.style.cssText = 'max-height:200px; overflow-y:auto;';
+
+    var allOptions = [{ value: '', label: '-- Select --' }];
     var options = filterDropDownRegistry[columnName] || [];
     for (var i = 0; i < options.length; i++) {
-        valueSelect.appendChild(this.createOption(options[i].value, options[i].label));
+        allOptions.push({ value: options[i].value, label: options[i].label });
     }
-    filterDiv.appendChild(valueSelect);
 
-    valueSelect.addEventListener('change', function() {
-        applyDropDownFilter(me.filterAreaID, me.filterCounter, me.instanceName, columnName);
+    var hiddenValue = document.createElement('input');
+    hiddenValue.type = 'hidden';
+    hiddenValue.id = me.filterAreaID + me.filterCounter + 'value';
+    wrapper.appendChild(hiddenValue);
+
+    function buildList(query) {
+        optionList.innerHTML = '';
+        for (var i = 0; i < allOptions.length; i++) {
+            if (!query || allOptions[i].label.toLowerCase().indexOf(query.toLowerCase()) !== -1) {
+                (function(opt) {
+                    var item = document.createElement('div');
+                    item.style.cssText = 'padding:3px 6px; cursor:pointer;';
+                    item.innerHTML = opt.label;
+                    item.addEventListener('mouseover', function() { item.style.background = '#3366cc'; item.style.color = '#fff'; });
+                    item.addEventListener('mouseout', function() { item.style.background = ''; item.style.color = ''; });
+                    item.addEventListener('mousedown', function(e) {
+                        e.preventDefault();
+                        display.innerHTML = opt.label;
+                        panel.style.display = 'none';
+                        hiddenValue.value = opt.value;
+                        applyDropDownFilter(me.filterAreaID, me.filterCounter, me.instanceName, columnName);
+                    });
+                    optionList.appendChild(item);
+                })(allOptions[i]);
+            }
+        }
+    }
+
+    buildList('');
+    searchInput.addEventListener('keyup', function() { buildList(searchInput.value); });
+    panel.appendChild(searchInput);
+    panel.appendChild(optionList);
+
+    display.addEventListener('click', function() {
+        if (panel.style.display === 'none') {
+            panel.style.display = 'block';
+            searchInput.value = '';
+            buildList('');
+            searchInput.focus();
+        } else {
+            panel.style.display = 'none';
+        }
     });
+
+    document.addEventListener('click', function(e) {
+        if (!wrapper.contains(e.target)) {
+            panel.style.display = 'none';
+        }
+    });
+
+    wrapper.appendChild(display);
+    wrapper.appendChild(panel);
+    filterDiv.appendChild(wrapper);
 
     filterDiv.style.float = 'left';
     return filterDiv;
 }
+
+
 
 function applyDropDownFilter(filterAreaID, filterCounter, instanceName, columnName) {
     var filterArea = document.getElementById('filterArea' + instanceName);

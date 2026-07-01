@@ -449,7 +449,7 @@ class CandidatesUI extends UserInterface
 
         $universitiesRS = $candidates->getPossibleDropDownOptions('university', 'university_id', 'canonical_name', 'short_name');
         $this->_template->assign('universitiesRS', $universitiesRS);
-        $nationalitiesRS = $candidates->getPossibleDropDownOptions('nationality', 'name', 'name');
+        $nationalitiesRS = $candidates->getPossibleDropDownOptions('nationality', 'name', 'name', null, 'sort_order ASC, name ASC');
         $this->_template->assign('nationalitiesRS', $nationalitiesRS);
       
         $sourcesRS = $candidates->getPossibleSources();
@@ -776,7 +776,7 @@ class CandidatesUI extends UserInterface
         $sourcesString = ListEditor::getStringFromList($sourcesRS, 'name');
 
         $universitiesRS = $candidates->getPossibleDropDownOptions('university', 'university_id', 'canonical_name', 'short_name');
-        $nationalitiesRS = $candidates->getPossibleDropDownOptions('nationality', 'name', 'name');
+        $nationalitiesRS = $candidates->getPossibleDropDownOptions('nationality', 'name', 'name', null, 'sort_order ASC, name ASC');
 
         /* Get extra fields. */
         $extraFieldRS = $candidates->extraFields->getValuesForAdd();
@@ -1127,7 +1127,7 @@ class CandidatesUI extends UserInterface
         $sourcesString = ListEditor::getStringFromList($sourcesRS, 'name');
 
         $universitiesRS = $candidates->getPossibleDropDownOptions('university', 'university_id', 'canonical_name', 'short_name');
-        $nationalitiesRS = $candidates->getPossibleDropDownOptions('nationality', 'name', 'name');
+        $nationalitiesRS = $candidates->getPossibleDropDownOptions('nationality', 'name', 'name', null, 'sort_order ASC, name ASC');
         /* Is current source a possible source? */
         // FIXME: Use array search functions!
         $sourceInRS = false;
