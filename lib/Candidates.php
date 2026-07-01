@@ -1032,44 +1032,29 @@ class Candidates
     }
 
     public function getPossibleDropDownOptions($table, $valueColumn, $labelColumn, $shortColumn = null, $orderBy = null)
-{
-    $orderBy = $orderBy ? $orderBy : $labelColumn;
-    $shortSelect = $shortColumn ? ", $table.$shortColumn AS shortName" : ", $table.$labelColumn AS shortName";
+    {
+        $orderBy = $orderBy ? $orderBy : $labelColumn;
+        $shortSelect = $shortColumn ? ", $table.$shortColumn AS shortName" : ", $table.$labelColumn AS shortName";
 
-    $sql = sprintf(
-        "SELECT
-            %s.%s AS optionValue,
-            %s.%s AS optionLabel
-            %s
-        FROM
-            %s
-        ORDER BY
-            %s.%s ASC",
-        $table, $valueColumn,
-        $table, $labelColumn,
-        $shortSelect,
-        $table,
-        $table, $orderBy
-    );
+        $sql = sprintf(
+            "SELECT
+                %s.%s AS optionValue,
+                %s.%s AS optionLabel
+                %s
+            FROM
+                %s
+            ORDER BY
+                %s.%s ASC",
+            $table, $valueColumn,
+            $table, $labelColumn,
+            $shortSelect,
+            $table,
+            $table, $orderBy
+        );
 
-    return $this->_db->getAllAssoc($sql);
-}
+        return $this->_db->getAllAssoc($sql);
+    }
 
-    // public function getPossibleUniversities()
-    // {
-    //     $sql = sprintf(
-    //         "SELECT
-    //             university.university_id AS universityID,
-    //             university.canonical_name AS canonicalName,
-    //             university.short_name AS shortName
-    //         FROM
-    //             university
-    //         ORDER BY
-    //             university.canonical_name ASC"
-    //     );
-
-    //     return $this->_db->getAllAssoc($sql);
-    // }
 
     /**
      * Updates a sites possible sources with an array generated
