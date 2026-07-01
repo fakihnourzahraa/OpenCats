@@ -451,6 +451,9 @@ class CandidatesUI extends UserInterface
         $this->_template->assign('universitiesRS', $universitiesRS);
         $nationalitiesRS = $candidates->getPossibleDropDownOptions('nationality', 'name', 'name');
         $this->_template->assign('nationalitiesRS', $nationalitiesRS);
+      
+        $sourcesRS = $candidates->getPossibleSources();
+        $this->_template->assign('sourcesRS', $sourcesRS);
         
         if (!eval(Hooks::get('CANDIDATE_LIST_BY_VIEW'))) return;
 

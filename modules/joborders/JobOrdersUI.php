@@ -525,6 +525,10 @@ class JobOrdersUI extends UserInterface
         $this->_template->assign('sessionCookie', $_SESSION['CATS']->getCookie());
 
         $candidates = new Candidates($this->_siteID);
+        
+        $sourcesRS = $candidates->getPossibleSources();
+$this->_template->assign('sourcesRS', $sourcesRS);
+
         $universitiesRS = $candidates->getPossibleDropDownOptions('university', 'university_id', 'canonical_name', 'short_name');
         $nationalitiesRS = $candidates->getPossibleDropDownOptions('nationality', 'name', 'name');
         $this->_template->assign('universitiesRS', $universitiesRS);

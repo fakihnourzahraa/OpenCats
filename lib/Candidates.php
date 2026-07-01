@@ -2200,7 +2200,8 @@ class CandidatesDataGrid extends DataGrid
                                      'sortableColumn'    => 'source',
                                      'pagerWidth'   => 140,
                                      'alphaNavigation' => true,
-                                     'filter'         => 'candidate.source'),
+                                     'filter'         => 'candidate.source',
+                                     'filterTypes'    => '=='),
 
             'Available' =>     array('select'   => 'DATE_FORMAT(candidate.date_available, \'%m-%d-%y\') AS dateAvailable',
                                      'sortableColumn'     => 'dateAvailable',

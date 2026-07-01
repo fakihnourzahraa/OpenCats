@@ -22,6 +22,15 @@ use OpenCATS\UI\QuickActionMenu;
             { value: '<?php echo addslashes($n['optionValue']); ?>', label: '<?php echo addslashes($n['optionLabel']); ?>' }<?php echo ($i < count($this->nationalitiesRS) - 1) ? ',' : ''; ?>
         <?php endforeach; ?>
     ];
+filterDropDownRegistry['Source'] = [
+
+    <?php foreach ($this->sourcesRS as $i => $s): ?>
+
+        { value: '<?php echo addslashes($s['name']); ?>', label: '<?php echo addslashes($s['name']); ?>' }<?php echo ($i < count($this->sourcesRS) - 1) ? ',' : ''; ?>
+
+    <?php endforeach; ?>
+
+];
 </script>
         <div id="contents">
             <table>

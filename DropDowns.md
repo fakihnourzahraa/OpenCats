@@ -6,6 +6,7 @@ Two new candidate fields were added to OpenCATS:
 
 - **University** — stored as a foreign key (`university_id`) referencing a `university` reference table. Universities have both a canonical name ("Lebanese American University") and a short name ("LAU"). The dropdown displays both.
 - **Nationality** — stored as a plain varchar (`nationality`) directly on the `candidate` table. The `nationality` table serves purely as a reference/dropdown source, not a relational key (same pattern as `source` on candidate). No join needed in queries.
+- **Sources** 
 
 Both fields appear on the Add, Edit, and Details pages, as well as the Candidates list filter and the Job Order pipeline filter.
 
@@ -252,10 +253,13 @@ candidate.nationality AS nationality,
 
 ---
 
-## 3. `modules/candidates/dataGrids.php` (`CandidatesDataGrid` class)
 
 Added alongside `'GPA'` and `'Tags'` in `_classColumns`. University filters on `university.short_name` (not the numeric ID) so the applied filter displays a human-readable value. Nationality filters directly on `candidate.nationality` (no join needed).
 
+in Source add to the end
+```php
+    'filterTypes'    => '==',
+```
 ```php
 'University' => array(
     'select'         => 'university.canonical_name AS universityCanonicalName,
@@ -289,6 +293,8 @@ Added alongside `'GPA'` and `'Tags'` in `_classColumns`. University filters on `
 
 After the template assign block (note: `$candidates` is already instantiated earlier in this method):
 ```php
+$sourcesRS = $candidates->getPossibleSources();
+$this->_template->assign('sourcesRS', $sourcesRS);
 $universitiesRS = $candidates->getPossibleDropDownOptions('university', 'university_id', 'canonical_name', 'short_name');
 $this->_template->assign('universitiesRS', $universitiesRS);
 $nationalitiesRS = $candidates->getPossibleDropDownOptions('nationality', 'name', 'name');
@@ -597,6 +603,11 @@ Added near the top of the page, before the data grid renders, so `filterDropDown
             { value: '<?php echo addslashes($n['optionValue']); ?>', label: '<?php echo addslashes($n['optionLabel']); ?>' }<?php echo ($i < count($this->nationalitiesRS) - 1) ? ',' : ''; ?>
         <?php endforeach; ?>
     ];
+    filterDropDownRegistry['Source'] = [
+    <?php foreach ($this->sourcesRS as $i => $s): ?>
+        { value: '<?php echo addslashes($s['name']); ?>', label: '<?php echo addslashes($s['name']); ?>' }<?php echo ($i < count($this->sourcesRS) - 1) ? ',' : ''; ?>
+    <?php endforeach; ?>
+    ];
 </script>
 ```
 
@@ -618,6 +629,11 @@ Same script block as `Candidates.tpl` — needed here because the Job Order pipe
             { value: '<?php echo addslashes($n['optionValue']); ?>', label: '<?php echo addslashes($n['optionLabel']); ?>' }<?php echo ($i < count($this->nationalitiesRS) - 1) ? ',' : ''; ?>
         <?php endforeach; ?>
     ];
+    filterDropDownRegistry['Source'] = [
+        <?php foreach ($this->sourcesRS as $i => $s): ?>
+            { value: '<?php echo addslashes($s['name']); ?>', label: '<?php echo addslashes($s['name']); ?>' }<?php echo ($i < count($this->sourcesRS) - 1) ? ',' : ''; ?>
+        <?php endforeach; ?>
+    ];
 </script>
 ```
 
@@ -629,6 +645,8 @@ Added after the template assign block. Note: `Candidates` must be instantiated h
 
 ```php
 $candidates = new Candidates($this->_siteID);
+$sourcesRS = $candidates->getPossibleSources();
+$this->_template->assign('sourcesRS', $sourcesRS);
 $universitiesRS = $candidates->getPossibleDropDownOptions('university', 'university_id', 'canonical_name', 'short_name');
 $nationalitiesRS = $candidates->getPossibleDropDownOptions('nationality', 'name', 'name');
 $this->_template->assign('universitiesRS', $universitiesRS);

@@ -136,7 +136,7 @@ $columnMap = array(
     'GPA'              => 'gpa',
     'Created'          => 'dateCreated',
     'University'       => 'universityShortName',
-    'Nationality'      => 'nationality'
+    'Nationality'      => 'nationality',
 );
 
 if ($filterString !== '')
