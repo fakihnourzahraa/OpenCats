@@ -217,6 +217,12 @@ use OpenCATS\UI\CandidateDuplicateQuickActionMenu;
                                 <td class="vertical">University:</td>
                                 <td class="data"><?php $this->_($this->data['university']); ?></td>
                             </tr>
+
+                            <tr>
+                                <td class="vertical">Nationality:</td>
+                                <td class="data"><?php $this->_($this->data['nationality']); ?></td>
+                            </tr>
+                            
                             <?php for ($i = (intval(count($this->extraFieldRS))/2); $i < (count($this->extraFieldRS)); $i++): ?>
                                 <tr>
                                     <td class="vertical"><?php $this->_($this->extraFieldRS[$i]['fieldName']); ?>:</td>

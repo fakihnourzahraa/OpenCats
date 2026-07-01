@@ -4,11 +4,16 @@
 <?php TemplateUtility::printTabs($this->active); ?>
 <?php $md5InstanceName = md5($this->dataGrid->getInstanceName());?>
 <script type="text/javascript">
-    var universityFilterOptions = [
+    filterDropDownRegistry['University'] = [
         <?php foreach ($this->universitiesRS as $i => $u): ?>
-            { shortName: '<?php echo addslashes($u['shortName']); ?>', label: '<?php echo addslashes($u['shortName'] . ' — ' . $u['canonicalName']); ?>' }<?php echo ($i < count($this->universitiesRS) - 1) ? ',' : ''; ?>
+            { value: '<?php echo addslashes($u['shortName']); ?>', label: '<?php echo addslashes($u['shortName'] . ' — ' . $u['optionLabel']); ?>' }<?php echo ($i < count($this->universitiesRS) - 1) ? ',' : ''; ?>
         <?php endforeach; ?>
     ];
+    filterDropDownRegistry['Nationality'] = [
+    <?php foreach ($this->nationalitiesRS as $i => $n): ?>
+        { value: '<?php echo addslashes($n['optionValue']); ?>', label: '<?php echo addslashes($n['optionLabel']); ?>' }<?php echo ($i < count($this->nationalitiesRS) - 1) ? ',' : ''; ?>
+    <?php endforeach; ?>
+];
 </script>
     <style type="text/css">
     div.addCandidateButton { background: #4172E3 url(images/nodata/candidatesButton.jpg); cursor: pointer; width: 337px; height: 67px; }

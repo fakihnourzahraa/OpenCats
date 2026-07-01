@@ -447,8 +447,10 @@ class CandidatesUI extends UserInterface
         $this->_template->assign('topLog', $topLog);
         $this->_template->assign('tagsRS', $tagsRS);
 
-        $universitiesRS = $candidates->getPossibleUniversities();
+        $universitiesRS = $candidates->getPossibleDropDownOptions('university', 'university_id', 'canonical_name', 'short_name');
         $this->_template->assign('universitiesRS', $universitiesRS);
+        $nationalitiesRS = $candidates->getPossibleDropDownOptions('nationality', 'name', 'name');
+        $this->_template->assign('nationalitiesRS', $nationalitiesRS);
         
         if (!eval(Hooks::get('CANDIDATE_LIST_BY_VIEW'))) return;
 
@@ -770,7 +772,8 @@ class CandidatesUI extends UserInterface
         $sourcesRS = $candidates->getPossibleSources();
         $sourcesString = ListEditor::getStringFromList($sourcesRS, 'name');
 
-        $universitiesRS = $candidates->getPossibleUniversities();
+        $universitiesRS = $candidates->getPossibleDropDownOptions('university', 'university_id', 'canonical_name', 'short_name');
+        $nationalitiesRS = $candidates->getPossibleDropDownOptions('nationality', 'name', 'name');
 
         /* Get extra fields. */
         $extraFieldRS = $candidates->extraFields->getValuesForAdd();
@@ -898,6 +901,8 @@ class CandidatesUI extends UserInterface
         $this->_template->assign('EEOSettingsRS', $EEOSettingsRS);
         $this->_template->assign('isModal', false);
         $this->_template->assign('universitiesRS', $universitiesRS);
+        $this->_template->assign('nationalitiesRS', $nationalitiesRS);
+        
 
         /* REMEMBER TO ALSO UPDATE JobOrdersUI::addCandidateModal() IF
          * APPLICABLE.
@@ -941,7 +946,7 @@ class CandidatesUI extends UserInterface
                 'disability'      => $this->getTrimmedInput('disability', $_POST),
                 'documentTempFile'=> $this->getTrimmedInput('documentTempFile', $_POST),
                 'isFromParser'    => true,
-                'gpa'=> $this->getTrimmedInput('gpa', $_POST),
+                'gpa'             => $this->getTrimmedInput('gpa', $_POST),
             );
 
             /**
@@ -1118,7 +1123,8 @@ class CandidatesUI extends UserInterface
         $sourcesRS = $candidates->getPossibleSources();
         $sourcesString = ListEditor::getStringFromList($sourcesRS, 'name');
 
-        $universitiesRS = $candidates->getPossibleUniversities();
+        $universitiesRS = $candidates->getPossibleDropDownOptions('university', 'university_id', 'canonical_name', 'short_name');
+        $nationalitiesRS = $candidates->getPossibleDropDownOptions('nationality', 'name', 'name');
         /* Is current source a possible source? */
         // FIXME: Use array search functions!
         $sourceInRS = false;
@@ -1182,6 +1188,7 @@ class CandidatesUI extends UserInterface
         $this->_template->assign('EEOSettingsRS', $EEOSettingsRS);
         $this->_template->assign('emailTemplateDisabled', $emailTemplateDisabled);
         $this->_template->assign('universitiesRS', $universitiesRS);
+        $this->_template->assign('nationalitiesRS', $nationalitiesRS);
         $this->_template->display('./modules/candidates/Edit.tpl');
     }
 
@@ -1354,6 +1361,7 @@ class CandidatesUI extends UserInterface
         $sourceCSV       = $this->getTrimmedInput('sourceCSV', $_POST);
         $universityID = $this->getTrimmedInput('universityID', $_POST);
         $universityID = ($universityID > 0) ? $universityID : null;
+        $nationality = $this->getTrimmedInput('nationality', $_POST);
         /* Bail out if any of the required fields are empty. */
         if (empty($firstName) || empty($lastName))
         {
@@ -1397,7 +1405,8 @@ class CandidatesUI extends UserInterface
             $veteran,
             $disability,
             $gpa,
-            $universityID
+            $universityID,
+            $nationality
         );
         if (!$updateSuccess)
         {
@@ -2627,8 +2636,9 @@ class CandidatesUI extends UserInterface
         $veteran         = $this->getTrimmedInput('veteran', $_POST);
         $disability      = $this->getTrimmedInput('disability', $_POST);
         $gpa             = $this->getTrimmedInput('gpa', $_POST);
-        $universityID = $this->getTrimmedInput('universityID', $_POST);
-        $universityID = ($universityID > 0) ? $universityID : null;
+        $universityID    = $this->getTrimmedInput('universityID', $_POST);
+        $universityID    = ($universityID > 0) ? $universityID : null;
+        $nationality     = $this->getTrimmedInput('nationality', $_POST);
         /* Candidate source list editor. */
         $sourceCSV = $this->getTrimmedInput('sourceCSV', $_POST);
 
@@ -2681,10 +2691,10 @@ class CandidatesUI extends UserInterface
             $veteran,
             $disability,
             $gpa,
-            $universityID
+            $universityID,
+            $nationality
         );
 
-        
         if ($candidateID <= 0)
         {
             return $candidateID;

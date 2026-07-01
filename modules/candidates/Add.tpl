@@ -518,6 +518,22 @@
                         </td>
                     </tr>
 
+                    <tr>
+                        <td class="tdVertical">
+                            <label id="nationalityLabel" for="nationality">Nationality:</label>
+                        </td>
+                        <td class="tdData">
+                            <select tabindex="X" id="nationality" name="nationality" class="inputbox" style="width: 250px;">
+                                <option value="">-- Select Nationality --</option>
+                                <?php foreach ($this->nationalitiesRS as $nationalityData): ?>
+                                    <option value="<?php $this->_($nationalityData['optionValue']) ?>">
+                                        <?php $this->_($nationalityData['optionLabel']) ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </td>
+                    </tr>
+
 
                 </table>
 

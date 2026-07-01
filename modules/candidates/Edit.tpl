@@ -413,6 +413,24 @@
                         </select>
                     </td>
                 </tr>
+
+                <tr>
+                    <td class="tdVertical">
+                        <label id="nationalityLabel" for="nationality">Nationality:</label>
+                    </td>
+                    <td class="tdData">
+                        <select tabindex="X" id="nationality" name="nationality" class="inputbox" style="width: 250px;">
+                            <option value="">-- Select Nationality --</option>
+                            <?php foreach ($this->nationalitiesRS as $nationalityData): ?>
+                                <option value="<?php $this->_($nationalityData['optionValue']) ?>"
+                                    <?php if (isset($this->data['nationality']) && $this->data['nationality'] == $nationalityData['optionValue']) echo('selected'); ?>>
+                                    <?php $this->_($nationalityData['optionLabel']) ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </td>
+                </tr>
+
                 </table>
                 <input type="submit" class="button" name="submit" id="submit" value="Save" />&nbsp;
                 <input type="reset"  class="button" name="reset"  id="reset"  value="Reset" onclick="resetFormForeign();" />&nbsp;

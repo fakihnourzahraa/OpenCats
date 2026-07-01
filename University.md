@@ -381,16 +381,4 @@ will show no options (it will not error, just appear blank under
 "-- Select University --"). Confirm this assign is actually inside
 `listByView()` and not accidentally left in `add()`/`edit()` only.
 
-## Known bug fixed during implementation
-
-In `_addCandidate()`, the line:
-```php
-$universityID = ($universityID > 0) ? $universityID : null;
-```
-originally referenced `$universityID` before it was ever read from
-`$_POST`, causing it to always evaluate to `null`/`0` regardless of the
-dropdown selection. Fixed by reading the posted value first:
-```php
-$universityID = $this->getTrimmedInput('universityID', $_POST);
-$universityID = ($universityID > 0) ? $universityID : null;
 ```

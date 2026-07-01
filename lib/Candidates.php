@@ -96,7 +96,7 @@ class Candidates
         $phoneHome, $phoneCell, $phoneWork, $address, $city, $state, $zip,
         $source, $keySkills, $dateAvailable, $currentEmployer, $canRelocate,
         $currentPay, $desiredPay, $notes, $webSite, $bestTimeToCall, $enteredBy, $owner,
-        $gender = '', $race = '', $veteran = '', $disability = '', $gpa = '', $universityID = 0,
+        $gender = '', $race = '', $veteran = '', $disability = '', $gpa = '', $universityID = 0, $nationality = '',
         $skipHistory = false)
     {
         $sql = sprintf(
@@ -134,7 +134,8 @@ class Candidates
                 eeo_disability_status,
                 eeo_gender,
                 gpa,
-                university_id
+                university_id,
+                nationality
             )
             VALUES (
                 %s,
@@ -165,6 +166,7 @@ class Candidates
                 %s,
                 NOW(),
                 NOW(),
+                %s,
                 %s,
                 %s,
                 %s,
@@ -202,7 +204,8 @@ class Candidates
             $this->_db->makeQueryString($disability),
             $this->_db->makeQueryString($gender),
             $this->_db->makeQueryDouble($gpa),
-            $this->_db->makeQueryInteger($universityID)
+            $this->_db->makeQueryInteger($universityID),
+            $this->_db->makeQueryString($nationality)
         );
         $queryResult = $this->_db->query($sql);
         if (!$queryResult)
@@ -259,7 +262,7 @@ class Candidates
         $city, $state, $zip, $source, $keySkills, $dateAvailable,
         $currentEmployer, $canRelocate, $currentPay, $desiredPay,
         $notes, $webSite, $bestTimeToCall, $owner, $isHot, $email, $emailAddress,
-        $gender = '', $race = '', $veteran = '', $disability = '', $gpa ='', $universityID = 0)
+        $gender = '', $race = '', $veteran = '', $disability = '', $gpa ='', $universityID = 0, $nationality = '')
     {
         $sql = sprintf(
             "UPDATE
@@ -296,7 +299,8 @@ class Candidates
                 eeo_disability_status = %s,
                 eeo_gender            = %s,
                 gpa                   = %s,
-                university_id         = %s
+                university_id         = %s,
+                nationality           = %s
             WHERE
                 candidate_id = %s
             AND
@@ -332,6 +336,7 @@ class Candidates
             $this->_db->makeQueryString($gender),
             $this->_db->makeQueryDouble($gpa),
             $this->_db->makeQueryInteger($universityID),
+            $this->_db->makeQueryString($nationality),
             $this->_db->makeQueryInteger($candidateID),
             $this->_siteID
         );
@@ -501,6 +506,7 @@ class Candidates
                 candidate.university_id AS universityID,
                 university.canonical_name AS universityCanonicalName,
                 university.short_name AS universityShortName,
+                candidate.nationality AS nationality,
                 DATE_FORMAT(
                     candidate.date_created, '%%m-%%d-%%y (%%h:%%i %%p)'
                 ) AS dateCreated,
@@ -645,6 +651,7 @@ class Candidates
                 candidate.is_admin_hidden AS isAdminHidden,
                 candidate.gpa AS gpa,
                 candidate.university_id AS universityID,
+                candidate.nationality AS nationality,
                 DATE_FORMAT(
                     candidate.date_available, '%%m-%%d-%%y'
                 ) AS dateAvailable
@@ -1024,21 +1031,45 @@ class Candidates
         return $this->_db->getAllAssoc($sql);
     }
 
-    public function getPossibleUniversities()
-    {
-        $sql = sprintf(
-            "SELECT
-                university.university_id AS universityID,
-                university.canonical_name AS canonicalName,
-                university.short_name AS shortName
-            FROM
-                university
-            ORDER BY
-                university.canonical_name ASC"
-        );
+    public function getPossibleDropDownOptions($table, $valueColumn, $labelColumn, $shortColumn = null, $orderBy = null)
+{
+    $orderBy = $orderBy ? $orderBy : $labelColumn;
+    $shortSelect = $shortColumn ? ", $table.$shortColumn AS shortName" : ", $table.$labelColumn AS shortName";
 
-        return $this->_db->getAllAssoc($sql);
-    }
+    $sql = sprintf(
+        "SELECT
+            %s.%s AS optionValue,
+            %s.%s AS optionLabel
+            %s
+        FROM
+            %s
+        ORDER BY
+            %s.%s ASC",
+        $table, $valueColumn,
+        $table, $labelColumn,
+        $shortSelect,
+        $table,
+        $table, $orderBy
+    );
+
+    return $this->_db->getAllAssoc($sql);
+}
+
+    // public function getPossibleUniversities()
+    // {
+    //     $sql = sprintf(
+    //         "SELECT
+    //             university.university_id AS universityID,
+    //             university.canonical_name AS canonicalName,
+    //             university.short_name AS shortName
+    //         FROM
+    //             university
+    //         ORDER BY
+    //             university.canonical_name ASC"
+    //     );
+
+    //     return $this->_db->getAllAssoc($sql);
+    // }
 
     /**
      * Updates a sites possible sources with an array generated
@@ -2271,17 +2302,28 @@ class CandidatesDataGrid extends DataGrid
                                     'filter'         => 'candidate.gpa',
                                     'filterTypes'    => '=><==',
                                 ),
-            'University' => array(
-                                'select'         => 'university.canonical_name AS universityCanonicalName,
-                                                    university.short_name AS universityShortName',
-                                'join'           => 'LEFT JOIN university ON university.university_id = candidate.university_id',
-                                'pagerRender'    => 'return !empty($rsData[\'universityShortName\']) ? htmlspecialchars($rsData[\'universityShortName\']) : \'\';',
-                                'sortableColumn' => 'universityCanonicalName',
-                                'pagerWidth'     => 100,
-                                'pagerOptional'  => true,
-                                'filter'         => 'university.short_name',
-                                'filterTypes'    => '==',
-                            ),
+            'University' =>     array(
+                                    'select'         => 'university.canonical_name AS universityCanonicalName,
+                                                        university.short_name AS universityShortName',
+                                    'join'           => 'LEFT JOIN university ON university.university_id = candidate.university_id',
+                                    'pagerRender'    => 'return !empty($rsData[\'universityShortName\']) ? htmlspecialchars($rsData[\'universityShortName\']) : \'\';',
+                                    'exportRender'   => 'return !empty($rsData[\'universityShortName\']) ? $rsData[\'universityShortName\'] . \' — \' . $rsData[\'universityCanonicalName\'] : \'\';',
+                                    'sortableColumn' => 'universityCanonicalName',
+                                    'pagerWidth'     => 100,
+                                    'pagerOptional'  => true,
+                                    'filter'         => 'university.short_name',
+                                    'filterTypes'    => '==',
+                                ),
+            'Nationality' =>    array(
+                                    'select'         => 'candidate.nationality AS nationality',
+                                    'pagerRender'    => 'return !empty($rsData[\'nationality\']) ? htmlspecialchars($rsData[\'nationality\']) : \'\';',
+                                    'exportRender'   => 'return !empty($rsData[\'nationality\']) ? $rsData[\'nationality\'] : \'\';',
+                                    'sortableColumn' => 'nationality',
+                                    'pagerWidth'     => 100,
+                                    'pagerOptional'  => true,
+                                    'filter'         => 'candidate.nationality',
+                                    'filterTypes'    => '==',
+                                ),
         // Tags filtering
         	'Tags'	=>			array(
                                      'select'	=> '(
