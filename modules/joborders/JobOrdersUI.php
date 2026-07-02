@@ -319,7 +319,7 @@ class JobOrdersUI extends UserInterface
         $jobOrderFilters = JobOrderStatuses::getFilters();
 
         $dataGridProperties = DataGrid::getRecentParamaters("joborders:JobOrdersListByViewDataGrid");
-
+        
         /* If this is the first time we visited the datagrid this session, the recent paramaters will
          * be empty.  Fill in some default values. */
         if ($dataGridProperties == array())
@@ -536,22 +536,43 @@ $this->_template->assign('sourcesRS', $sourcesRS);
 
         if (!eval(Hooks::get('JO_SHOW'))) return;
 
-        $dataGridProperties = DataGrid::getRecentParamaters('joborders:PipelineCandidatesDataGrid');
-        if ($dataGridProperties == array())
-        {
-            $dataGridProperties = array(
-                'rangeStart'    => 0,
-                'maxResults'    => 15,
-                'filterVisible' => true,
-                'filter'        => 'First+Name=~',
-            );
-        }
+    //     $dataGridProperties = DataGrid::getRecentParamaters('joborders:PipelineCandidatesDataGrid');
+    //     if ($dataGridProperties == array())
+    //     {
+    //         $dataGridProperties = array(
+    //             'rangeStart'    => 0,
+    //             'maxResults'    => 15,
+    //             'filterVisible' => true,
+    //             'filter'        => 'First+Name=~',
+    //         );
+    //     }
 
-        $dataGrid = new PipelineCandidatesDataGrid($this->_siteID, $dataGridProperties, 0);
-        $this->_template->assign('dataGrid', $dataGrid);
-        $this->_template->assign('userID', $_SESSION['CATS']->getUserID());
-        $this->_template->display('./modules/joborders/Show.tpl');
-    }
+    //     $dataGrid = new PipelineCandidatesDataGrid($this->_siteID, $dataGridProperties, 0);
+    //     $this->_template->assign('dataGrid', $dataGrid);
+    //     $this->_template->assign('userID', $_SESSION['CATS']->getUserID());
+    //     $this->_template->display('./modules/joborders/Show.tpl');
+
+$savedPipelineFilter = isset($_SESSION['pipelineFilter'][$jobOrderID])
+    ? $_SESSION['pipelineFilter'][$jobOrderID]
+    : '';
+
+$dataGridProperties = DataGrid::getRecentParamaters('joborders:PipelineCandidatesDataGrid');
+if ($dataGridProperties == array())
+{
+    $dataGridProperties = array(
+        'rangeStart'    => 0,
+        'maxResults'    => 15,
+        'filterVisible' => true,
+        'filter'        => $savedPipelineFilter !== '' ? $savedPipelineFilter : 'First+Name=~',
+    );
+}
+
+$dataGrid = new PipelineCandidatesDataGrid($this->_siteID, $dataGridProperties, 0);
+$this->_template->assign('dataGrid', $dataGrid);
+$this->_template->assign('userID', $_SESSION['CATS']->getUserID());
+$this->_template->assign('savedPipelineFilter', $savedPipelineFilter);
+$this->_template->display('./modules/joborders/Show.tpl');
+}
 
     /*
      * Called by handleRequest() to render the add popup.

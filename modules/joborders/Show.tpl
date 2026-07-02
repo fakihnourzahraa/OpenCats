@@ -24,6 +24,9 @@ use OpenCATS\UI\QuickActionMenu;
     ];
     
 </script>
+<input type="hidden"
+    id="filterArea<?php echo md5('joborders:PipelineCandidatesDataGrid'); ?>"
+    value="<?php echo htmlspecialchars($this->savedPipelineFilter); ?>" />
         <div id="contents">
             <table>
                 <tr>
@@ -372,7 +375,7 @@ use OpenCATS\UI\QuickActionMenu;
                         &nbsp;&nbsp;&nbsp;&nbsp;
                         <a id="history_link" href="<?php echo(CATSUtility::getIndexName()); ?>?m=settings&amp;a=viewItemHistory&amp;dataItemType=400&amp;dataItemID=<?php echo($this->jobOrderID); ?>">
                             <img src="images/icon_clock.gif" width="16" height="16" class="absmiddle"  border="0" />&nbsp;View History
-                        </a>
+                        </a
                     <?php endif; ?>
                 </span>
             </div>
@@ -384,18 +387,21 @@ use OpenCATS\UI\QuickActionMenu;
             <?php $this->dataGrid->drawFilterArea(); ?>
 
             <script type="text/javascript">
-            document.addEventListener('DOMContentLoaded', function() {
-                var filterArea = document.getElementById(
-                    'filterResultsArea<?php echo md5('joborders:PipelineCandidatesDataGrid'); ?>'
-                );
-                if (filterArea) filterArea.style.display = '';
-                showNewFilter<?php echo md5('joborders:PipelineCandidatesDataGrid'); ?>();
-            });
+document.addEventListener('DOMContentLoaded', function() {
+    var filterArea = document.getElementById(
+        'filterResultsArea<?php echo md5('joborders:PipelineCandidatesDataGrid'); ?>'
+    );
+    if (filterArea) filterArea.style.display = '';
+
+    <?php if (!empty($this->savedPipelineFilter)): ?>
+    submitFilter<?php echo md5('joborders:PipelineCandidatesDataGrid'); ?>(true);
+    <?php else: ?>
+    showNewFilter<?php echo md5('joborders:PipelineCandidatesDataGrid'); ?>();
+    <?php endif; ?>
+});
             </script>
 
-            <input type="hidden"
-                id="filterArea<?php echo md5('joborders:PipelineCandidatesDataGrid'); ?>"
-                value="" />
+
 
             <script type="text/javascript">
             var pipelineDataGridFilterID =

@@ -119,6 +119,7 @@ foreach ($pipelinesRS as $rowIndex => $row)
 
 $filterString = isset($_REQUEST['filterString']) ? trim($_REQUEST['filterString']) : '';
 
+$_SESSION['pipelineFilter'][$jobOrderID] = $filterString;
 $columnMap = array(
     'First Name'       => 'firstName',
     'Last Name'        => 'lastName',
