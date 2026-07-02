@@ -199,22 +199,6 @@ $filterOperator = isset($_REQUEST['filterOperator']) ? trim($_REQUEST['filterOpe
 
 **Change 2 — added filter logic** right before the sort block:
 ```php
-/* Filter the data. */ nope?
-if ($filterValue !== '')
-{
-    $pipelinesRS = array_filter($pipelinesRS, function($row) use ($filterColumn, $filterOperator, $filterValue) {
-        $fieldValue = strtolower(isset($row[$filterColumn]) ? $row[$filterColumn] : '');
-        $search     = strtolower($filterValue);
-        switch ($filterOperator) {
-            case '==': return $fieldValue == $search;
-            case '=~': return strpos($fieldValue, $search) !== false;
-            case '=>':  return $fieldValue >= $search;
-            case '=<':  return $fieldValue <= $search;
-            default:    return true;
-        }
-    });
-    $pipelinesRS = array_values($pipelinesRS);
-}
 
 $filterString = isset($_REQUEST['filterString']) ? trim($_REQUEST['filterString']) : '';
 

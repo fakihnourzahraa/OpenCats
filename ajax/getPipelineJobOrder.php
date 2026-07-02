@@ -117,7 +117,6 @@ foreach ($pipelinesRS as $rowIndex => $row)
 }
 
 
-
 $filterString = isset($_REQUEST['filterString']) ? trim($_REQUEST['filterString']) : '';
 
 $columnMap = array(
