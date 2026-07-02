@@ -419,5 +419,3 @@ On every AJAX pipeline reload, `pipeline.js` reads the hidden input and sends `f
 On the server side, `getJobOrderPipeline()` only returns core candidate fields — extra field values live in the `extra_field` table and are not part of that query. To make them filterable, `getPipelineJobOrder.php` calls `getExtraFieldsForPipelineCandidates()` after the main fetch, which does a single bulk query for all extra field values across all candidates in the pipeline, then merges them into each row. The column map is then extended dynamically via `getExtraFieldDefinitions()` so the filter logic can resolve extra field display names to the correct row keys.
 
 The result is that after the merge, each `$pipelinesRS` row contains both its core fields and any extra field values the candidate has, and the filter closure can reach all of them uniformly.
-
-**To add a new built-in field to the filter** (one that comes from `getJobOrderPipeline()`): add it to the static `$columnMap` in `getPipelineJobOrder.php` mapping its display name to its SQL alias. Extra fields require no manual addition — they are discovered and mapped automatically.

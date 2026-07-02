@@ -4,7 +4,7 @@ This document contains the exact code changes needed to implement three features
 
 1. **GPA** field on candidates (add/edit/display/filter)
 2. **Created** date range filtering (candidates list and job order pipeline)
-3. **Interview Stage** field on candidate-joborder pipeline entries (partially complete — see note at bottom)
+3. **Modified** date range filtering (candidates list and job order pipeline)
 
 Each section below names the file, says where the change goes, and gives the code verbatim so it can be copied directly into the codebase.
 
@@ -16,7 +16,6 @@ Run these against the database before anything else:
 
 ```sql
 ALTER TABLE candidate ADD COLUMN gpa DECIMAL(3,2) DEFAULT NULL;
-ALTER TABLE candidate_joborder ADD COLUMN interview_stage text COLLATE utf8_unicode_ci;
 ```
 
 ---
@@ -89,13 +88,13 @@ $gpa = $this->getTrimmedInput('gpa', $_POST);
 
 ### `lib/Candidates.php`
 
-**`add()` function signature** — add `$gpa = ''` as a new parameter after `$disability`:
+**`add()` function signature** add `$gpa = ''` as a new parameter after `$disability`:
 
 ```php
 $gender = '', $race = '', $veteran = '', $disability = '', $gpa = '',
 ```
 
-**`add()` INSERT statement** — add `gpa` to the column list and a corresponding `%s` placeholder to the VALUES list, then pass the value through using:
+**`add()` INSERT statement**  add `gpa` to the column list and a corresponding `%s` placeholder to the VALUES list, then pass the value through using:
 
 ```php
 $this->_db->makeQueryDouble($gpa)
@@ -103,37 +102,37 @@ $this->_db->makeQueryDouble($gpa)
 
 (as the final value in the `sprintf()` argument list, immediately after `$this->_db->makeQueryString($gender)`)
 
-**`update()` function signature** (around line 259) — add `$gpa = ''` as a new parameter:
+**`update()` function signature** (around line 259)  add `$gpa = ''` as a new parameter:
 
 ```php
 $gender = '', $race = '', $veteran = '', $disability = '', $gpa = '')
 ```
 
-**`update()` SET clause** (around line 296) — add:
+**`update()` SET clause** (around line 296)  add:
 
 ```php
 gpa = %s
 ```
 
-**`update()` value list** (around line 329) — add:
+**`update()` value list** (around line 329)  add:
 
 ```php
 $this->_db->makeQueryDouble($gpa),
 ```
 
-**`get()` function** (around line 495) — add to the SELECT clause:
+**`get()` function** (around line 495)  add to the SELECT clause:
 
 ```php
 candidate.gpa AS gpa,
 ```
 
-**`getForEditing()` function** (around line 636) — add to the SELECT clause:
+**`getForEditing()` function** (around line 636)  add to the SELECT clause:
 
 ```php
 candidate.gpa AS gpa,
 ```
 
-**`CandidatesDataGrid::_classColumns`** — add a new `GPA` entry to the array:
+**`CandidatesDataGrid::_classColumns`**  add a new `GPA` entry to the array:
 
 ```php
 'GPA'  =>          array(
@@ -222,7 +221,7 @@ if (strpos($data, '=<') !== false)
 }
 ```
 
-Do the same for the `=>` (is greater than) block — change `makeQueryInteger` to `makeQueryDouble` in both the `filter` and `filterHaving` lines.
+Do the same for the `=>` (is greater than) block, change `makeQueryInteger` to `makeQueryDouble` in both the `filter` and `filterHaving` lines.
 
 **New date operator blocks.** Add these new blocks (alongside the existing `=<`, `=>`, `=~`, `==`, `=#`, `=@` blocks in the same `foreach ($arguments as $argument)` loop):
 
@@ -282,11 +281,11 @@ switch ($filterOperator)
 }
 ```
 
-(The `=d>` and `=d<` cases are the new addition — the rest already existed.)
+(The `=d>` and `=d<` cases are the new addition)
 
 ### `js/dataGridFilters.js`
 
-**`filter.getNames()`** — replace with:
+**`filter.getNames()`** replace with:
 
 ```javascript
 getNames: function() {
@@ -303,7 +302,7 @@ getNames: function() {
 },
 ```
 
-**`filter.FilterFactory.createFromPossibleOperatorType`** — add these two `else if` branches before the final `else`:
+**`filter.FilterFactory.createFromPossibleOperatorType`** add these two `else if` branches before the final `else`:
 
 ```javascript
 } else if (getFilterColumnNameFromOptionValue(possibleOperatorType) == 'GPA') {
@@ -313,7 +312,7 @@ getNames: function() {
 }
 ```
 
-**New code — add at the end of the file:**
+**New code add at the end of the file:**
 
 ```javascript
 filter.GPAFilter = function(defaultValue, filterCounter, filterAreaID, selectableColumns, instanceName) {
@@ -336,7 +335,7 @@ filter.GPAFilter.prototype.render = function() {
     ));
     filterDiv.appendChild(selectColumn);
 
-    /* Operator dropdown: is equal to, is between */
+
     var operatorSelect = this.createElement('select', {
         id: this.filterAreaID + this.filterCounter + 'operator',
         className: 'inputbox',
@@ -348,7 +347,7 @@ filter.GPAFilter.prototype.render = function() {
 
     filterDiv.appendChild(operatorSelect);
 
-    /* Single value input */
+    
     var singleInput = this.createElement('input', {
         id: this.filterAreaID + this.filterCounter + 'value',
         className: 'inputbox',
@@ -360,7 +359,7 @@ filter.GPAFilter.prototype.render = function() {
     });
     filterDiv.appendChild(singleInput);
 
-    /* Range inputs (hidden by default) */
+    
     var rangeSpan = this.createElement('span', {
         id: this.filterAreaID + this.filterCounter + 'range',
         style: 'display:none;'
@@ -388,7 +387,6 @@ filter.GPAFilter.prototype.render = function() {
     rangeSpan.appendChild(maxInput);
     filterDiv.appendChild(rangeSpan);
 
-    /* Toggle single/range inputs based on operator */
     var updateHandler = function() {
         var op = document.getElementById(me.filterAreaID + me.filterCounter + 'operator').value;
         var single = document.getElementById(me.filterAreaID + me.filterCounter + 'value');
@@ -425,7 +423,7 @@ function applyGPAFilter(filterAreaID, filterCounter, instanceName) {
     var filterArea = document.getElementById('filterArea' + instanceName);
     var filterVal = filterArea.value;
 
-    /* Remove existing GPA filters */
+    
     filterVal = filterVal.replace(/,?GPA==[^,]*/g, '');
     filterVal = filterVal.replace(/,?GPA=>[^,]*/g, '');
     filterVal = filterVal.replace(/,?GPA=<[^,]*/g, '');
@@ -464,7 +462,7 @@ filter.DateRangeFilter.prototype.render = function() {
     ));
     filterDiv.appendChild(selectColumn);
 
-    /* Operator dropdown */
+    
     var operatorSelect = this.createElement('select', {
         id: this.filterAreaID + this.filterCounter + 'operator',
         className: 'inputbox',
@@ -477,7 +475,7 @@ filter.DateRangeFilter.prototype.render = function() {
 
     filterDiv.appendChild(operatorSelect);
 
-    /* Single date input */
+    
     var singleInput = this.createElement('input', {
         id: this.filterAreaID + this.filterCounter + 'value',
         className: 'inputbox',
@@ -487,7 +485,7 @@ filter.DateRangeFilter.prototype.render = function() {
     });
     filterDiv.appendChild(singleInput);
 
-    /* Range inputs (hidden by default) */
+    
     var rangeSpan = this.createElement('span', {
         id: this.filterAreaID + this.filterCounter + 'range',
         style: 'display:none;'
@@ -512,7 +510,7 @@ filter.DateRangeFilter.prototype.render = function() {
     rangeSpan.appendChild(toInput);
     filterDiv.appendChild(rangeSpan);
 
-    /* Toggle inputs based on operator */
+    
     var updateHandler = function() {
         var op = document.getElementById(me.filterAreaID + me.filterCounter + 'operator').value;
         var single = document.getElementById(me.filterAreaID + me.filterCounter + 'value');
@@ -548,7 +546,7 @@ function applyDateRangeFilter(filterAreaID, filterCounter, instanceName, columnN
     var filterArea = document.getElementById('filterArea' + instanceName);
     var filterVal = filterArea.value;
 
-    /* Remove existing filters for this column */
+    
     var escapedColumn = columnName.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
     filterVal = filterVal.replace(/,?Created=d>[^,]*/g, '');
     filterVal = filterVal.replace(/,?Created=d<[^,]*/g, '');
@@ -580,7 +578,7 @@ The job order pipeline ("Candidate in Job Order" section on the Job Order detail
 
 ### `ajax/getPipelineJobOrder.php`
 
-**`$columnMap`** — add `GPA` and `Created`:
+**`$columnMap`** add `GPA` and `Created`:
 
 ```php
 $columnMap = array(
@@ -601,13 +599,13 @@ $columnMap = array(
 );
 ```
 
-**`$operators` array** — add the 3-character date operators (order matters — they must be checked before the 2-character `=>`/`=<` so they match first):
+**`$operators` array** add the 3-character date operators (order matters they must be checked before the 2-character `=>`/`=<` so they match first):
 
 ```php
 $operators = array('=d>', '=d<', '=~', '==', '=>', '=<');
 ```
 
-**Filter comparison callback** — find this line:
+**Filter comparison callback** find this line:
 
 ```php
 $fieldValue = isset($row[$col]) ? $row[$col] : '';
@@ -671,14 +669,14 @@ var opNames = {'==':'is equal to','=~':'contains','=>':'is greater than','=<':'i
 
 ---
 
-## 5. Interview Stage Feature (UI complete — backend wiring not yet done)
+## 5. Interview Stage Feature (UI complete backend wiring not yet done)
 
 ### Database
 ```sql
 ALTER TABLE candidate_joborder ADD COLUMN interview_stage text COLLATE utf8_unicode_ci;
 ```
 
-### `Edit.tpl` (location to be confirmed — wherever the interview stage field is meant to live)
+### `Edit.tpl` (location to be confirmed wherever the interview stage field is meant to live)
 
 ```php
 <tr>
@@ -703,16 +701,16 @@ ALTER TABLE candidate_joborder ADD COLUMN interview_stage text COLLATE utf8_unic
 
 ### ⚠️ Still needed (not yet implemented)
 
-`interview_stage` lives on `candidate_joborder`, **not** `candidate` — so it cannot be wired through `Candidates::add()` / `Candidates::update()` like GPA was. The following still needs to be done, following the same pattern used for GPA:
+`interview_stage` lives on `candidate_joborder`, **not** `candidate` so it cannot be wired through `Candidates::add()` / `Candidates::update()` like GPA was. The following still needs to be done, following the same pattern used for GPA:
 
 1. Add `candidate_joborder.interview_stage AS interviewStage` to whichever `SELECT` populates `$this->data['interviewStage']` for the edit page (likely in `Pipelines.php`, in the function that loads the candidate/job-order pairing being edited).
 2. Add an `$interviewStage` parameter to whichever function persists pipeline-entry changes (likely `Pipelines.php`, an `update()`-style function operating on `candidate_joborder`), and add `interview_stage = %s` to its `UPDATE` statement, passed through with `makeQueryString($interviewStage)`.
 3. In the controller (`CandidatesUI.php` or wherever the pipeline edit form posts to), read `$interviewStage = $this->getTrimmedInput('interviewStage', $_POST);` and pass it into that update function.
-4. The `interviewStageCSV` hidden field follows the same list-editor pattern used elsewhere in the codebase (e.g. `sourceCSV`) — if the dropdown is meant to be user-editable rather than fixed, this would need a corresponding `ListEditor::getDifferencesFromList()` call and a `getPossibleInterviewStages()` / `updatePossibleInterviewStages()` pair analogous to `getPossibleSources()` / `updatePossibleSources()` in `Candidates.php`. If the list is meant to stay fixed (as hardcoded in the `<select>` above), the CSV/list-editor wiring can be removed entirely.
+4. The `interviewStageCSV` hidden field follows the same list-editor pattern used elsewhere in the codebase (e.g. `sourceCSV`) if the dropdown is meant to be user-editable rather than fixed, this would need a corresponding `ListEditor::getDifferencesFromList()` call and a `getPossibleInterviewStages()` / `updatePossibleInterviewStages()` pair analogous to `getPossibleSources()` / `updatePossibleSources()` in `Candidates.php`. If the list is meant to stay fixed (as hardcoded in the `<select>` above), the CSV/list-editor wiring can be removed entirely.
 
 ---
 
 ## Known Issues / Follow-ups
 
-- **Filter pill rendering on page reload (back-navigation):** GPA/Created filter pills that are restored from a fresh PHP page load (i.e. `drawFilterArea()` in `lib/DataGrid.php`, rather than a filter freshly added via the JS dropdown) may render using the generic single-input UI instead of the custom `GPAFilter`/`DateRangeFilter` dropdown+dual-input UI. This is because `drawFilterArea()` always renders a plain text input for any column without a `filterDescription`, and the JS classes only take over once a *new* filter is added via `showNewFilter()`. A full fix would require either giving `GPA`/`Created` their own `filterDescription`-style custom render path in PHP, or re-triggering the JS filter UI on page load when these filters are already present in the URL/filter string. This was deprioritized — both filters work correctly for querying/filtering, this only affects how the *already-applied* filter pill looks after a reload.
-- **Interview Stage backend** — see section 5 above. The select dropdown is built but not yet wired to read or save `candidate_joborder.interview_stage`.
+- **Filter pill rendering on page reload (back-navigation):** GPA/Created filter pills that are restored from a fresh PHP page load (i.e. `drawFilterArea()` in `lib/DataGrid.php`, rather than a filter freshly added via the JS dropdown) may render using the generic single-input UI instead of the custom `GPAFilter`/`DateRangeFilter` dropdown+dual-input UI. This is because `drawFilterArea()` always renders a plain text input for any column without a `filterDescription`, and the JS classes only take over once a *new* filter is added via `showNewFilter()`. A full fix would require either giving `GPA`/`Created` their own `filterDescription`-style custom render path in PHP, or re-triggering the JS filter UI on page load when these filters are already present in the URL/filter string. This was deprioritized both filters work correctly for querying/filtering, this only affects how the *already-applied* filter pill looks after a reload.
+- **Interview Stage backend** see section 5 above. The select dropdown is built but not yet wired to read or save `candidate_joborder.interview_stage`.

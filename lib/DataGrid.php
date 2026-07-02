@@ -859,6 +859,7 @@ class DataGrid
                         $filterOperatorHuman = ' to';
                         break;
                 }
+                //note: =d> and =d< operator descriptions get overriden
 
                 echo '<span class="filterArea">';
                 echo '<a href="javascript:void(0);" onclick="this.parentNode.style.display=\'none\'; ', $this->getJSRemoveFilter($index), '">';
