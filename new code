@@ -1,0 +1,9 @@
+UPDATE candidate_joborder_status SET short_description = 'Applied'            WHERE candidate_joborder_status_id = 100;
+UPDATE candidate_joborder_status SET short_description = '1st Screening'      WHERE candidate_joborder_status_id = 200;
+UPDATE candidate_joborder_status SET short_description = 'Interview 1'        WHERE candidate_joborder_status_id = 300;
+UPDATE candidate_joborder_status SET short_description = 'Interview 2'        WHERE candidate_joborder_status_id = 400;
+UPDATE candidate_joborder_status SET short_description = 'Job offered'        WHERE candidate_joborder_status_id = 600;
+UPDATE candidate_joborder_status SET short_description = 'Job offer refused'  WHERE candidate_joborder_status_id = 700;
+UPDATE candidate_joborder_status SET short_description = 'Job offer accepted' WHERE candidate_joborder_status_id = 800;
+
+UPDATE candidate_joborder_status SET is_enabled = 0 WHERE candidate_joborder_status_id IN (250, 500, 650);
