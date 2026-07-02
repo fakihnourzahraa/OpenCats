@@ -11,6 +11,7 @@ use OpenCATS\UI\QuickActionMenu;
         <div id="main">
             <?php TemplateUtility::printQuickSearch(); ?>
 <?php endif; ?>
+
 <script type="text/javascript">
     filterDropDownRegistry['University'] = [
         <?php foreach ($this->universitiesRS as $i => $u): ?>
@@ -22,8 +23,18 @@ use OpenCATS\UI\QuickActionMenu;
             { value: '<?php echo addslashes($n['optionValue']); ?>', label: '<?php echo addslashes($n['optionLabel']); ?>' }<?php echo ($i < count($this->nationalitiesRS) - 1) ? ',' : ''; ?>
         <?php endforeach; ?>
     ];
-    
+    filterDropDownRegistry['Source'] = [
+        <?php foreach ($this->sourcesRS as $i => $s): ?>
+            { value: '<?php echo addslashes($s['name']); ?>', label: '<?php echo addslashes($s['name']); ?>' }<?php echo ($i < count($this->sourcesRS) - 1) ? ',' : ''; ?>
+        <?php endforeach; ?>
+    ];
+    filterDropDownRegistry['Interview Stage'] = [
+        <?php foreach ($this->statusesRS as $i => $s): ?>
+            { value: '<?php echo addslashes($s['optionValue']); ?>', label: '<?php echo addslashes($s['optionLabel']); ?>' }<?php echo ($i < count($this->statusesRS) - 1) ? ',' : ''; ?>
+        <?php endforeach; ?>
+    ];
 </script>
+
 <input type="hidden"
     id="filterArea<?php echo md5('joborders:PipelineCandidatesDataGrid'); ?>"
     value="<?php echo htmlspecialchars($this->savedPipelineFilter); ?>" />

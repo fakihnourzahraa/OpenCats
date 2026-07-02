@@ -669,36 +669,6 @@ var opNames = {'==':'is equal to','=~':'contains','=>':'is greater than','=<':'i
 
 ---
 
-## 5. Interview Stage Feature (UI complete backend wiring not yet done)
-
-### Database
-```sql
-ALTER TABLE candidate_joborder ADD COLUMN interview_stage text COLLATE utf8_unicode_ci;
-```
-
-### `Edit.tpl` (location to be confirmed wherever the interview stage field is meant to live)
-
-```php
-<tr>
-    <td class="tdVertical">
-        <label id="interviewStageLabel" for="interviewStage">Interview Stage:</label>
-    </td>
-    <td class="tdData">
-        <select id="interviewStage" name="interviewStage" class="inputbox" style="width: 150px;">
-        <option value="Applied"     <?php if ($this->data['interviewStage'] == 'Applied'):     ?>selected<?php endif; ?>>Applied</option>
-        <option value="1st Screening"     <?php if ($this->data['interviewStage'] == '1st Screening'):     ?>selected<?php endif; ?>>1st Screening</option>
-        <option value="Interview 1"  <?php if ($this->data['interviewStage'] == 'Interview 1'):  ?>selected<?php endif; ?>>Interview 1</option>
-        <option value="Interview 2" <?php if ($this->data['interviewStage'] == 'Interview 2'): ?>selected<?php endif; ?>>Interview 2</option>
-        <option value="Job Offered" <?php if ($this->data['interviewStage'] == 'Job Offered'):?>selected<?php endif; ?>>Job Offered</option>
-        <option value="Job Offer Refused" <?php if ($this->data['interviewStage'] == 'Job Offer Refused'):?>selected<?php endif; ?>>Job Offer Refused</option>
-        <option value="Job Offer Accepted" <?php if ($this->data['interviewStage'] == 'Job Offer Accepted'):?>selected<?php endif; ?>>Job Offer Accepted</option>
-    </select>
-
-        <input type="hidden" id="interviewStageCSV" name="interviewStageCSV" value="<?php $this->_($this->interviewStagesString); ?>" />
-    </td>
-</tr>
-```
-
 ### ⚠️ Still needed (not yet implemented)
 
 `interview_stage` lives on `candidate_joborder`, **not** `candidate` so it cannot be wired through `Candidates::add()` / `Candidates::update()` like GPA was. The following still needs to be done, following the same pattern used for GPA:

@@ -147,6 +147,7 @@ $columnMap = array(
     'Created'          => 'dateCreated',
     'University'       => 'universityShortName',
     'Nationality'      => 'nationality',
+    'Interview Stage' => 'statusDescription',
 );
 
 $extraFieldDefs = $pipelines->getExtraFieldDefinitions();

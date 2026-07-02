@@ -553,6 +553,7 @@ class Pipelines
                 candidate.gpa AS gpa,
                 candidate.nationality AS nationality,
                 university.short_name AS universityShortName,
+                candidate_joborder_status.short_description AS statusDescription,
                 DATE_FORMAT(
                     candidate_joborder.date_created, '%%m-%%d-%%y'
                 ) AS dateCreated,

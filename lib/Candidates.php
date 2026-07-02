@@ -1031,37 +1031,40 @@ class Candidates
         return $this->_db->getAllAssoc($sql);
     }
 
-    public function getPossibleDropDownOptions($table, $valueColumn, $labelColumn, $shortColumn = null, $orderBy = null)
-    {
-        $shortSelect = $shortColumn ? ", $table.$shortColumn AS shortName" : ", $table.$labelColumn AS shortName";
+   public function getPossibleDropDownOptions($table, $valueColumn, $labelColumn, $shortColumn = null, $orderBy = null, $where = null)
+{
+    $shortSelect = $shortColumn ? ", $table.$shortColumn AS shortName" : ", $table.$labelColumn AS shortName";
 
-        if ($orderBy === false) {
-            $orderByClause = '';
-        } elseif ($orderBy !== null && (strpos($orderBy, ' ') !== false || strpos($orderBy, ',') !== false)) {
-            // Raw expression passed — use as-is
-            $orderByClause = "ORDER BY $orderBy";
-        } else {
-            $col = $orderBy ? $orderBy : $labelColumn;
-            $orderByClause = "ORDER BY $table.$col ASC";
-        }
-
-        $sql = sprintf(
-            "SELECT
-                %s.%s AS optionValue,
-                %s.%s AS optionLabel
-                %s
-            FROM
-                %s
-            %s",
-            $table, $valueColumn,
-            $table, $labelColumn,
-            $shortSelect,
-            $table,
-            $orderByClause
-        );
-
-        return $this->_db->getAllAssoc($sql);
+    if ($orderBy === false) {
+        $orderByClause = '';
+    } elseif ($orderBy !== null && (strpos($orderBy, ' ') !== false || strpos($orderBy, ',') !== false)) {
+        $orderByClause = "ORDER BY $orderBy";
+    } else {
+        $col = $orderBy ? $orderBy : $labelColumn;
+        $orderByClause = "ORDER BY $table.$col ASC";
     }
+
+    $whereClause = $where ? "WHERE $where" : '';
+
+    $sql = sprintf(
+        "SELECT
+            %s.%s AS optionValue,
+            %s.%s AS optionLabel
+            %s
+        FROM
+            %s
+        %s
+        %s",
+        $table, $valueColumn,
+        $table, $labelColumn,
+        $shortSelect,
+        $table,
+        $whereClause,
+        $orderByClause
+    );
+
+    return $this->_db->getAllAssoc($sql);
+}
 
 
     /**
@@ -2316,6 +2319,16 @@ class CandidatesDataGrid extends DataGrid
                                     'pagerWidth'     => 100,
                                     'pagerOptional'  => true,
                                     'filter'         => 'candidate.nationality',
+                                    'filterTypes'    => '==',
+                                ),
+            'Interview Stage' => array(
+                                    'select'         => 'candidate_joborder_status.short_description AS statusDescription',
+                                    'pagerRender'    => 'return !empty($rsData[\'statusDescription\']) ? htmlspecialchars($rsData[\'statusDescription\']) : \'\';',
+                                    'exportRender'   => 'return !empty($rsData[\'statusDescription\']) ? $rsData[\'statusDescription\'] : \'\';',
+                                    'sortableColumn' => 'statusDescription',
+                                    'pagerWidth'     => 120,
+                                    'pagerOptional'  => true,
+                                    'filter'         => 'candidate_joborder_status.short_description',
                                     'filterTypes'    => '==',
                                 ),
         // Tags filtering

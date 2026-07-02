@@ -534,6 +534,16 @@ $this->_template->assign('sourcesRS', $sourcesRS);
         $this->_template->assign('universitiesRS', $universitiesRS);
         $this->_template->assign('nationalitiesRS', $nationalitiesRS);
 
+$statusesRS = $candidates->getPossibleDropDownOptions(
+    'candidate_joborder_status',
+    'short_description',
+    'short_description',
+    null,
+    'candidate_joborder_status_id ASC',
+    'is_enabled = 1 AND candidate_joborder_status_id != 0'
+);
+$this->_template->assign('statusesRS', $statusesRS);
+
         if (!eval(Hooks::get('JO_SHOW'))) return;
 
     //     $dataGridProperties = DataGrid::getRecentParamaters('joborders:PipelineCandidatesDataGrid');
