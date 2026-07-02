@@ -1,11 +1,11 @@
-# University & Nationality — Implementation Notes
+# University & Nationality Implementation Notes
 
 ## Overview
 
 Two new candidate fields were added to OpenCATS:
 
-- **University** — stored as a foreign key (`university_id`) referencing a `university` reference table. Universities have both a canonical name ("Lebanese American University") and a short name ("LAU"). The dropdown displays both.
-- **Nationality** — stored as a plain varchar (`nationality`) directly on the `candidate` table. The `nationality` table serves purely as a reference/dropdown source, not a relational key (same pattern as `source` on candidate). No join needed in queries.
+- **University** stored as a foreign key (`university_id`) referencing a `university` reference table. Universities have both a canonical name ("Lebanese American University") and a short name ("LAU"). The dropdown displays both.
+- **Nationality** stored as a plain varchar (`nationality`) directly on the `candidate` table. The `nationality` table serves purely as a reference/dropdown source, not a relational key (same pattern as `source` on candidate). No join needed in queries.
 - **Sources** 
 
 Both fields appear on the Add, Edit, and Details pages, as well as the Candidates list filter and the Job Order pipeline filter.
@@ -147,14 +147,14 @@ UPDATE `nationality` SET `sort_order` = 4 WHERE `name` = 'Armenian';
 ```
 
 Notes on nationality table design:
-- `name` is the primary key — no separate ID column. Since nationality names don't change and are already unique, the name itself serves as both the stored value and the display label. No join is needed anywhere — the name is stored directly on `candidate.nationality`, matching how `source` works.
+- `name` is the primary key no separate ID column. Since nationality names don't change and are already unique, the name itself serves as both the stored value and the display label. No join is needed anywhere the name is stored directly on `candidate.nationality`, matching how `source` works.
 - Lebanese, Palestinian, Syrian, Armenian are inserted first so they appear at the top of the dropdown. MyISAM returns rows in insertion order with no `ORDER BY`, which is intentional here.
 
 ---
 
 ## 2. `lib/Candidates.php`
 
-### `getPossibleDropDownOptions()` — new generic method
+### `getPossibleDropDownOptions()` new generic method
 
 Replaces the old `getPossibleUniversities()`. Used for both university and nationality, and can be reused for any future reference-table dropdown by passing the table/column names as parameters.
 
@@ -166,7 +166,7 @@ Replaces the old `getPossibleUniversities()`. Used for both university and natio
     if ($orderBy === false) {
         $orderByClause = '';
     } elseif ($orderBy !== null && (strpos($orderBy, ' ') !== false || strpos($orderBy, ',') !== false)) {
-        // Raw expression passed — use as-is
+
         $orderByClause = "ORDER BY $orderBy";
     } else {
         $col = $orderBy ? $orderBy : $labelColumn;
@@ -196,16 +196,16 @@ Returns rows with keys: `optionValue`, `optionLabel`, `shortName`.
 
 Call signatures used:
 ```php
-// University — value=university_id, label=canonical_name, short=short_name
+
 $candidates->getPossibleDropDownOptions('university', 'university_id', 'canonical_name', 'short_name');
 
-// Nationality — value=name, label=name, no short (name IS the value)
+
 $candidates->getPossibleDropDownOptions('nationality', 'name', 'name');
 ```
 
 Note: `$table` and column names are not user input, so no `makeQueryString` wrapping is needed for the identifiers.
 
-### `add()` — updated signature and INSERT
+### `add()` updated signature and INSERT
 
 Added to parameter list (before `$skipHistory`):
 ```php
@@ -224,7 +224,7 @@ $this->_db->makeQueryInteger($universityID),
 $this->_db->makeQueryString($nationality)
 ```
 
-### `update()` — updated signature and SET clause
+### `update()` updated signature and SET clause
 
 Added to parameter list:
 ```php
@@ -243,7 +243,7 @@ $this->_db->makeQueryInteger($universityID),
 $this->_db->makeQueryString($nationality),
 ```
 
-### `get()` — updated SELECT and JOIN
+### `get()` updated SELECT and JOIN
 
 Added to SELECT list:
 ```sql
@@ -259,7 +259,7 @@ LEFT JOIN university
     ON university.university_id = candidate.university_id
 ```
 
-### `getForEditing()` — updated SELECT
+### `getForEditing()` updated SELECT
 
 ```sql
 candidate.university_id AS universityID,
@@ -281,7 +281,7 @@ in Source add to the end
                          university.short_name AS universityShortName',
     'join'           => 'LEFT JOIN university ON university.university_id = candidate.university_id',
     'pagerRender'    => 'return !empty($rsData[\'universityShortName\']) ? htmlspecialchars($rsData[\'universityShortName\']) : \'\';',
-    'exportRender'   => 'return !empty($rsData[\'universityShortName\']) ? $rsData[\'universityShortName\'] . \' — \' . $rsData[\'universityCanonicalName\'] : \'\';',
+    'exportRender'   => 'return !empty($rsData[\'universityShortName\']) ? $rsData[\'universityShortName\'] . \' \' . $rsData[\'universityCanonicalName\'] : \'\';',
     'sortableColumn' => 'universityCanonicalName',
     'pagerWidth'     => 100,
     'pagerOptional'  => true,
@@ -374,7 +374,7 @@ After the `isHot`/`titleClass` if/else block:
 ```php
 if (!empty($data['universityID']))
 {
-    $data['university'] = $data['universityShortName'] . ' — ' . $data['universityCanonicalName'];
+    $data['university'] = $data['universityShortName'] . ' ' . $data['universityCanonicalName'];
 }
 else
 {
@@ -481,7 +481,7 @@ Added after the GPA row:
 
 ---
 
-## 8. `lib/Pipelines.php` — `getJobOrderPipeline()`
+## 8. `lib/Pipelines.php` `getJobOrderPipeline()`
 
 Added to the SELECT list:
 ```sql
@@ -489,7 +489,7 @@ candidate.nationality AS nationality,
 university.short_name AS universityShortName,
 ```
 
-Added to the main JOIN block (alongside the other LEFT JOINs, **not** inside the `lastActivity` subquery — putting it in the subquery was an earlier bug that caused it not to work):
+Added to the main JOIN block (alongside the other LEFT JOINs, **not** inside the `lastActivity` subquery putting it in the subquery was an earlier bug that caused it not to work):
 ```sql
 LEFT JOIN university
     ON university.university_id = candidate.university_id
@@ -510,15 +510,15 @@ Updated `$columnMap` to map the filter column names to the correct result set ke
 
 ## 10. `js/dataGridFilters.js`
 
-### `filterDropDownRegistry` — new global registry
+### `filterDropDownRegistry` new global registry
 
-Defined at the top of the file (before any filter classes). Each page that needs dropdown filters populates this registry via a `<script>` block in its `.tpl` file. `filter.DropDownFilter` reads from it at render time — so the JS class itself is fully generic and never needs to change for new dropdown types.
+Defined at the top of the file (before any filter classes). Each page that needs dropdown filters populates this registry via a `<script>` block in its `.tpl` file. `filter.DropDownFilter` reads from it at render time so the JS class itself is fully generic and never needs to change for new dropdown types.
 
 ```javascript
 var filterDropDownRegistry = {};
 ```
 
-### `filter.FilterFactory` — added fourth branch
+### `filter.FilterFactory` added fourth branch
 
 Added before the final `else` (DefaultFilter) branch, after the `Created` check:
 
@@ -530,9 +530,9 @@ Added before the final `else` (DefaultFilter) branch, after the `Created` check:
 }
 ```
 
-This routes any column whose name appears as a key in `filterDropDownRegistry` to `filter.DropDownFilter` automatically — no factory change needed when adding future dropdown columns.
+This routes any column whose name appears as a key in `filterDropDownRegistry` to `filter.DropDownFilter` automatically no factory change needed when adding future dropdown columns.
 
-### `filter.DropDownFilter` — new generic class
+### `filter.DropDownFilter` new generic class
 
 ```javascript
 filter.DropDownFilter = function(defaultValue, filterCounter, filterAreaID, selectableColumns, instanceName) {
@@ -610,7 +610,7 @@ Added near the top of the page, before the data grid renders, so `filterDropDown
 <script type="text/javascript">
     filterDropDownRegistry['University'] = [
         <?php foreach ($this->universitiesRS as $i => $u): ?>
-            { value: '<?php echo addslashes($u['shortName']); ?>', label: '<?php echo addslashes($u['shortName'] . ' — ' . $u['optionLabel']); ?>' }<?php echo ($i < count($this->universitiesRS) - 1) ? ',' : ''; ?>
+            { value: '<?php echo addslashes($u['shortName']); ?>', label: '<?php echo addslashes($u['shortName'] . ' ' . $u['optionLabel']); ?>' }<?php echo ($i < count($this->universitiesRS) - 1) ? ',' : ''; ?>
         <?php endforeach; ?>
     ];
     filterDropDownRegistry['Nationality'] = [
@@ -630,13 +630,13 @@ Added near the top of the page, before the data grid renders, so `filterDropDown
 
 ## 12. `modules/joborders/Show.tpl`
 
-Same script block as `Candidates.tpl` — needed here because the Job Order pipeline page has its own filter UI using the same `filter.DropDownFilter` JS class. Without this, the dropdown renders but shows no options.
+Same script block as `Candidates.tpl` needed here because the Job Order pipeline page has its own filter UI using the same `filter.DropDownFilter` JS class. Without this, the dropdown renders but shows no options.
 
 ```php
 <script type="text/javascript">
     filterDropDownRegistry['University'] = [
         <?php foreach ($this->universitiesRS as $i => $u): ?>
-            { value: '<?php echo addslashes($u['shortName']); ?>', label: '<?php echo addslashes($u['shortName'] . ' — ' . $u['optionLabel']); ?>' }<?php echo ($i < count($this->universitiesRS) - 1) ? ',' : ''; ?>
+            { value: '<?php echo addslashes($u['shortName']); ?>', label: '<?php echo addslashes($u['shortName'] . ' ' . $u['optionLabel']); ?>' }<?php echo ($i < count($this->universitiesRS) - 1) ? ',' : ''; ?>
         <?php endforeach; ?>
     ];
     filterDropDownRegistry['Nationality'] = [
@@ -654,9 +654,9 @@ Same script block as `Candidates.tpl` — needed here because the Job Order pipe
 
 ---
 
-## 13. `modules/joborders/JobOrdersUI.php` — `show()`
+## 13. `modules/joborders/JobOrdersUI.php` `show()`
 
-Added after the template assign block. Note: `Candidates` must be instantiated here since this is the JobOrders controller — it doesn't have a `$candidates` object by default:
+Added after the template assign block. Note: `Candidates` must be instantiated here since this is the JobOrders controller it doesn't have a `$candidates` object by default:
 
 ```php
 $candidates = new Candidates($this->_siteID);
@@ -681,39 +681,6 @@ To add another reference-table dropdown (e.g. "Major", "Language"), the steps ar
 5. Add the column to `getJobOrderPipeline()` SELECT + JOIN if it needs to work in the pipeline filter too.
 6. Add the column name to `$columnMap` in `getPipelineJobOrder.php`.
 
-No JS changes needed — `filter.FilterFactory` and `filter.DropDownFilter` handle it automatically once the registry entry exists.
+No JS changes needed `filter.FilterFactory` and `filter.DropDownFilter` handle it automatically once the registry entry exists.
 
 ---
-
-## Status
-
-- [x] `university` reference table — created, seeded (45 rows)
-- [x] `nationality` reference table — created, seeded (224 rows, Lebanese/Palestinian/Syrian/Armenian priority order)
-- [x] `candidate.university_id` and `candidate.nationality` columns added
-- [x] Add Candidate page — both dropdowns, save
-- [x] Edit Candidate page — both dropdowns (pre-selected), save
-- [x] Candidate Details page — both fields displayed
-- [x] Candidate list — University and Nationality columns, dropdown filters
-- [x] Job Order pipeline — University and Nationality dropdown filters
-- [ ] Migration of legacy free-text university data from `extra_field` (not in scope for this implementer — needs DB access to execute)
-
-## Known bugs fixed during implementation
-
-**`_addCandidate()` — `$universityID` read before assignment:**
-The line `$universityID = ($universityID > 0) ? $universityID : null;` originally referenced `$universityID` before `getTrimmedInput()` was called, so it always evaluated to null. Fixed by reading from `$_POST` first:
-```php
-$universityID = $this->getTrimmedInput('universityID', $_POST);
-$universityID = ($universityID > 0) ? $universityID : null;
-```
-
-**`update()` — `$candidateID` and `$nationality` bind values swapped:**
-The bind value list had `makeQueryInteger($candidateID)` before `makeQueryString($nationality)`, but the SQL had `nationality = %s` before `WHERE candidate_id = %s`. This meant the nationality value was being written into the WHERE clause and the candidate ID was being written into the nationality column. Fixed by swapping the order:
-```php
-$this->_db->makeQueryInteger($universityID),
-$this->_db->makeQueryString($nationality),
-$this->_db->makeQueryInteger($candidateID),
-$this->_siteID
-```
-
-**`getJobOrderPipeline()` — university JOIN placed inside subquery:**
-The `LEFT JOIN university` was accidentally placed inside the `lastActivity` subquery instead of the main query's JOIN block, so `universityShortName` was always null in the pipeline result set. Fixed by moving the join to the correct location in the outer query.

@@ -4,7 +4,7 @@ This document contains the exact code changes needed to implement three features
 
 1. **GPA** field on candidates (add/edit/display/filter)
 2. **Created** date range filtering (candidates list and job order pipeline)
-3. **Modified** date range filtering (candidates list and job order pipeline)
+
 
 Each section below names the file, says where the change goes, and gives the code verbatim so it can be copied directly into the codebase.
 
@@ -206,7 +206,7 @@ $argument = urldecode(substr($data, $eqPos + $operatorLength));
 **Numeric comparison fix.** In the existing `=<` (is less than) block, change `makeQueryInteger` to `makeQueryDouble`:
 
 ```php
-/* Is less than (=<) */
+
 if (strpos($data, '=<') !== false)
 {
     if (isset($this->_classColumns[$columnName]['filter']))
@@ -226,7 +226,6 @@ Do the same for the `=>` (is greater than) block, change `makeQueryInteger` to `
 **New date operator blocks.** Add these new blocks (alongside the existing `=<`, `=>`, `=~`, `==`, `=#`, `=@` blocks in the same `foreach ($arguments as $argument)` loop):
 
 ```php
-/* Date is less than (=d<) */
 if (strpos($data, '=d<') !== false)
 {
     if (isset($this->_classColumns[$columnName]['filter']))
@@ -235,7 +234,7 @@ if (strpos($data, '=d<') !== false)
     }
 }
 
-/* Date is greater than (=d>) */
+
 if (strpos($data, '=d>') !== false)
 {
     if (isset($this->_classColumns[$columnName]['filter']))
@@ -668,19 +667,3 @@ var opNames = {'==':'is equal to','=~':'contains','=>':'is greater than','=<':'i
 ```
 
 ---
-
-### ⚠️ Still needed (not yet implemented)
-
-`interview_stage` lives on `candidate_joborder`, **not** `candidate` so it cannot be wired through `Candidates::add()` / `Candidates::update()` like GPA was. The following still needs to be done, following the same pattern used for GPA:
-
-1. Add `candidate_joborder.interview_stage AS interviewStage` to whichever `SELECT` populates `$this->data['interviewStage']` for the edit page (likely in `Pipelines.php`, in the function that loads the candidate/job-order pairing being edited).
-2. Add an `$interviewStage` parameter to whichever function persists pipeline-entry changes (likely `Pipelines.php`, an `update()`-style function operating on `candidate_joborder`), and add `interview_stage = %s` to its `UPDATE` statement, passed through with `makeQueryString($interviewStage)`.
-3. In the controller (`CandidatesUI.php` or wherever the pipeline edit form posts to), read `$interviewStage = $this->getTrimmedInput('interviewStage', $_POST);` and pass it into that update function.
-4. The `interviewStageCSV` hidden field follows the same list-editor pattern used elsewhere in the codebase (e.g. `sourceCSV`) if the dropdown is meant to be user-editable rather than fixed, this would need a corresponding `ListEditor::getDifferencesFromList()` call and a `getPossibleInterviewStages()` / `updatePossibleInterviewStages()` pair analogous to `getPossibleSources()` / `updatePossibleSources()` in `Candidates.php`. If the list is meant to stay fixed (as hardcoded in the `<select>` above), the CSV/list-editor wiring can be removed entirely.
-
----
-
-## Known Issues / Follow-ups
-
-- **Filter pill rendering on page reload (back-navigation):** GPA/Created filter pills that are restored from a fresh PHP page load (i.e. `drawFilterArea()` in `lib/DataGrid.php`, rather than a filter freshly added via the JS dropdown) may render using the generic single-input UI instead of the custom `GPAFilter`/`DateRangeFilter` dropdown+dual-input UI. This is because `drawFilterArea()` always renders a plain text input for any column without a `filterDescription`, and the JS classes only take over once a *new* filter is added via `showNewFilter()`. A full fix would require either giving `GPA`/`Created` their own `filterDescription`-style custom render path in PHP, or re-triggering the JS filter UI on page load when these filters are already present in the URL/filter string. This was deprioritized both filters work correctly for querying/filtering, this only affects how the *already-applied* filter pill looks after a reload.
-- **Interview Stage backend** see section 5 above. The select dropdown is built but not yet wired to read or save `candidate_joborder.interview_stage`.

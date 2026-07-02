@@ -495,7 +495,7 @@ var val = decodeURIComponent(f.substring(eqPos + opLen));
             </p>
 
             <div id="ajaxPipelineTable"></div>
-            <input type="checkbox" name="select_all" onclick="selectAll_candidates(this)" title="Select all candidates" /> <a href="javascript:void(0);" onclick="exportFromPipeline()" title="Export selected candidates">Export</a>&nbsp;&nbsp;&nbsp;&nbsp;
+          
             <script type="text/javascript">
             	function exportFromPipeline(){
 <?php

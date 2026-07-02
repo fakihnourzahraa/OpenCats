@@ -95,19 +95,19 @@ $this->_template->display('./modules/joborders/Show.tpl');
 
 **What:** Added the filter UI, wired it to the pipeline AJAX reload, and restored saved filter state on page load.
 
-**Change 1 — added JS files to both header calls:**
+**Change 1 added JS files to both header calls:**
 ```php
 'js/dataGrid.js', 'js/dataGridFilters.js'
 ```
 
-**Change 2 — added single hidden input near the top of the file** (before `<div id="contents">`), pre-populated with the saved filter value from PHP.
+**Change 2 added single hidden input near the top of the file** (before `<div id="contents">`), pre-populated with the saved filter value from PHP.
 ```php
 <input type="hidden"
     id="filterArea<?php echo md5('joborders:PipelineCandidatesDataGrid'); ?>"
     value="<?php echo htmlspecialchars($this->savedPipelineFilter); ?>" />
 ```
 
-**Change 3 — inserted filter block** between `<p class="note">Candidate in Job Order</p>` and `<p id="ajaxPipelineControl">`:
+**Change 3 inserted filter block** between `<p class="note">Candidate in Job Order</p>` and `<p id="ajaxPipelineControl">`:
 
 ```php
 <?php $this->dataGrid->drawFilterArea(); ?>
@@ -204,7 +204,7 @@ clearFilter = function(filterElementID) {
 
 **Why filtering happens in PHP:** The pipeline loads via AJAX and never goes through the DataGrid SQL layer, so filtering cannot happen at the query level. The full candidate list is fetched first, then extra field values are merged in, then PHP filters the combined array using the filter string sent from the browser.
 
-**Change 1 — merge extra field values into each row** after the formatting loop:
+**Change 1 merge extra field values into each row** after the formatting loop:
 ```php
 
 $candidateIDs = array_map(function($row) {
@@ -226,14 +226,14 @@ foreach ($pipelinesRS as $idx => $row)
 }
 ```
 
-**Change 2 — read filter string and save to session:**
+**Change 2 read filter string and save to session:**
 ```php
 $filterString = isset($_REQUEST['filterString']) ? trim($_REQUEST['filterString']) : '';
 
 $_SESSION['pipelineFilter'][$jobOrderID] = $filterString;
 ```
 
-**Change 3 — build column map then dynamically append extra field definitions:**
+**Change 3 build column map then dynamically append extra field definitions:**
 
 The static map only covers fields returned by `getJobOrderPipeline()`. Fields not in the SQL query (City, Source, Key Skills, Phone numbers, etc.) are intentionally excluded. 
 ```php
@@ -258,7 +258,7 @@ if ($extraFieldDefs)
 }
 ```
 
-**Change 4 — filter logic** right after the column map:
+**Change 4 filter logic** right after the column map:
 ```php
 if ($filterString !== '')
 {
@@ -405,17 +405,3 @@ public function getExtraFieldDefinitions()
 ```
 
 ---
-
-## How Filter Persistence Works
-
-On every AJAX pipeline reload, `pipeline.js` reads the hidden input and sends `filterString` to `getPipelineJobOrder.php`. That file writes it to `$_SESSION['pipelineFilter'][$jobOrderID]` — keyed by job order ID so each job order remembers its own filter independently. When the page next loads, `JobOrdersUI.php` reads that session value and passes it to `Show.tpl` as `$this->savedPipelineFilter`. The hidden input is pre-populated with it before any JavaScript runs, so the first automatic pipeline call at the bottom of the page already carries the correct filter. The `DOMContentLoaded` block then calls `submitFilter` (instead of `showNewFilter`) to render the filter tags in the UI, matching what the server is already filtering by.
-
----
-
-## How Extra Field Filtering Works
-
-`PipelineCandidatesDataGrid` extends `CandidatesDataGrid` and inherits its column list, which includes any extra fields the site admin has defined. This means extra fields appear as options in the filter dropdown automatically.
-
-On the server side, `getJobOrderPipeline()` only returns core candidate fields — extra field values live in the `extra_field` table and are not part of that query. To make them filterable, `getPipelineJobOrder.php` calls `getExtraFieldsForPipelineCandidates()` after the main fetch, which does a single bulk query for all extra field values across all candidates in the pipeline, then merges them into each row. The column map is then extended dynamically via `getExtraFieldDefinitions()` so the filter logic can resolve extra field display names to the correct row keys.
-
-The result is that after the merge, each `$pipelinesRS` row contains both its core fields and any extra field values the candidate has, and the filter closure can reach all of them uniformly.
