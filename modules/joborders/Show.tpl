@@ -15,22 +15,13 @@ use OpenCATS\UI\QuickActionMenu;
     filterDropDownRegistry['University'] = [
         <?php foreach ($this->universitiesRS as $i => $u): ?>
             { value: '<?php echo addslashes($u['shortName']); ?>', label: '<?php echo addslashes($u['shortName'] . ' — ' . $u['optionLabel']); ?>' }<?php echo ($i < count($this->universitiesRS) - 1) ? ',' : ''; ?>
-        <?php endforeach; ?>
     ];
     filterDropDownRegistry['Nationality'] = [
         <?php foreach ($this->nationalitiesRS as $i => $n): ?>
             { value: '<?php echo addslashes($n['optionValue']); ?>', label: '<?php echo addslashes($n['optionLabel']); ?>' }<?php echo ($i < count($this->nationalitiesRS) - 1) ? ',' : ''; ?>
         <?php endforeach; ?>
     ];
-filterDropDownRegistry['Source'] = [
-
-    <?php foreach ($this->sourcesRS as $i => $s): ?>
-
-        { value: '<?php echo addslashes($s['name']); ?>', label: '<?php echo addslashes($s['name']); ?>' }<?php echo ($i < count($this->sourcesRS) - 1) ? ',' : ''; ?>
-
-    <?php endforeach; ?>
-
-];
+    
 </script>
         <div id="contents">
             <table>
