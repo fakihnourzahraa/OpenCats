@@ -116,6 +116,24 @@ foreach ($pipelinesRS as $rowIndex => $row)
     );
 }
 
+/* Fetch extra field values and merge into each pipeline row. */
+$candidateIDs = array_map(function($row) {
+    return $row['candidateID'];
+}, $pipelinesRS);
+
+$extraFieldsByCandidate = $pipelines->getExtraFieldsForPipelineCandidates($candidateIDs);
+
+foreach ($pipelinesRS as $idx => $row)
+{
+    $cid = $row['candidateID'];
+    if (isset($extraFieldsByCandidate[$cid]))
+    {
+        foreach ($extraFieldsByCandidate[$cid] as $fieldName => $value)
+        {
+            $pipelinesRS[$idx][$fieldName] = $value;
+        }
+    }
+}
 
 $filterString = isset($_REQUEST['filterString']) ? trim($_REQUEST['filterString']) : '';
 
@@ -123,21 +141,22 @@ $_SESSION['pipelineFilter'][$jobOrderID] = $filterString;
 $columnMap = array(
     'First Name'       => 'firstName',
     'Last Name'        => 'lastName',
-    'City'             => 'city',
     'State'            => 'state',
-    'Source'           => 'source',
-    'Key Skills'       => 'keySkills',
-    'E-Mail'           => 'email1',
-    'Home Phone'       => 'phoneHome',
-    'Cell Phone'       => 'phoneCell',
-    'Work Phone'       => 'phoneWork',
-    'Current Employer' => 'currentEmployer',
-    'Misc Notes'       => 'notes',
+    'E-Mail'           => 'candidateEmail',
     'GPA'              => 'gpa',
     'Created'          => 'dateCreated',
     'University'       => 'universityShortName',
     'Nationality'      => 'nationality',
 );
+
+$extraFieldDefs = $pipelines->getExtraFieldDefinitions();
+if ($extraFieldDefs)
+{
+    foreach ($extraFieldDefs as $def)
+    {
+        $columnMap[$def['field_name']] = $def['field_name'];
+    }
+}
 
 if ($filterString !== '')
 {

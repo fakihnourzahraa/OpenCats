@@ -741,6 +741,63 @@ class Pipelines
         return $this->_db->getAllAssoc($sql);
     }
 
+    public function getExtraFieldsForPipelineCandidates(array $candidateIDs)
+{
+    if (empty($candidateIDs))
+    {
+        return array();
+    }
+
+    $safeIDs = implode(',', array_map('intval', $candidateIDs));
+
+    $sql = sprintf(
+        "SELECT
+            data_item_id AS candidateID,
+            field_name,
+            value
+         FROM
+            extra_field
+         WHERE
+            data_item_type = %s
+         AND
+            site_id = %s
+         AND
+            data_item_id IN (%s)",
+        DATA_ITEM_CANDIDATE,
+        $this->_siteID,
+        $safeIDs
+    );
+
+    $rs = $this->_db->getAllAssoc($sql);
+    if (!$rs)
+    {
+        return array();
+    }
+
+    $indexed = array();
+    foreach ($rs as $row)
+    {
+        $indexed[$row['candidateID']][$row['field_name']] = $row['value'];
+    }
+
+    return $indexed;
+}
+
+public function getExtraFieldDefinitions()
+{
+    $sql = sprintf(
+        "SELECT field_name
+         FROM extra_field_settings
+         WHERE data_item_type = %s
+         AND site_id = %s",
+        DATA_ITEM_CANDIDATE,
+        $this->_siteID
+    );
+
+    $rs = $this->_db->getAllAssoc($sql);
+    return $rs ? $rs : array();
+}
+
 }
 
 ?>

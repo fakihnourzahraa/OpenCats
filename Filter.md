@@ -6,7 +6,8 @@ A summary of every file worked on to implement the feature.
 
 ## What Was Built
 
-Recruiters can now filter the candidate pipeline inside a Job Order using the same filter that exists on the Candidates list page.
+Recruiters can now filter the candidates within each job using the same filters from the Candidates list page. Page reload and extra fields are also importantly handled here.
+
 ---
 
 ## Files Changed
@@ -15,7 +16,7 @@ Recruiters can now filter the candidate pipeline inside a Job Order using the sa
 
 **What:** Created a new `PipelineCandidatesDataGrid` class at the bottom of the file.
 
-**Why:** The pipeline needed its own DataGrid instance to power the filter UI. Rather than duplicating column definitions, it extends `CandidatesDataGrid` and inherits all its columns automatically.
+**Why:** The pipeline needed its own DataGrid instance to power the filter UI. It extends `CandidatesDataGrid` and inherits all its columns automatically, including any extra fields defined by the site admin.
 
 **Dependencies added at top of file:**
 ```php
@@ -57,20 +58,19 @@ class PipelineCandidatesDataGrid extends CandidatesDataGrid
 
 ### 2. `modules/joborders/JobOrdersUI.php`
 
-**What:** Instantiated `PipelineCandidatesDataGrid` and assigned it to the template inside the show function before:
+**What:** Instantiated `PipelineCandidatesDataGrid` inside the `show()` function, because we need jobOrderID, reads the saved filter from the session, and passes both the DataGrid and the saved filter string to the template.
 
 **Dependencies added at top of file:**
 ```php
 include_once(LEGACY_ROOT . '/modules/joborders/dataGrids.php');
 ```
 
-**Inside the show function, after:**
+**Added at the bottom of `show()`, replacing the old DataGrid block, just before `$this->_template->display()`:**
 ```php
-$this->_template->display('./modules/joborders/Show.tpl');
-```
+$savedPipelineFilter = isset($_SESSION['pipelineFilter'][$jobOrderID])
+    ? $_SESSION['pipelineFilter'][$jobOrderID]
+    : '';
 
-**Add:**
-```php
 $dataGridProperties = DataGrid::getRecentParamaters('joborders:PipelineCandidatesDataGrid');
 if ($dataGridProperties == array())
 {
@@ -78,151 +78,194 @@ if ($dataGridProperties == array())
         'rangeStart'    => 0,
         'maxResults'    => 15,
         'filterVisible' => true,
-        'filter'        => 'First+Name=~',
+        'filter'        => $savedPipelineFilter !== '' ? $savedPipelineFilter : 'First+Name=~',
     );
 }
 
 $dataGrid = new PipelineCandidatesDataGrid($this->_siteID, $dataGridProperties, 0);
 $this->_template->assign('dataGrid', $dataGrid);
 $this->_template->assign('userID', $_SESSION['CATS']->getUserID());
+$this->_template->assign('savedPipelineFilter', $savedPipelineFilter);
+$this->_template->display('./modules/joborders/Show.tpl');
 ```
 
 ---
 
 ### 3. `modules/joborders/Show.tpl`
 
-**What:** Added the filter UI and wired it to the pipeline AJAX reload.
+**What:** Added the filter UI, wired it to the pipeline AJAX reload, and restored saved filter state on page load.
 
 **Change 1 — added JS files to both header calls:**
 ```php
 'js/dataGrid.js', 'js/dataGridFilters.js'
 ```
 
-**Change 2 — inserted filter block** between `<p class="note">Candidate in Job Order</p>` and `<p id="ajaxPipelineControl">`:
+**Change 2 — added single hidden input near the top of the file** (before `<div id="contents">`), pre-populated with the saved filter value from PHP.
+```php
+<input type="hidden"
+    id="filterArea<?php echo md5('joborders:PipelineCandidatesDataGrid'); ?>"
+    value="<?php echo htmlspecialchars($this->savedPipelineFilter); ?>" />
+```
+
+**Change 3 — inserted filter block** between `<p class="note">Candidate in Job Order</p>` and `<p id="ajaxPipelineControl">`:
 
 ```php
- <?php $this->dataGrid->drawFilterArea(); ?>
+<?php $this->dataGrid->drawFilterArea(); ?>
 
-            <script type="text/javascript">
-            document.addEventListener('DOMContentLoaded', function() {
-                var filterArea = document.getElementById(
-                    'filterResultsArea<?php echo md5('joborders:PipelineCandidatesDataGrid'); ?>'
-                );
-                if (filterArea) filterArea.style.display = '';
-                showNewFilter<?php echo md5('joborders:PipelineCandidatesDataGrid'); ?>();
+<script type="text/javascript">
+document.addEventListener('DOMContentLoaded', function() {
+    var filterArea = document.getElementById(
+        'filterResultsArea<?php echo md5('joborders:PipelineCandidatesDataGrid'); ?>'
+    );
+    if (filterArea) filterArea.style.display = '';
+
+    <?php if (!empty($this->savedPipelineFilter)): ?>
+    submitFilter<?php echo md5('joborders:PipelineCandidatesDataGrid'); ?>(true);
+    <?php else: ?>
+    showNewFilter<?php echo md5('joborders:PipelineCandidatesDataGrid'); ?>();
+    <?php endif; ?>
+});
+</script>
+
+<script type="text/javascript">
+var pipelineDataGridFilterID =
+    'filterArea<?php echo md5('joborders:PipelineCandidatesDataGrid'); ?>';
+
+submitFilter<?php echo md5('joborders:PipelineCandidatesDataGrid'); ?> = function(retainFilterVisible) {
+    var filterAreaEl = document.getElementById(pipelineDataGridFilterID);
+    var filterString = filterAreaEl ? filterAreaEl.value : '';
+    var md5 = '<?php echo md5('joborders:PipelineCandidatesDataGrid'); ?>';
+
+    var tableID = 'filterResultsAreaTable' + md5;
+    var table = document.getElementById(tableID);
+    if (table) {
+        table.innerHTML = '';
+        if (filterString !== '') {
+            var filters = filterString.split(',');
+            var counter = 0;
+            filters.forEach(function(f) {
+                var eqPos = f.indexOf('=');
+                if (eqPos === -1) return;
+                var col = decodeURIComponent(f.substring(0, eqPos));
+                var opLen = (f.substr(eqPos, 3) === '=d>' || f.substr(eqPos, 3) === '=d<') ? 3 : 2;
+                var op = f.substring(eqPos, eqPos + opLen);
+                var val = decodeURIComponent(f.substring(eqPos + opLen));
+                var opNames = {'==':'is equal to','=~':'contains','=>':'is greater than','=<':'is less than','=d>':'from','=d<':'to'};
+
+                var span = document.createElement('span');
+                span.className = 'filterArea';
+                span.innerHTML = '<a href="javascript:void(0);" onclick="this.parentNode.style.display=\'none\'; removeColumnFromFilter(\'' + pipelineDataGridFilterID + '\', \'' + col + '\'); submitFilter' + md5 + '();">'
+                    + '<img src="images/actions/delete_small.gif" style="padding:0px;margin:0px;" border="0" title="Remove this Filter" /></a>&nbsp;'
+                    + '\'' + col + '\' ' + (opNames[op] || op) + ': '
+                    + '<select id="filterResultsAreaTable' + md5 + (counter+1) + 'columnName" disabled="disabled" class="inputbox" style="display:none;"><option value="' + col + '!@!===~">' + col + '</option></select>'
+                    + '<input class="inputbox" style="width:180px;" value="' + val + '" onchange="addColumnToFilter(\'' + pipelineDataGridFilterID + '\', \'' + col + '\', \'' + op + '\', this.value); submitFilter' + md5 + '();" />';
+                table.appendChild(span);
+                counter++;
             });
-            </script>
+            newFilterCounter<?php echo md5('joborders:PipelineCandidatesDataGrid'); ?> = counter;
+        } else {
+            newFilterCounter<?php echo md5('joborders:PipelineCandidatesDataGrid'); ?> = 0;
+            var filterArea = document.getElementById('filterResultsArea<?php echo md5('joborders:PipelineCandidatesDataGrid'); ?>');
+            if (filterArea) filterArea.style.display = '';
+            showNewFilter<?php echo md5('joborders:PipelineCandidatesDataGrid'); ?>();
+        }
+    }
 
-            <input type="hidden"
-                id="filterArea<?php echo md5('joborders:PipelineCandidatesDataGrid'); ?>"
-                value="" />
+    PipelineJobOrder_populate(
+        <?php $this->_($this->data['jobOrderID']); ?>,
+        0,
+        <?php $this->_($this->pipelineEntriesPerPage); ?>,
+        'dateCreatedInt', 'desc',
+        <?php if ($this->isPopup) echo(1); else echo(0); ?>,
+        'ajaxPipelineTable',
+        '<?php echo($this->sessionCookie); ?>',
+        'ajaxPipelineTableIndicator',
+        '<?php echo(CATSUtility::getIndexName()); ?>'
+    );
+};
 
-            <script type="text/javascript">
-            var pipelineDataGridFilterID =
-                'filterArea<?php echo md5('joborders:PipelineCandidatesDataGrid'); ?>';
-
-            submitFilter<?php echo md5('joborders:PipelineCandidatesDataGrid'); ?> = function(retainFilterVisible) {
-                var filterAreaEl = document.getElementById(pipelineDataGridFilterID);
-                var filterString = filterAreaEl ? filterAreaEl.value : '';
-                var md5 = '<?php echo md5('joborders:PipelineCandidatesDataGrid'); ?>';
-
-                var tableID = 'filterResultsAreaTable' + md5;
-                var table = document.getElementById(tableID);
-                if (table) {
-                    table.innerHTML = '';
-                    if (filterString !== '') {
-                        var filters = filterString.split(',');
-                        var counter = 0;
-                        filters.forEach(function(f) {
-                            var eqPos = f.indexOf('=');
-                            if (eqPos === -1) return;
-                            var col = decodeURIComponent(f.substring(0, eqPos));
-                            var op = f.substring(eqPos, eqPos + 2);
-                            var val = decodeURIComponent(f.substring(eqPos + 2));
-                            var opNames = {'==':'is equal to','=~':'contains','=>':'is greater than','=<':'is less than'};
-                            var span = document.createElement('span');
-                            span.className = 'filterArea';
-                            span.innerHTML = '<a href="javascript:void(0);" onclick="this.parentNode.style.display=\'none\'; removeColumnFromFilter(\'' + pipelineDataGridFilterID + '\', \'' + col + '\'); submitFilter' + md5 + '();">'
-                                + '<img src="images/actions/delete_small.gif" style="padding:0px;margin:0px;" border="0" title="Remove this Filter" /></a>&nbsp;'
-                                + '\'' + col + '\' ' + (opNames[op] || op) + ': '
-                            + '<select id="filterResultsAreaTable' + md5 + (counter+1) + 'columnName" disabled="disabled" class="inputbox" style="display:none;"><option value="' + col + '!@!===~">' + col + '</option></select>'
-                                + '<input class="inputbox" style="width:180px;" value="' + val + '" onchange="addColumnToFilter(\'' + pipelineDataGridFilterID + '\', \'' + col + '\', \'' + op + '\', this.value); submitFilter' + md5 + '();" />';
-                            table.appendChild(span);
-                            counter++;
-                        });
-                        newFilterCounter<?php echo md5('joborders:PipelineCandidatesDataGrid'); ?> = counter;
-                        } else {
-                        newFilterCounter<?php echo md5('joborders:PipelineCandidatesDataGrid'); ?> = 0;
-                        var filterArea = document.getElementById('filterResultsArea<?php echo md5('joborders:PipelineCandidatesDataGrid'); ?>');
-                        if (filterArea) filterArea.style.display = '';
-                        showNewFilter<?php echo md5('joborders:PipelineCandidatesDataGrid'); ?>();
-                    }
-                }
-
-                PipelineJobOrder_populate(
-                    <?php $this->_($this->data['jobOrderID']); ?>,
-                    0,
-                    <?php $this->_($this->pipelineEntriesPerPage); ?>,
-                    'dateCreatedInt', 'desc',
-                    <?php if ($this->isPopup) echo(1); else echo(0); ?>,
-                    'ajaxPipelineTable',
-                    '<?php echo($this->sessionCookie); ?>',
-                    'ajaxPipelineTableIndicator',
-                    '<?php echo(CATSUtility::getIndexName()); ?>'
-                );
-            };
-
-            var originalClearFilter = clearFilter;
-            clearFilter = function(filterElementID) {
-                originalClearFilter(filterElementID);
-                var tableID = 'filterResultsAreaTable<?php echo md5('joborders:PipelineCandidatesDataGrid'); ?>';
-                var table = document.getElementById(tableID);
-                if (table) table.innerHTML = '';
-                newFilterCounter<?php echo md5('joborders:PipelineCandidatesDataGrid'); ?> = 0;
-                showNewFilter<?php echo md5('joborders:PipelineCandidatesDataGrid'); ?>();
-            };
-            </script>
+var originalClearFilter = clearFilter;
+clearFilter = function(filterElementID) {
+    originalClearFilter(filterElementID);
+    var tableID = 'filterResultsAreaTable<?php echo md5('joborders:PipelineCandidatesDataGrid'); ?>';
+    var table = document.getElementById(tableID);
+    if (table) table.innerHTML = '';
+    newFilterCounter<?php echo md5('joborders:PipelineCandidatesDataGrid'); ?> = 0;
+    showNewFilter<?php echo md5('joborders:PipelineCandidatesDataGrid'); ?>();
+};
+</script>
 ```
 
 ---
 
 ### 4. `ajax/getPipelineJobOrder.php`
 
-**What:** Added PHP-side filtering of the pipeline result set before it renders. The pipeline is loaded via AJAX and doesn't go through the DataGrid SQL system, so filtering happens in PHP after the data is fetched.
+**What:** Merges extra field values into the pipeline row data, saves the active filter to the session, builds the column map (including dynamically discovered extra fields), and filters the result set in PHP before rendering.
 
-**Change 1 — added filter params** after `$isPopup` declaration:
+**Why filtering happens in PHP:** The pipeline loads via AJAX and never goes through the DataGrid SQL layer, so filtering cannot happen at the query level. The full candidate list is fetched first, then extra field values are merged in, then PHP filters the combined array using the filter string sent from the browser.
+
+**Change 1 — merge extra field values into each row** after the formatting loop:
 ```php
-$filterValue    = isset($_REQUEST['filterValue'])    ? trim($_REQUEST['filterValue'])    : '';
-$filterColumn   = isset($_REQUEST['filterColumn'])   ? trim($_REQUEST['filterColumn'])   : 'firstName';
-$filterOperator = isset($_REQUEST['filterOperator']) ? trim($_REQUEST['filterOperator']) : '=~';
+
+$candidateIDs = array_map(function($row) {
+    return $row['candidateID'];
+}, $pipelinesRS);
+
+$extraFieldsByCandidate = $pipelines->getExtraFieldsForPipelineCandidates($candidateIDs);
+
+foreach ($pipelinesRS as $idx => $row)
+{
+    $cid = $row['candidateID'];
+    if (isset($extraFieldsByCandidate[$cid]))
+    {
+        foreach ($extraFieldsByCandidate[$cid] as $fieldName => $value)
+        {
+            $pipelinesRS[$idx][$fieldName] = $value;
+        }
+    }
+}
 ```
 
-**Change 2 — added filter logic** right before the sort block:
+**Change 2 — read filter string and save to session:**
 ```php
-
 $filterString = isset($_REQUEST['filterString']) ? trim($_REQUEST['filterString']) : '';
 
+$_SESSION['pipelineFilter'][$jobOrderID] = $filterString;
+```
+
+**Change 3 — build column map then dynamically append extra field definitions:**
+
+The static map only covers fields returned by `getJobOrderPipeline()`. Fields not in the SQL query (City, Source, Key Skills, Phone numbers, etc.) are intentionally excluded. 
+```php
 $columnMap = array(
-    'First Name'       => 'firstName',
-    'Last Name'        => 'lastName',
-    'City'             => 'city',
-    'State'            => 'state',
-    'Source'           => 'source',
-    'Key Skills'       => 'keySkills',
-    'E-Mail'           => 'email1',
-    'Home Phone'       => 'phoneHome',
-    'Cell Phone'       => 'phoneCell',
-    'Work Phone'       => 'phoneWork',
-    'Current Employer' => 'currentEmployer',
-    'Misc Notes'       => 'notes',
+    'First Name'  => 'firstName',
+    'Last Name'   => 'lastName',
+    'State'       => 'state',
+    'E-Mail'      => 'candidateEmail',
+    'GPA'         => 'gpa',
+    'Created'     => 'dateCreated',
+    'University'  => 'universityShortName',
+    'Nationality' => 'nationality',
 );
 
+$extraFieldDefs = $pipelines->getExtraFieldDefinitions();
+if ($extraFieldDefs)
+{
+    foreach ($extraFieldDefs as $def)
+    {
+        $columnMap[$def['field_name']] = $def['field_name'];
+    }
+}
+```
+
+**Change 4 — filter logic** right after the column map:
+```php
 if ($filterString !== '')
 {
     $pipelineFilters = array_filter(explode(',', $filterString));
     foreach ($pipelineFilters as $filterItem)
     {
-        $operators = array('=~', '==', '=>', '=<');
+        $operators = array('=d>', '=d<', '=~', '==', '=>', '=<');
         foreach ($operators as $op)
         {
             $pos = strpos($filterItem, $op);
@@ -233,7 +276,33 @@ if ($filterString !== '')
                 $col = isset($columnMap[$col]) ? $columnMap[$col] : $col;
 
                 $pipelinesRS = array_filter($pipelinesRS, function($row) use ($col, $op, $val) {
-                    $fieldValue = strtolower(isset($row[$col]) ? $row[$col] : '');
+                    $fieldValue = isset($row[$col]) ? $row[$col] : '';
+
+                    if ($col === 'gpa') {
+                        $fieldValue = (float) $fieldValue;
+                        $val = (float) $val;
+                        switch ($op) {
+                            case '==': return $fieldValue == $val;
+                            case '=>':  return $fieldValue >= $val;
+                            case '=<':  return $fieldValue <= $val;
+                            default:    return true;
+                        }
+                    }
+
+                    if ($col === 'dateCreated') {
+                        $fieldValue = DateTime::createFromFormat('m-d-y', $fieldValue);
+                        $valDate    = DateTime::createFromFormat('m-d-y', $val);
+                        if (!$fieldValue || !$valDate) return true;
+                        switch ($op) {
+                            case '==':  return $fieldValue == $valDate;
+                            case '=d>': return $fieldValue >= $valDate;
+                            case '=d<': return $fieldValue <= $valDate;
+                            default:    return true;
+                        }
+                    }
+
+                    $fieldValue = strtolower($fieldValue);
+                    $val = strtolower($val);
                     switch ($op) {
                         case '==': return $fieldValue == $val;
                         case '=~': return strpos($fieldValue, $val) !== false;
@@ -256,13 +325,99 @@ if ($filterString !== '')
 
 **What:** Passes the current filter string to the AJAX pipeline request so `getPipelineJobOrder.php` can apply it.
 
-**Added** inside `PipelineJobOrder_populate`, after the `/* Build HTTP POST data. */` comment and before the indicator line:
+**Added** inside `PipelineJobOrder_populate`, after the `/* Build HTTP POST data. */` comment:
 
 ```javascript
-    var filterAreaEl = document.getElementById(
+var filterAreaEl = document.getElementById(
     typeof pipelineDataGridFilterID !== 'undefined' ? pipelineDataGridFilterID : '');
-    POSTData += '&filterString=' + urlEncode(filterAreaEl ? filterAreaEl.value : '');
-    
+POSTData += '&filterString=' + urlEncode(filterAreaEl ? filterAreaEl.value : '');
 ```
 
 ---
+
+### 6. `lib/Pipelines.php`
+
+**What:** Added two new public methods to support the filter feature.
+
+**Why two separate methods:** `getExtraFieldsForPipelineCandidates` fetches the actual stored values for a specific set of candidates in one query. `getExtraFieldDefinitions` fetches the field name definitions so the column map can be populated dynamically without hardcoding every possible extra field name.
+
+**Database schema note:** This codebase uses two tables for extra fields. `extra_field_settings` stores the field definitions (name, type, options). `extra_field` stores the actual values per data item
+
+**Both methods added before the closing `}` of the class:**
+
+```php
+public function getExtraFieldsForPipelineCandidates(array $candidateIDs)
+{
+    if (empty($candidateIDs))
+    {
+        return array();
+    }
+
+    $safeIDs = implode(',', array_map('intval', $candidateIDs));
+
+    $sql = sprintf(
+        "SELECT
+            data_item_id AS candidateID,
+            field_name,
+            value
+         FROM
+            extra_field
+         WHERE
+            data_item_type = %s
+         AND
+            site_id = %s
+         AND
+            data_item_id IN (%s)",
+        DATA_ITEM_CANDIDATE,
+        $this->_siteID,
+        $safeIDs
+    );
+
+    $rs = $this->_db->getAllAssoc($sql);
+    if (!$rs)
+    {
+        return array();
+    }
+
+    $indexed = array();
+    foreach ($rs as $row)
+    {
+        $indexed[$row['candidateID']][$row['field_name']] = $row['value'];
+    }
+
+    return $indexed;
+}
+
+public function getExtraFieldDefinitions()
+{
+    $sql = sprintf(
+        "SELECT field_name
+         FROM extra_field_settings
+         WHERE data_item_type = %s
+         AND site_id = %s",
+        DATA_ITEM_CANDIDATE,
+        $this->_siteID
+    );
+
+    $rs = $this->_db->getAllAssoc($sql);
+    return $rs ? $rs : array();
+}
+```
+
+---
+
+## How Filter Persistence Works
+
+On every AJAX pipeline reload, `pipeline.js` reads the hidden input and sends `filterString` to `getPipelineJobOrder.php`. That file writes it to `$_SESSION['pipelineFilter'][$jobOrderID]` — keyed by job order ID so each job order remembers its own filter independently. When the page next loads, `JobOrdersUI.php` reads that session value and passes it to `Show.tpl` as `$this->savedPipelineFilter`. The hidden input is pre-populated with it before any JavaScript runs, so the first automatic pipeline call at the bottom of the page already carries the correct filter. The `DOMContentLoaded` block then calls `submitFilter` (instead of `showNewFilter`) to render the filter tags in the UI, matching what the server is already filtering by.
+
+---
+
+## How Extra Field Filtering Works
+
+`PipelineCandidatesDataGrid` extends `CandidatesDataGrid` and inherits its column list, which includes any extra fields the site admin has defined. This means extra fields appear as options in the filter dropdown automatically.
+
+On the server side, `getJobOrderPipeline()` only returns core candidate fields — extra field values live in the `extra_field` table and are not part of that query. To make them filterable, `getPipelineJobOrder.php` calls `getExtraFieldsForPipelineCandidates()` after the main fetch, which does a single bulk query for all extra field values across all candidates in the pipeline, then merges them into each row. The column map is then extended dynamically via `getExtraFieldDefinitions()` so the filter logic can resolve extra field display names to the correct row keys.
+
+The result is that after the merge, each `$pipelinesRS` row contains both its core fields and any extra field values the candidate has, and the filter closure can reach all of them uniformly.
+
+**To add a new built-in field to the filter** (one that comes from `getJobOrderPipeline()`): add it to the static `$columnMap` in `getPipelineJobOrder.php` mapping its display name to its SQL alias. Extra fields require no manual addition — they are discovered and mapped automatically.
