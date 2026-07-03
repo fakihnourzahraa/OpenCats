@@ -1092,12 +1092,13 @@ class DataGrid
                 $columnName = urldecode(substr($data, 0, strpos($data, '=')));
 
                 $eqPos = strpos($data, '=');
+
                 $operatorLength = 2;
                 if (substr($data, $eqPos, 3) === '=d>' || substr($data, $eqPos, 3) === '=d<')
                 {
                     $operatorLength = 3;
                 }
-
+                
                 $argument = urldecode(substr($data, $eqPos + $operatorLength));
                 /* Is this a valid column? */
                 if (!isset($this->_classColumns[$columnName]))
@@ -1140,6 +1141,14 @@ class DataGrid
                 foreach ($arguments as $argument)
                 {
                     $argument = trim($argument);
+
+                    if (strpos($data, '=in') !== false)
+                    {
+                        if (isset($this->_classColumns[$columnName]['filter']))
+                        {
+                            $whereSQL_or[] = $this->_classColumns[$columnName]['filter'] . ' = ' . $db->makeQueryString($argument);
+                        }
+                    }
 
                     /* Is equal to (==) */
                     if (strpos($data, '==') !== false)

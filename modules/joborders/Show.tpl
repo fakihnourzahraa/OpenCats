@@ -33,6 +33,23 @@ use OpenCATS\UI\QuickActionMenu;
             { value: '<?php echo addslashes($s['optionValue']); ?>', label: '<?php echo addslashes($s['optionLabel']); ?>' }<?php echo ($i < count($this->statusesRS) - 1) ? ',' : ''; ?>
         <?php endforeach; ?>
     ];
+    
+
+    filterIsInRegistry['University'] = [
+        <?php if (!empty($this->pipelineUniversitiesIsIn)): foreach ($this->pipelineUniversitiesIsIn as $i => $u): ?>
+            { value: '<?php echo addslashes($u['val']); ?>', label: '<?php echo addslashes($u['val']); ?>' }<?php echo ($i < count($this->pipelineUniversitiesIsIn) - 1) ? ',' : ''; ?>
+        <?php endforeach; endif; ?>
+    ];
+    filterIsInRegistry['Nationality'] = [
+        <?php if (!empty($this->pipelineNationalitiesIsIn)): foreach ($this->pipelineNationalitiesIsIn as $i => $n): ?>
+            { value: '<?php echo addslashes($n['val']); ?>', label: '<?php echo addslashes($n['val']); ?>' }<?php echo ($i < count($this->pipelineNationalitiesIsIn) - 1) ? ',' : ''; ?>
+        <?php endforeach; endif; ?>
+    ];
+    filterIsInRegistry['Source'] = [
+        <?php if (!empty($this->pipelineSourcesIsIn)): foreach ($this->pipelineSourcesIsIn as $i => $s): ?>
+            { value: '<?php echo addslashes($s['val']); ?>', label: '<?php echo addslashes($s['val']); ?>' }<?php echo ($i < count($this->pipelineSourcesIsIn) - 1) ? ',' : ''; ?>
+        <?php endforeach; endif; ?>
+    ];
 </script>
 
 <input type="hidden"
@@ -434,11 +451,10 @@ document.addEventListener('DOMContentLoaded', function() {
                             var eqPos = f.indexOf('=');
                             if (eqPos === -1) return;
                             var col = decodeURIComponent(f.substring(0, eqPos));
-                           var opLen = (f.substr(eqPos, 3) === '=d>' || f.substr(eqPos, 3) === '=d<') ? 3 : 2;
+                         var opLen = (f.substr(eqPos, 3) === '=d>' || f.substr(eqPos, 3) === '=d<' || f.substr(eqPos, 3) === '=in') ? 3 : 2;
 var op = f.substring(eqPos, eqPos + opLen);
 var val = decodeURIComponent(f.substring(eqPos + opLen));
-                            var opNames = {'==':'is equal to','=~':'contains','=>':'is greater than','=<':'is less than','=d>':'from','=d<':'to'};
-                    
+var opNames = {'==':'is equal to','=~':'contains','=>':'is greater than','=<':'is less than','=d>':'from','=d<':'to'};
                             var span = document.createElement('span');
                             span.className = 'filterArea';
                             span.innerHTML = '<a href="javascript:void(0);" onclick="this.parentNode.style.display=\'none\'; removeColumnFromFilter(\'' + pipelineDataGridFilterID + '\', \'' + col + '\'); submitFilter' + md5 + '();">'

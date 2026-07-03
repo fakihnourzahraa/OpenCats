@@ -164,7 +164,7 @@ if ($filterString !== '')
     $pipelineFilters = array_filter(explode(',', $filterString));
     foreach ($pipelineFilters as $filterItem)
     {
-        $operators = array('=d>', '=d<', '=~', '==', '=>', '=<');
+        $operators = array('=d>', '=d<','=in', '=~', '==', '=>', '=<');
         foreach ($operators as $op)
         {
             $pos = strpos($filterItem, $op);
@@ -202,6 +202,7 @@ $pipelinesRS = array_filter($pipelinesRS, function($row) use ($col, $op, $val) {
     $fieldValue = strtolower($fieldValue);
     $val = strtolower($val);
     switch ($op) {
+        case '=in':
         case '==': return $fieldValue == $val;
         case '=~': return strpos($fieldValue, $val) !== false;
         case '=>':  return $fieldValue >= $val;

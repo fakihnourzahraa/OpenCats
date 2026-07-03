@@ -527,22 +527,61 @@ class JobOrdersUI extends UserInterface
         $candidates = new Candidates($this->_siteID);
         
         $sourcesRS = $candidates->getPossibleSources();
-$this->_template->assign('sourcesRS', $sourcesRS);
+        $this->_template->assign('sourcesRS', $sourcesRS);
+
+        $db = DatabaseConnection::getInstance();
+
+        $pipelineUniversitiesIsIn = $db->getAllAssoc(sprintf(
+            "SELECT DISTINCT university.short_name AS val
+            FROM candidate
+            INNER JOIN candidate_joborder ON candidate_joborder.candidate_id = candidate.candidate_id
+            LEFT JOIN university ON university.university_id = candidate.university_id
+            WHERE candidate_joborder.joborder_id = %d
+            AND candidate_joborder.site_id = %d
+            AND university.short_name IS NOT NULL AND university.short_name != ''
+            ORDER BY university.short_name ASC",
+            $jobOrderID, $this->_siteID
+        ));
+        $this->_template->assign('pipelineUniversitiesIsIn', $pipelineUniversitiesIsIn);
+
+        $pipelineNationalitiesIsIn = $db->getAllAssoc(sprintf(
+            "SELECT DISTINCT candidate.nationality AS val
+            FROM candidate
+            INNER JOIN candidate_joborder ON candidate_joborder.candidate_id = candidate.candidate_id
+            WHERE candidate_joborder.joborder_id = %d
+            AND candidate_joborder.site_id = %d
+            AND candidate.nationality IS NOT NULL AND candidate.nationality != ''
+            ORDER BY candidate.nationality ASC",
+            $jobOrderID, $this->_siteID
+        ));
+        $this->_template->assign('pipelineNationalitiesIsIn', $pipelineNationalitiesIsIn);
+
+        $pipelineSourcesIsIn = $db->getAllAssoc(sprintf(
+            "SELECT DISTINCT candidate.source AS val
+            FROM candidate
+            INNER JOIN candidate_joborder ON candidate_joborder.candidate_id = candidate.candidate_id
+            WHERE candidate_joborder.joborder_id = %d
+            AND candidate_joborder.site_id = %d
+            AND candidate.source IS NOT NULL AND candidate.source != ''
+            ORDER BY candidate.source ASC",
+            $jobOrderID, $this->_siteID
+        ));
+        $this->_template->assign('pipelineSourcesIsIn', $pipelineSourcesIsIn);
 
         $universitiesRS = $candidates->getPossibleDropDownOptions('university', 'university_id', 'canonical_name', 'short_name');
         $nationalitiesRS = $candidates->getPossibleDropDownOptions('nationality', 'name', 'name', null, 'sort_order ASC, name ASC');
         $this->_template->assign('universitiesRS', $universitiesRS);
         $this->_template->assign('nationalitiesRS', $nationalitiesRS);
 
-$statusesRS = $candidates->getPossibleDropDownOptions(
-    'candidate_joborder_status',
-    'short_description',
-    'short_description',
-    null,
-    'candidate_joborder_status_id ASC',
-    'is_enabled = 1 AND candidate_joborder_status_id != 0'
-);
-$this->_template->assign('statusesRS', $statusesRS);
+        $statusesRS = $candidates->getPossibleDropDownOptions(
+            'candidate_joborder_status',
+            'short_description',
+            'short_description',
+            null,
+            'candidate_joborder_status_id ASC',
+            'is_enabled = 1 AND candidate_joborder_status_id != 0'
+        );
+        $this->_template->assign('statusesRS', $statusesRS);
 
         if (!eval(Hooks::get('JO_SHOW'))) return;
 

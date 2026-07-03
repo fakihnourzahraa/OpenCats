@@ -9,6 +9,7 @@ var filter = {
             '=@': 'Near',
             '=d>': 'is after',
             '=d<': 'is before',
+            '=in': 'is in'
         };
     },
     makePreviousSelectionBoxesUnselectable: function(
@@ -123,15 +124,22 @@ filter.DefaultFilter.prototype.createOperatorSelect = function(currentValue, fil
         style: 'width: 120px'
     });
     var possibleTypes = getFilterColumnTypesFromOptionValue(currentValue);
-    for (var i = 0; i < possibleTypes.length; i+=2)
+    for (var i = 0; i < possibleTypes.length;)
     {
-        var possibleType = possibleTypes.substr(i,2);
-        operatorSelect.appendChild(
-            this.createOption(
-                possibleType,
-                filter.getNames()[possibleType]
-            )
-        );
+        var possibleType;
+        if (possibleTypes.substr(i, 3) === '=d>' || possibleTypes.substr(i, 3) === '=d<' || possibleTypes.substr(i, 3) === '=in') {
+            possibleType = possibleTypes.substr(i, 3);
+            i += 3;
+        } else {
+            possibleType = possibleTypes.substr(i, 2);
+            i += 2;
+        }
+        var names = filter.getNames();
+        if (names[possibleType]) {
+            operatorSelect.appendChild(
+                this.createOption(possibleType, names[possibleType])
+            );
+        }
     }
     return operatorSelect;
 }
@@ -404,6 +412,7 @@ function applyGPAFilter(filterAreaID, filterCounter, instanceName) {
 
 /* Registry: column name → options array. Populated per-page in .tpl files. */
 var filterDropDownRegistry = {};
+var filterIsInRegistry = {};
 
 filter.DropDownFilter = function(defaultValue, filterCounter, filterAreaID, selectableColumns, instanceName) {
     this.defaultValue = defaultValue;
@@ -432,24 +441,95 @@ filter.DropDownFilter.prototype.render = function() {
         style: 'width: 120px'
     });
     operatorSelect.appendChild(this.createOption('==', 'is equal to'));
+    if (filterIsInRegistry[columnName] && filterIsInRegistry[columnName].length > 0)
+        operatorSelect.appendChild(this.createOption('=in', 'is in'));
+
     filterDiv.appendChild(operatorSelect);
 
-    var valueSelect = this.createElement('select', {
-        id: this.filterAreaID + this.filterCounter + 'value',
-        className: 'inputbox',
-        style: 'width: 220px;'
-    });
-    valueSelect.appendChild(this.createOption('', '-- Select --'));
+var valueArea = document.createElement('div');
+    valueArea.style.cssText = 'display:inline-block; vertical-align:middle;';
+    filterDiv.appendChild(valueArea);
 
-    var options = filterDropDownRegistry[columnName] || [];
-    for (var i = 0; i < options.length; i++) {
-        valueSelect.appendChild(this.createOption(options[i].value, options[i].label));
+    function buildValueWidget(options, onSelect) {
+        var wrapper = document.createElement('div');
+        wrapper.style.cssText = 'display:inline-block; position:relative; vertical-align:middle;';
+
+        var display = document.createElement('div');
+        display.className = 'inputbox';
+        display.style.cssText = 'width:220px; cursor:pointer; padding:2px 4px; background:#fff; border:1px solid #999; display:inline-block;';
+        display.innerHTML = '-- Select --';
+
+        var panel = document.createElement('div');
+        panel.style.cssText = 'display:none; position:absolute; z-index:9999; background:#fff; border:1px solid #999; width:220px; box-shadow:2px 2px 4px rgba(0,0,0,0.2);';
+
+        var searchInput = document.createElement('input');
+        searchInput.type = 'text';
+        searchInput.placeholder = 'Search...';
+        searchInput.style.cssText = 'width:100%; box-sizing:border-box; padding:4px; border:none; border-bottom:1px solid #ccc;';
+
+        var list = document.createElement('div');
+        list.style.cssText = 'max-height:200px; overflow-y:auto;';
+
+        var hiddenInput = document.createElement('input');
+        hiddenInput.type = 'hidden';
+        hiddenInput.id   = me.filterAreaID + me.filterCounter + 'value';
+
+        function buildList(filterText) {
+            list.innerHTML = '';
+            for (var i = 0; i < options.length; i++) {
+                var opt = options[i];
+                if (filterText && opt.label.toLowerCase().indexOf(filterText.toLowerCase()) === -1) continue;
+                (function(o) {
+                    var item = document.createElement('div');
+                    item.style.cssText = 'padding:4px 8px; cursor:pointer;';
+                    item.textContent = o.label;
+                    item.addEventListener('mouseenter', function() { this.style.background = '#eee'; });
+                    item.addEventListener('mouseleave',  function() { this.style.background = '';    });
+                    item.addEventListener('click', function() {
+                        hiddenInput.value   = o.value;
+                        display.textContent = o.label;
+                        panel.style.display = 'none';
+                        onSelect();
+                    });
+                    list.appendChild(item);
+                })(opt);
+            }
+        }
+
+        buildList('');
+        searchInput.addEventListener('input', function() { buildList(this.value); });
+        display.addEventListener('click', function(e) {
+            e.stopPropagation();
+            panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+            if (panel.style.display === 'block') {
+                searchInput.value = '';
+                buildList('');
+                searchInput.focus();
+            }
+        });
+        document.addEventListener('click', function() { panel.style.display = 'none'; });
+
+        panel.appendChild(searchInput);
+        panel.appendChild(list);
+        wrapper.appendChild(display);
+        wrapper.appendChild(hiddenInput);
+        wrapper.appendChild(panel);
+        return wrapper;
     }
-    filterDiv.appendChild(valueSelect);
 
-    valueSelect.addEventListener('change', function() {
-        applyDropDownFilter(me.filterAreaID, me.filterCounter, me.instanceName, columnName);
-    });
+    function updateValueArea() {
+        valueArea.innerHTML = '';
+        var op = operatorSelect.value;
+        var options = op === '=in'
+            ? (filterIsInRegistry[columnName] || [])
+            : (filterDropDownRegistry[columnName] || []);
+        valueArea.appendChild(buildValueWidget(options, function() {
+            applyDropDownFilter(me.filterAreaID, me.filterCounter, me.instanceName, columnName);
+        }));
+    }
+
+    operatorSelect.addEventListener('change', function() { updateValueArea(); });
+    updateValueArea();
 
     filterDiv.style.float = 'left';
     return filterDiv;
@@ -458,13 +538,15 @@ filter.DropDownFilter.prototype.render = function() {
 function applyDropDownFilter(filterAreaID, filterCounter, instanceName, columnName) {
     var filterArea = document.getElementById('filterArea' + instanceName);
     var filterVal = filterArea.value;
+    var op = document.getElementById(filterAreaID + filterCounter + 'operator').value;
 
-    var pattern = new RegExp(',?' + columnName + '==[^,]*', 'g');
+
+    var pattern = new RegExp(',?' + columnName + '(?:==|=in)[^,]*', 'g');
     filterVal = filterVal.replace(pattern, '');
     filterVal = filterVal.replace(/^,/, '');
 
     var val = document.getElementById(filterAreaID + filterCounter + 'value').value;
-    if (val !== '') filterVal += (filterVal ? ',' : '') + columnName + '==' + val;
+    if (val !== '') filterVal += (filterVal ? ',' : '') + columnName + op + val;
 
     filterArea.value = filterVal;
 }

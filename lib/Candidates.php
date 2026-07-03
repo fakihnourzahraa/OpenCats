@@ -2212,7 +2212,7 @@ class CandidatesDataGrid extends DataGrid
                                      'pagerWidth'   => 140,
                                      'alphaNavigation' => true,
                                      'filter'         => 'candidate.source',
-                                     'filterTypes'    => '=='),
+                                     'filterTypes'    => '=in=='),
 
             'Available' =>     array('select'   => 'DATE_FORMAT(candidate.date_available, \'%m-%d-%y\') AS dateAvailable',
                                      'sortableColumn'     => 'dateAvailable',
