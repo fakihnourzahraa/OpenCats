@@ -2212,7 +2212,7 @@ class CandidatesDataGrid extends DataGrid
                                      'pagerWidth'   => 140,
                                      'alphaNavigation' => true,
                                      'filter'         => 'candidate.source',
-                                     'filterTypes'    => '=='),
+                                     'filterTypes'    => '===in'),
 
             'Available' =>     array('select'   => 'DATE_FORMAT(candidate.date_available, \'%m-%d-%y\') AS dateAvailable',
                                      'sortableColumn'     => 'dateAvailable',
@@ -2309,7 +2309,7 @@ class CandidatesDataGrid extends DataGrid
                                     'pagerWidth'     => 100,
                                     'pagerOptional'  => true,
                                     'filter'         => 'university.short_name',
-                                    'filterTypes'    => '==',
+                                    'filterTypes'    => '=in',
                                 ),
             'Nationality' =>    array(
                                     'select'         => 'candidate.nationality AS nationality',
@@ -2319,7 +2319,7 @@ class CandidatesDataGrid extends DataGrid
                                     'pagerWidth'     => 100,
                                     'pagerOptional'  => true,
                                     'filter'         => 'candidate.nationality',
-                                    'filterTypes'    => '==',
+                                    'filterTypes'    => '=in',
                                 ),
 'Interview Stage' => array(
     'select'         => '(
