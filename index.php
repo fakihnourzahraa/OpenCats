@@ -40,6 +40,8 @@
 /* Do we need to run the installer? */
 
 include_once('./config.php');
+ini_set('display_errors', 1);
+error_reporting(E_ALL);
 
 if (!file_exists('INSTALL_BLOCK') && !isset($_POST['performMaintenence']))
 {
