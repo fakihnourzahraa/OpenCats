@@ -544,52 +544,27 @@ $statusesRS = $candidates->getPossibleDropDownOptions(
 );
 $this->_template->assign('statusesRS', $statusesRS);
 
-// ↓ ADD THIS
-$db = DatabaseConnection::getInstance();
-
-$pipelineUniversitiesIsIn = $db->getAllAssoc(sprintf(
-    "SELECT DISTINCT university.short_name AS val
-     FROM candidate
-     INNER JOIN candidate_joborder ON candidate_joborder.candidate_id = candidate.candidate_id
-     LEFT JOIN university ON university.university_id = candidate.university_id
-     WHERE candidate_joborder.joborder_id = %d
-       AND candidate_joborder.site_id = %d
-       AND university.short_name IS NOT NULL AND university.short_name != ''
-     ORDER BY university.short_name ASC",
-    $jobOrderID, $this->_siteID
-));
-$this->_template->assign('pipelineUniversitiesIsIn', $pipelineUniversitiesIsIn);
-
-$pipelineNationalitiesIsIn = $db->getAllAssoc(sprintf(
-    "SELECT DISTINCT candidate.nationality AS val
-     FROM candidate
-     INNER JOIN candidate_joborder ON candidate_joborder.candidate_id = candidate.candidate_id
-     WHERE candidate_joborder.joborder_id = %d
-       AND candidate_joborder.site_id = %d
-       AND candidate.nationality IS NOT NULL AND candidate.nationality != ''
-     ORDER BY candidate.nationality ASC",
-    $jobOrderID, $this->_siteID
-));
-$this->_template->assign('pipelineNationalitiesIsIn', $pipelineNationalitiesIsIn);
-
-$pipelineSourcesIsIn = $db->getAllAssoc(sprintf(
-    "SELECT DISTINCT candidate.source AS val
-     FROM candidate
-     INNER JOIN candidate_joborder ON candidate_joborder.candidate_id = candidate.candidate_id
-     WHERE candidate_joborder.joborder_id = %d
-       AND candidate_joborder.site_id = %d
-       AND candidate.source IS NOT NULL AND candidate.source != ''
-     ORDER BY candidate.source ASC",
-    $jobOrderID, $this->_siteID
-));
-$this->_template->assign('pipelineSourcesIsIn', $pipelineSourcesIsIn);
-
         if (!eval(Hooks::get('JO_SHOW'))) return;
+
+    //     $dataGridProperties = DataGrid::getRecentParamaters('joborders:PipelineCandidatesDataGrid');
+    //     if ($dataGridProperties == array())
+    //     {
+    //         $dataGridProperties = array(
+    //             'rangeStart'    => 0,
+    //             'maxResults'    => 15,
+    //             'filterVisible' => true,
+    //             'filter'        => 'First+Name=~',
+    //         );
+    //     }
+
+    //     $dataGrid = new PipelineCandidatesDataGrid($this->_siteID, $dataGridProperties, 0);
+    //     $this->_template->assign('dataGrid', $dataGrid);
+    //     $this->_template->assign('userID', $_SESSION['CATS']->getUserID());
+    //     $this->_template->display('./modules/joborders/Show.tpl');
 
 $savedPipelineFilter = isset($_SESSION['pipelineFilter'][$jobOrderID])
     ? $_SESSION['pipelineFilter'][$jobOrderID]
     : '';
-    
 
 $dataGridProperties = DataGrid::getRecentParamaters('joborders:PipelineCandidatesDataGrid');
 if ($dataGridProperties == array())

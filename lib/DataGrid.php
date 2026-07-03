@@ -1141,14 +1141,6 @@ class DataGrid
                 {
                     $argument = trim($argument);
 
-                    if (strpos($data, '=in') !== false)
-    {
-        if (isset($this->_classColumns[$columnName]['filter']))
-        {
-            $whereSQL_or[] = $this->_classColumns[$columnName]['filter'] . ' = ' . $db->makeQueryString($argument);
-        }
-    }
-
                     /* Is equal to (==) */
                     if (strpos($data, '==') !== false)
                     {

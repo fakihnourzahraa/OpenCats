@@ -452,20 +452,9 @@ class CandidatesUI extends UserInterface
         $nationalitiesRS = $candidates->getPossibleDropDownOptions('nationality', 'name', 'name', null, 'sort_order ASC, name ASC');
         $this->_template->assign('nationalitiesRS', $nationalitiesRS);
       
-        
         $sourcesRS = $candidates->getPossibleSources();
         $this->_template->assign('sourcesRS', $sourcesRS);
         
-        $sourceIsIn = $db->getAllAssoc(sprintf(
-    "SELECT DISTINCT candidate.source AS val
-     FROM candidate
-     WHERE candidate.site_id = %d
-       AND candidate.source IS NOT NULL AND candidate.source != ''
-     ORDER BY candidate.source ASC",
-    $this->_siteID
-));
-$this->_template->assign('sourceIsIn', $sourceIsIn);
-error_log('sourceIsIn count: ' . count($sourceIsIn));
         if (!eval(Hooks::get('CANDIDATE_LIST_BY_VIEW'))) return;
 
         $this->_template->display('./modules/candidates/Candidates.tpl');
