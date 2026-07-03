@@ -2321,16 +2321,24 @@ class CandidatesDataGrid extends DataGrid
                                     'filter'         => 'candidate.nationality',
                                     'filterTypes'    => '==',
                                 ),
-            'Interview Stage' => array(
-                                    'select'         => 'candidate_joborder_status.short_description AS statusDescription',
-                                    'pagerRender'    => 'return !empty($rsData[\'statusDescription\']) ? htmlspecialchars($rsData[\'statusDescription\']) : \'\';',
-                                    'exportRender'   => 'return !empty($rsData[\'statusDescription\']) ? $rsData[\'statusDescription\'] : \'\';',
-                                    'sortableColumn' => 'statusDescription',
-                                    'pagerWidth'     => 120,
-                                    'pagerOptional'  => true,
-                                    'filter'         => 'candidate_joborder_status.short_description',
-                                    'filterTypes'    => '==',
-                                ),
+'Interview Stage' => array(
+    'select'         => '(
+        SELECT candidate_joborder_status.short_description
+        FROM candidate_joborder
+        LEFT JOIN candidate_joborder_status
+            ON candidate_joborder_status.candidate_joborder_status_id = candidate_joborder.status
+        WHERE candidate_joborder.candidate_id = candidate.candidate_id
+        ORDER BY candidate_joborder.date_modified DESC
+        LIMIT 1
+    ) AS statusDescription',
+    'pagerRender'    => 'return !empty($rsData[\'statusDescription\']) ? htmlspecialchars($rsData[\'statusDescription\']) : \'\';',
+    'exportRender'   => 'return !empty($rsData[\'statusDescription\']) ? $rsData[\'statusDescription\'] : \'\';',
+    'sortableColumn' => 'statusDescription',
+    'pagerWidth'     => 120,
+    'pagerOptional'  => true,
+    'filter'         => 'candidate_joborder_status.short_description',
+    'filterTypes'    => '==',
+),
         // Tags filtering
         	'Tags'	=>			array(
                                      'select'	=> '(

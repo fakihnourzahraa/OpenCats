@@ -1363,7 +1363,7 @@ class DataGrid
         $orderSQL = 'ORDER BY ' . $this->_parameters['sortBy'] . ' ' . $this->_parameters['sortDirection'];
 
         $sql = $this->getSQL($selectSQL, $joinSQL, $whereSQL, $havingSQL, $orderSQL, $limitSQL);
-
+file_put_contents('/var/www/html/opencats/export_debug.sql', $sql);
         $this->_rs = $db->getAllAssoc($sql);
 
         /* Get total number of results before limit. */
