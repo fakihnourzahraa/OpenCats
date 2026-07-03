@@ -138,6 +138,7 @@
             <?php $this->dataGrid->drawFilterArea(); ?>
             <?php $this->dataGrid->draw();  ?>
 
+
             <div style="display:block;">
                 <span style="float:left;">
                     <?php $this->dataGrid->printActionArea(); ?>
