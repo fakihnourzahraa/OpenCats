@@ -971,7 +971,8 @@ class JobOrdersDataGrid extends DataGrid
                                      'pagerRender'      => 'return $rsData[\'dateCreated\'];',
                                      'sortableColumn'     => 'dateCreatedSort',
                                      'pagerWidth'    => 60,
-                                     'filterHaving' => 'DATE_FORMAT(joborder.date_created, \'%m-%d-%y\')'),
+                                     'filterHaving' => 'DATE_FORMAT(joborder.date_created, \'%m-%d-%y\')',
+                                    'filterTypes'  => '=d>=d<=='),
 
             'Modified' =>      array('select'   => 'DATE_FORMAT(joborder.date_modified, \'%m-%d-%y\') AS dateModified',
                                      'pagerRender'      => 'return $rsData[\'dateModified\'];',

@@ -19,6 +19,9 @@
             { value: '<?php echo addslashes($s['name']); ?>', label: '<?php echo addslashes($s['name']); ?>' }<?php echo ($i < count($this->sourcesRS) - 1) ? ',' : ''; ?>
         <?php endforeach; ?>
     ];
+    filterDateRangeRegistry['Created'] = true;
+    filterDateRangeRegistry['Modified'] = true;
+    filterDateRangeRegistry['Desired Pay'] = true;
 </script>
     <style type="text/css">
     div.addCandidateButton { background: #4172E3 url(images/nodata/candidatesButton.jpg); cursor: pointer; width: 337px; height: 67px; }

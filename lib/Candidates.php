@@ -2266,7 +2266,8 @@ class CandidatesDataGrid extends DataGrid
                                      'sortableColumn'     => 'dateModifiedSort',
                                      'pagerWidth'    => 60,
                                      'pagerOptional' => false,
-                                     'filterHaving' => 'DATE_FORMAT(candidate.date_modified, \'%m-%d-%y\')'),
+                                     'filterHaving' => 'DATE_FORMAT(candidate.date_modified, \'%m-%d-%y\')'
+                                    ,'filterTypes'  => '=d>=d<=='),
 
             /* This one only works when called from the saved list view.  Thats why it is not optional, filterable, or exportable.
              * FIXME:  Somehow make this defined in the associated savedListDataGrid class child.
@@ -2278,7 +2279,8 @@ class CandidatesDataGrid extends DataGrid
                                      'pagerWidth'    => 60,
                                      'pagerOptional' => false,
                                      'filterable' => false,
-                                     'exportable' => false),
+                                     'exportable' => false,
+                                    'filterTypes'  => '=d>=d<=='),
 
             'OwnerID' =>       array('select'    => '',
                                      'filter'    => 'candidate.owner',
@@ -2297,7 +2299,7 @@ class CandidatesDataGrid extends DataGrid
                                     'pagerWidth'     => 60,
                                     'pagerOptional'  => true,
                                     'filter'         => 'candidate.gpa',
-                                    'filterTypes'    => '=><==',
+                                    'filterTypes'    => '=>=<=><==', 
                                 ),
             'University' =>     array(
                                     'select'         => 'university.canonical_name AS universityCanonicalName,

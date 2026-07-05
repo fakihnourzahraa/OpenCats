@@ -858,6 +858,9 @@ class DataGrid
                     case '=d<':
                         $filterOperatorHuman = ' to';
                         break;
+                    case '=e': 
+                        $filterOperatorHuman = ' is empty';
+                        break;
                 }
                 //note: =d> and =d< operator descriptions get overriden
 
@@ -890,14 +893,18 @@ class DataGrid
             /* Set filter types */
             else
             {
-                if (isset($this->_classColumns[$value]['filterTypes']))
-                {
-                    $filterableColumns[$index] .= '!@!' . $this->_classColumns[$value]['filterTypes'];
-                }
-                else
-                {
-                    $filterableColumns[$index] .= '!@!' . '===~';
-                }
+if (isset($this->_classColumns[$value]['filterTypes']))
+{
+    $types = $this->_classColumns[$value]['filterTypes'];
+    if (strpos($types, '=e') === false) {
+        $types .= '=e';
+    }
+    $filterableColumns[$index] .= '!@!' . $types;
+}
+else
+{
+    $filterableColumns[$index] .= '!@!' . '===~=e';
+}
             }
         }
         $template = new Template();
@@ -1106,7 +1113,7 @@ class DataGrid
                     continue;
                 }
 
-                if ($argument == '')
+                if ($argument == '' && $op !=='=e')
                 {
                     continue;
                 }

@@ -605,6 +605,7 @@ $savedPipelineFilter = isset($_SESSION['pipelineFilter'][$jobOrderID])
     ? $_SESSION['pipelineFilter'][$jobOrderID]
     : '';
 
+ 
 $dataGridProperties = DataGrid::getRecentParamaters('joborders:PipelineCandidatesDataGrid');
 if ($dataGridProperties == array())
 {
