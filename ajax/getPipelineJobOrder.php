@@ -67,10 +67,7 @@ $jobOrdersData = $jobOrders->get($jobOrderID);
 /* Get an array of the pipeline data. */
 $pipelines = new Pipelines($siteID);
 $pipelinesRS = $pipelines->getJobOrderPipeline($jobOrderID);
-// Add temporarily right after $pipelinesRS = $pipelines->getJobOrderPipeline($jobOrderID);
-if (!empty($pipelinesRS)) {
-    file_put_contents('/var/www/html/opencats/pipeline_keys.txt', print_r(array_keys($pipelinesRS[0]), true));
-}
+
 /* Format pipeline data. */
 foreach ($pipelinesRS as $rowIndex => $row)
 {
@@ -119,7 +116,6 @@ foreach ($pipelinesRS as $rowIndex => $row)
     );
 }
 
-/* Fetch extra field values and merge into each pipeline row. */
 $candidateIDs = array_map(function($row) {
     return $row['candidateID'];
 }, $pipelinesRS);
@@ -206,7 +202,7 @@ $allPipelineColumns = array(
     'action'              => 'Action',
 );
 
-// Merge dynamic extra fields into column list (unchecked by default)
+
 $extraFieldDefs = $pipelines->getExtraFieldDefinitions();
 if ($extraFieldDefs) {
     $actionLabel = $allPipelineColumns['action'];
@@ -413,11 +409,6 @@ $jsFilter    = addslashes($filterString);
 $jsCookie    = addslashes($_SESSION['CATS']->getCookie());
 $jsIsPopup   = $isPopup ? 1 : 0;
 ?>
-
-
-<script type="text/javascript">
-
-</script>
 
 <?php echo(TemplateUtility::getRatingsArrayJS()); ?>
 

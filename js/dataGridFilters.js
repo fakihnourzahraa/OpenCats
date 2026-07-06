@@ -283,7 +283,6 @@ filter.NearZipCodeFilter.prototype.render = function() {
     return filterDiv;
 }
 
-/* Registry: column name → options array. Populated per-page in .tpl files. */
 var filterDropDownRegistry = {};
 var filterIsInRegistry = {};
 var filterDateRangeRegistry = {};

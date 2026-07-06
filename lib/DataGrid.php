@@ -893,18 +893,18 @@ class DataGrid
             /* Set filter types */
             else
             {
-if (isset($this->_classColumns[$value]['filterTypes']))
-{
-    $types = $this->_classColumns[$value]['filterTypes'];
-    if (strpos($types, '=e') === false) {
-        $types .= '=e';
-    }
-    $filterableColumns[$index] .= '!@!' . $types;
-}
-else
-{
-    $filterableColumns[$index] .= '!@!' . '===~=e';
-}
+                if (isset($this->_classColumns[$value]['filterTypes']))
+                {
+                    $types = $this->_classColumns[$value]['filterTypes'];
+                    if (strpos($types, '=e') === false) {
+                        $types .= '=e';
+                    }
+                    $filterableColumns[$index] .= '!@!' . $types;
+                }
+                else
+                {
+                    $filterableColumns[$index] .= '!@!' . '===~=e';
+                }
             }
         }
        
@@ -913,7 +913,7 @@ else
         $template->assign('arrayKeysString', json_encode(array_values($filterableColumns)));
         $template->assign('counterFilters', $counterFilters);
 
-        // Auto-register extra field filter types into JS registries
+      
         echo '<script type="text/javascript">';
         foreach ($this->_classColumns as $columnName => $data) {
             if (!isset($data['filterTypes'])) continue;
@@ -1409,7 +1409,7 @@ else
         $orderSQL = 'ORDER BY ' . $this->_parameters['sortBy'] . ' ' . $this->_parameters['sortDirection'];
 
         $sql = $this->getSQL($selectSQL, $joinSQL, $whereSQL, $havingSQL, $orderSQL, $limitSQL);
-file_put_contents('/var/www/html/opencats/export_debug.sql', $sql);
+
         $this->_rs = $db->getAllAssoc($sql);
 
         /* Get total number of results before limit. */
@@ -1462,13 +1462,12 @@ file_put_contents('/var/www/html/opencats/export_debug.sql', $sql);
         /* Get data. */
         $this->_getData();
 
-        /* Figure out what columns we can export. */
-/* Figure out what columns we can export. */
-$exportableColumns = array();
-foreach ($this->_currentColumns as $index => $colData)
-{
-    $exportableColumns[] = array('name' => $colData['name'], 'data' => $colData['data']);
-}
+
+    $exportableColumns = array();
+    foreach ($this->_currentColumns as $index => $colData)
+    {
+        $exportableColumns[] = array('name' => $colData['name'], 'data' => $colData['data']);
+    }
 $this->_currentColumns = $exportableColumns;
         /* Reload data. */
         $this->_rs = false;

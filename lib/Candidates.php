@@ -1031,40 +1031,40 @@ class Candidates
         return $this->_db->getAllAssoc($sql);
     }
 
-   public function getPossibleDropDownOptions($table, $valueColumn, $labelColumn, $shortColumn = null, $orderBy = null, $where = null)
-{
-    $shortSelect = $shortColumn ? ", $table.$shortColumn AS shortName" : ", $table.$labelColumn AS shortName";
+    public function getPossibleDropDownOptions($table, $valueColumn, $labelColumn, $shortColumn = null, $orderBy = null, $where = null)
+    {
+        $shortSelect = $shortColumn ? ", $table.$shortColumn AS shortName" : ", $table.$labelColumn AS shortName";
 
-    if ($orderBy === false) {
-        $orderByClause = '';
-    } elseif ($orderBy !== null && (strpos($orderBy, ' ') !== false || strpos($orderBy, ',') !== false)) {
-        $orderByClause = "ORDER BY $orderBy";
-    } else {
-        $col = $orderBy ? $orderBy : $labelColumn;
-        $orderByClause = "ORDER BY $table.$col ASC";
+        if ($orderBy === false) {
+            $orderByClause = '';
+        } elseif ($orderBy !== null && (strpos($orderBy, ' ') !== false || strpos($orderBy, ',') !== false)) {
+            $orderByClause = "ORDER BY $orderBy";
+        } else {
+            $col = $orderBy ? $orderBy : $labelColumn;
+            $orderByClause = "ORDER BY $table.$col ASC";
+        }
+
+        $whereClause = $where ? "WHERE $where" : '';
+
+        $sql = sprintf(
+            "SELECT
+                %s.%s AS optionValue,
+                %s.%s AS optionLabel
+                %s
+            FROM
+                %s
+            %s
+            %s",
+            $table, $valueColumn,
+            $table, $labelColumn,
+            $shortSelect,
+            $table,
+            $whereClause,
+            $orderByClause
+        );
+
+        return $this->_db->getAllAssoc($sql);
     }
-
-    $whereClause = $where ? "WHERE $where" : '';
-
-    $sql = sprintf(
-        "SELECT
-            %s.%s AS optionValue,
-            %s.%s AS optionLabel
-            %s
-        FROM
-            %s
-        %s
-        %s",
-        $table, $valueColumn,
-        $table, $labelColumn,
-        $shortSelect,
-        $table,
-        $whereClause,
-        $orderByClause
-    );
-
-    return $this->_db->getAllAssoc($sql);
-}
 
 
     /**

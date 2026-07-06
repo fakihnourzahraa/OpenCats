@@ -1,5 +1,4 @@
-# University & Nationality Implementation Notes
-
+# DropDowns Notes
 ## Overview
 
 Two new candidate fields were added to OpenCATS:

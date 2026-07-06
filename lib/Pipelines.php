@@ -540,130 +540,130 @@ class Pipelines
          * is a way to return multiple values from a subquery.
          */
        $sql = sprintf(
-    "SELECT
-        IF(attachment_id, 1, 0) AS attachmentPresent,
-        IF(old_candidate_id, 1, 0) AS isDuplicateCandidate,
-        candidate.candidate_id AS candidateID,
-        candidate.first_name AS firstName,
-        candidate.last_name AS lastName,
-        candidate.state AS state,
-        candidate.city AS city,
-        candidate.zip AS zip,
-        candidate.address AS address,
-        candidate.email1 AS candidateEmail,
-        candidate.email2 AS candidateEmail2,
-        candidate.phone_home AS phoneHome,
-        candidate.phone_cell AS phoneCell,
-        candidate.phone_work AS phoneWork,
-        candidate.key_skills AS keySkills,
-        candidate.current_employer AS currentEmployer,
-        candidate.current_pay AS currentPay,
-        candidate.desired_pay AS desiredPay,
-        candidate.can_relocate AS canRelocate,
-        candidate.source AS source,
-        candidate.web_site AS webSite,
-        candidate.notes AS notes,
-        DATE_FORMAT(candidate.date_available, '%%m-%%d-%%y') AS dateAvailable,
-        DATE_FORMAT(candidate.date_modified, '%%m-%%d-%%y') AS dateModified,
-        DATE_FORMAT(candidate.date_created, '%%m-%%d-%%y') AS candidateDateCreated,
-        candidate_joborder.status AS jobOrderStatus,
-        candidate.is_hot AS isHotCandidate,
-        candidate.gpa AS gpa,
-        candidate.nationality AS nationality,
-        university.short_name AS universityShortName,
-        candidate_joborder_status.short_description AS statusDescription,
-        DATE_FORMAT(
-            candidate_joborder.date_created, '%%m-%%d-%%y'
-        ) AS dateCreated,
-        UNIX_TIMESTAMP(candidate_joborder.date_created) AS dateCreatedInt,
-        candidate_joborder_status.short_description AS status,
-        candidate_joborder.candidate_joborder_id AS candidateJobOrderID,
-        candidate_joborder.rating_value AS ratingValue,
-        owner_user.first_name AS ownerFirstName,
-        owner_user.last_name AS ownerLastName,
-        (
-            SELECT
-                CONCAT(
-                    '<strong>',
-                    DATE_FORMAT(activity.date_created, '%%m-%%d-%%y'),
-                    ' (',
-                    entered_by_user.first_name,
-                    ' ',
-                    entered_by_user.last_name,
-                    '):</strong> ',
-                    IF(
-                        ISNULL(activity.notes) OR activity.notes = '',
-                        '(No Notes)',
-                        activity.notes
+        "SELECT
+            IF(attachment_id, 1, 0) AS attachmentPresent,
+            IF(old_candidate_id, 1, 0) AS isDuplicateCandidate,
+            candidate.candidate_id AS candidateID,
+            candidate.first_name AS firstName,
+            candidate.last_name AS lastName,
+            candidate.state AS state,
+            candidate.city AS city,
+            candidate.zip AS zip,
+            candidate.address AS address,
+            candidate.email1 AS candidateEmail,
+            candidate.email2 AS candidateEmail2,
+            candidate.phone_home AS phoneHome,
+            candidate.phone_cell AS phoneCell,
+            candidate.phone_work AS phoneWork,
+            candidate.key_skills AS keySkills,
+            candidate.current_employer AS currentEmployer,
+            candidate.current_pay AS currentPay,
+            candidate.desired_pay AS desiredPay,
+            candidate.can_relocate AS canRelocate,
+            candidate.source AS source,
+            candidate.web_site AS webSite,
+            candidate.notes AS notes,
+            DATE_FORMAT(candidate.date_available, '%%m-%%d-%%y') AS dateAvailable,
+            DATE_FORMAT(candidate.date_modified, '%%m-%%d-%%y') AS dateModified,
+            DATE_FORMAT(candidate.date_created, '%%m-%%d-%%y') AS candidateDateCreated,
+            candidate_joborder.status AS jobOrderStatus,
+            candidate.is_hot AS isHotCandidate,
+            candidate.gpa AS gpa,
+            candidate.nationality AS nationality,
+            university.short_name AS universityShortName,
+            candidate_joborder_status.short_description AS statusDescription,
+            DATE_FORMAT(
+                candidate_joborder.date_created, '%%m-%%d-%%y'
+            ) AS dateCreated,
+            UNIX_TIMESTAMP(candidate_joborder.date_created) AS dateCreatedInt,
+            candidate_joborder_status.short_description AS status,
+            candidate_joborder.candidate_joborder_id AS candidateJobOrderID,
+            candidate_joborder.rating_value AS ratingValue,
+            owner_user.first_name AS ownerFirstName,
+            owner_user.last_name AS ownerLastName,
+            (
+                SELECT
+                    CONCAT(
+                        '<strong>',
+                        DATE_FORMAT(activity.date_created, '%%m-%%d-%%y'),
+                        ' (',
+                        entered_by_user.first_name,
+                        ' ',
+                        entered_by_user.last_name,
+                        '):</strong> ',
+                        IF(
+                            ISNULL(activity.notes) OR activity.notes = '',
+                            '(No Notes)',
+                            activity.notes
+                        )
                     )
-                )
-            FROM
-                activity
-            LEFT JOIN activity_type
-                ON activity.type = activity_type.activity_type_id
-            LEFT JOIN user AS entered_by_user
-                ON activity.entered_by = entered_by_user.user_id
-            WHERE
-                activity.data_item_id = candidate.candidate_id
-            AND
-                activity.data_item_type = %s
-            AND
-                activity.joborder_id = %s
-            ORDER BY
-                activity.date_created DESC
-            LIMIT 1
-        ) AS lastActivity,
-        IF((
-            SELECT
-                COUNT(*)
-            FROM
-                candidate_joborder_status_history
-            WHERE
-                joborder_id = %s
-            AND
-                candidate_id = candidate.candidate_id
-            AND
-                status_to = %s
-            AND
-                site_id = %s
-        ) >= 1, 1, 0) AS submitted,
-        added_user.first_name AS addedByFirstName,
-        added_user.last_name AS addedByLastName
-    FROM
-        candidate_joborder
-    LEFT JOIN candidate
-        ON candidate_joborder.candidate_id = candidate.candidate_id
-    LEFT JOIN user AS owner_user
-        ON candidate.owner = owner_user.user_id
-    LEFT JOIN user AS added_user
-        ON candidate_joborder.added_by = added_user.user_id
-    LEFT JOIN attachment
-        ON candidate.candidate_id = attachment.data_item_id
-    LEFT JOIN candidate_joborder_status
-        ON candidate_joborder.status = candidate_joborder_status.candidate_joborder_status_id
-    LEFT JOIN candidate_duplicates
-        ON candidate_duplicates.new_candidate_id = candidate.candidate_id
-    LEFT JOIN university
-        ON university.university_id = candidate.university_id
-    WHERE
-        candidate_joborder.joborder_id = %s
-    AND
-        candidate_joborder.site_id = %s
-    AND
-        candidate.site_id = %s
-    GROUP BY
-        candidate_joborder.candidate_id
-    %s",
-    DATA_ITEM_CANDIDATE,
-    $this->_db->makeQueryInteger($jobOrderID),
-    $this->_db->makeQueryInteger($jobOrderID),
-    PIPELINE_STATUS_SUBMITTED,
-    $this->_siteID,
-    $this->_db->makeQueryInteger($jobOrderID),
-    $this->_siteID,
-    $this->_siteID,
-    $orderBy
-);
+                FROM
+                    activity
+                LEFT JOIN activity_type
+                    ON activity.type = activity_type.activity_type_id
+                LEFT JOIN user AS entered_by_user
+                    ON activity.entered_by = entered_by_user.user_id
+                WHERE
+                    activity.data_item_id = candidate.candidate_id
+                AND
+                    activity.data_item_type = %s
+                AND
+                    activity.joborder_id = %s
+                ORDER BY
+                    activity.date_created DESC
+                LIMIT 1
+            ) AS lastActivity,
+            IF((
+                SELECT
+                    COUNT(*)
+                FROM
+                    candidate_joborder_status_history
+                WHERE
+                    joborder_id = %s
+                AND
+                    candidate_id = candidate.candidate_id
+                AND
+                    status_to = %s
+                AND
+                    site_id = %s
+            ) >= 1, 1, 0) AS submitted,
+            added_user.first_name AS addedByFirstName,
+            added_user.last_name AS addedByLastName
+        FROM
+            candidate_joborder
+        LEFT JOIN candidate
+            ON candidate_joborder.candidate_id = candidate.candidate_id
+        LEFT JOIN user AS owner_user
+            ON candidate.owner = owner_user.user_id
+        LEFT JOIN user AS added_user
+            ON candidate_joborder.added_by = added_user.user_id
+        LEFT JOIN attachment
+            ON candidate.candidate_id = attachment.data_item_id
+        LEFT JOIN candidate_joborder_status
+            ON candidate_joborder.status = candidate_joborder_status.candidate_joborder_status_id
+        LEFT JOIN candidate_duplicates
+            ON candidate_duplicates.new_candidate_id = candidate.candidate_id
+        LEFT JOIN university
+            ON university.university_id = candidate.university_id
+        WHERE
+            candidate_joborder.joborder_id = %s
+        AND
+            candidate_joborder.site_id = %s
+        AND
+            candidate.site_id = %s
+        GROUP BY
+            candidate_joborder.candidate_id
+        %s",
+        DATA_ITEM_CANDIDATE,
+        $this->_db->makeQueryInteger($jobOrderID),
+        $this->_db->makeQueryInteger($jobOrderID),
+        PIPELINE_STATUS_SUBMITTED,
+        $this->_siteID,
+        $this->_db->makeQueryInteger($jobOrderID),
+        $this->_siteID,
+        $this->_siteID,
+        $orderBy
+    );
 
         return $this->_db->getAllAssoc($sql);
     }
@@ -761,46 +761,46 @@ class Pipelines
     }
 
     public function getExtraFieldsForPipelineCandidates(array $candidateIDs)
-{
-    if (empty($candidateIDs))
     {
-        return array();
+        if (empty($candidateIDs))
+        {
+            return array();
+        }
+
+        $safeIDs = implode(',', array_map('intval', $candidateIDs));
+
+        $sql = sprintf(
+            "SELECT
+                data_item_id AS candidateID,
+                field_name,
+                value
+            FROM
+                extra_field
+            WHERE
+                data_item_type = %s
+            AND
+                site_id = %s
+            AND
+                data_item_id IN (%s)",
+            DATA_ITEM_CANDIDATE,
+            $this->_siteID,
+            $safeIDs
+        );
+
+        $rs = $this->_db->getAllAssoc($sql);
+        if (!$rs)
+        {
+            return array();
+        }
+
+        $indexed = array();
+        foreach ($rs as $row)
+        {
+            $indexed[$row['candidateID']][$row['field_name']] = $row['value'];
+        }
+
+        return $indexed;
     }
-
-    $safeIDs = implode(',', array_map('intval', $candidateIDs));
-
-    $sql = sprintf(
-        "SELECT
-            data_item_id AS candidateID,
-            field_name,
-            value
-         FROM
-            extra_field
-         WHERE
-            data_item_type = %s
-         AND
-            site_id = %s
-         AND
-            data_item_id IN (%s)",
-        DATA_ITEM_CANDIDATE,
-        $this->_siteID,
-        $safeIDs
-    );
-
-    $rs = $this->_db->getAllAssoc($sql);
-    if (!$rs)
-    {
-        return array();
-    }
-
-    $indexed = array();
-    foreach ($rs as $row)
-    {
-        $indexed[$row['candidateID']][$row['field_name']] = $row['value'];
-    }
-
-    return $indexed;
-}
 
 // public function getExtraFieldDefinitions()
 // {
