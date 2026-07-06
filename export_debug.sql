@@ -14,7 +14,8 @@ candidate.state AS state,
 candidate.key_skills AS keySkills,
 owner_user.first_name AS ownerFirstName,owner_user.last_name AS ownerLastName,CONCAT(owner_user.last_name, owner_user.first_name) AS ownerSort,
 DATE_FORMAT(candidate.date_created, '%m-%d-%y') AS dateCreated,
-DATE_FORMAT(candidate.date_modified, '%m-%d-%y') AS dateModified
+DATE_FORMAT(candidate.date_modified, '%m-%d-%y') AS dateModified,
+                                                        candidate.date_modified AS dateModifiedSort
             FROM
                 candidate
             LEFT JOIN attachment

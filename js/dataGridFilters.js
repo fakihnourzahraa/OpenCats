@@ -537,12 +537,12 @@ function applyDateRangeFilter(filterAreaID, filterCounter, instanceName, columnN
     var opMap = { '=>': '=d>', '=<': '=d<', '==': '==' };
 
     if (op === 'between') {
-        var from = document.getElementById(filterAreaID + filterCounter + 'from').value;
-        var to   = document.getElementById(filterAreaID + filterCounter + 'to').value;
+        var from = document.getElementById(filterAreaID + filterCounter + 'from').value.trim();
+        var to   = document.getElementById(filterAreaID + filterCounter + 'to').value.trim();
         if (from) filterVal += (filterVal ? ',' : '') + columnName + '=d>' + from;
         if (to)   filterVal += (filterVal ? ',' : '') + columnName + '=d<' + to;
     } else if (opMap[op]) {
-        var val = document.getElementById(filterAreaID + filterCounter + 'value').value;
+        var val = document.getElementById(filterAreaID + filterCounter + 'value').value.trim();
         if (val) filterVal += (filterVal ? ',' : '') + columnName + opMap[op] + val;
     }
 

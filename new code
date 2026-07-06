@@ -7,3 +7,8 @@ UPDATE candidate_joborder_status SET short_description = 'Job offer refused'  WH
 UPDATE candidate_joborder_status SET short_description = 'Job offer accepted' WHERE candidate_joborder_status_id = 800;
 
 UPDATE candidate_joborder_status SET is_enabled = 0 WHERE candidate_joborder_status_id IN (250, 500, 650);
+
+
+ALTER TABLE extra_field_settings 
+ADD COLUMN filter_type VARCHAR(20) NOT NULL DEFAULT 'default' 
+AFTER extra_field_type;

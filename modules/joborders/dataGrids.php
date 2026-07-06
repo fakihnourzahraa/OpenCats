@@ -187,6 +187,10 @@ class PipelineCandidatesDataGrid extends CandidatesDataGrid
             'joborders:PipelineCandidatesDataGrid',
             $siteID, $parameters, $misc
         );
+        $this->_classColumns['Added'] = array(
+    'pagerWidth'  => 60,
+    'filterTypes' => '=d>=d<==',
+);
     }
 }
 

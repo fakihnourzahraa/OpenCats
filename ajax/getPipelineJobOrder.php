@@ -164,6 +164,7 @@ $columnMap = array(
     'Misc Notes'       => 'notes',
     'Available'        => 'dateAvailable',
     'Modified'         => 'dateModified',
+    'Added'            => 'dateCreated',
     'GPA'              => 'gpa',
     'Created'          => 'candidateDateCreated',
     'University'       => 'universityShortName',
@@ -205,6 +206,20 @@ $allPipelineColumns = array(
     'action'              => 'Action',
 );
 
+// Merge dynamic extra fields into column list (unchecked by default)
+$extraFieldDefs = $pipelines->getExtraFieldDefinitions();
+if ($extraFieldDefs) {
+    $actionLabel = $allPipelineColumns['action'];
+    unset($allPipelineColumns['action']);
+    foreach ($extraFieldDefs as $def) {
+        $fn = $def['field_name'];
+        $columnMap[$fn] = $fn;
+        if (!isset($allPipelineColumns[$fn])) {
+            $allPipelineColumns[$fn] = $def['field_name'];
+        }
+    }
+    $allPipelineColumns['action'] = $actionLabel; // keep Action last
+}
 $defaultVisibleCols = array(
     'match',
     'firstName',
@@ -244,20 +259,22 @@ if (!isset($_SESSION['pipelineCols'][$siteID])) {
 }
 $visibleCols = $_SESSION['pipelineCols'][$siteID];
 
-/* Count visible columns for colspan (3 fixed: selector, expand arrow, icons) */
+$hardcodedCols = array(
+    'match','firstName','lastName','state','city','zip','address',
+    'dateCreatedInt','addedByAbbrName','status','lastActivity',
+    'candidateEmail','candidateEmail2','phoneHome','phoneCell','phoneWork',
+    'keySkills','currentEmployer','currentPay','desiredPay','canRelocate',
+    'source','webSite','notes','dateAvailable','dateModified',
+    'gpa','nationality','universityShortName','jobOrderStatus','action',
+);
+
+
 $visibleColCount = 3;
 foreach ($allPipelineColumns as $k => $v) {
     if ($k === 'action' && $isPopup) continue;
     if (in_array($k, $visibleCols)) $visibleColCount++;
 }
-$extraFieldDefs = $pipelines->getExtraFieldDefinitions();
-if ($extraFieldDefs)
-{
-    foreach ($extraFieldDefs as $def)
-    {
-        $columnMap[$def['field_name']] = $def['field_name'];
-    }
-}
+
 
 if ($filterString !== '')
 {
@@ -271,6 +288,7 @@ if ($filterString !== '')
             if ($pos !== false)
             {
                 $col = urldecode(substr($filterItem, 0, $pos));
+                
                 $val = strtolower(urldecode(substr($filterItem, $pos + strlen($op))));
                 $col = isset($columnMap[$col]) ? $columnMap[$col] : $col;
 
@@ -289,7 +307,7 @@ $pipelinesRS = array_filter($pipelinesRS, function($row) use ($col, $op, $val) {
         }
     }
 
-if ($col === 'dateCreated' || $col === 'candidateDateCreated') {
+if ($col === 'dateCreated' || $col === 'candidateDateCreated' || $col == 'dateModified') {
     $fieldValue = DateTime::createFromFormat('m-d-y', $fieldValue);
     $valDate    = DateTime::createFromFormat('m-d-y', $val);
     if (!$fieldValue || !$valDate) return true;
@@ -585,10 +603,15 @@ $jsIsPopup   = $isPopup ? 1 : 0;
             <a href="javascript:void(0);" onclick="PipelineJobOrder_populate(<?php echo($jobOrderID); ?>, <?php echo($page); ?>, <?php echo($entriesPerPage); ?>, <?php printSortLink('jobOrderStatus'); ?>, <?php if ($isPopup) echo(1); else echo(0); ?>, 'ajaxPipelineTable', '<?php echo($_SESSION['CATS']->getCookie()); ?>', 'ajaxPipelineTableIndicator', '<?php echo($indexFile); ?>');">Job Order Status</a>
         </th>
         <?php endif; ?>
-        <?php if (!$isPopup && in_array('action', $visibleCols)): ?>
-        <th align="center">Action</th>
-        <?php endif; ?>
-    </tr>
+        <?php foreach ($allPipelineColumns as $colKey => $colLabel): ?>
+                <?php if (in_array($colKey, $hardcodedCols)) continue; ?>
+                <?php if (!in_array($colKey, $visibleCols)) continue; ?>
+                <th align="left" nowrap="nowrap"><?php echo htmlspecialchars($colLabel); ?></th>
+            <?php endforeach; ?>
+            <?php if (!$isPopup && in_array('action', $visibleCols)): ?>
+            <th align="center">Action</th>
+            <?php endif; ?>
+        </tr>
 
     <?php for ($i = $minEntry; $i < $maxEntry; $i++): ?>
         <?php $pipelinesData = $pipelinesRS[$i]; $rowNumber = $i - $minEntry; ?>
@@ -710,6 +733,11 @@ $jsIsPopup   = $isPopup ? 1 : 0;
             <?php if (in_array('jobOrderStatus', $visibleCols)): ?>
             <td valign="top" nowrap="nowrap"><?php echo htmlspecialchars($pipelinesData['jobOrderStatus']); ?></td>
             <?php endif; ?>
+            <?php foreach ($allPipelineColumns as $colKey => $colLabel): ?>
+                <?php if (in_array($colKey, $hardcodedCols)) continue; ?>
+                <?php if (!in_array($colKey, $visibleCols)) continue; ?>
+                <td valign="top" nowrap="nowrap"><?php echo htmlspecialchars(isset($pipelinesData[$colKey]) ? $pipelinesData[$colKey] : ''); ?></td>
+            <?php endforeach; ?>
             <?php if (!$isPopup && in_array('action', $visibleCols)): ?>
             <td align="center" nowrap="nowrap">
                 <?php if ($_SESSION['CATS']->getAccessLevel('pipelines.screening') >= ACCESS_LEVEL_EDIT && !$_SESSION['CATS']->hasUserCategory('sourcer')): ?>

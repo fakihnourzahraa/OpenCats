@@ -272,29 +272,28 @@
                                     }
                                     
                                     //TODO: Document me.
-                                    function addRow<?php echo($index); ?>(rowName, rowType, rowTypeName)
-                                    {
-                                        thisIndex = onIndex<?php echo($index); ?>;
-                                        onIndex<?php echo($index); ?>++;
-                                        
-                                        if (checkForDuplicateRowOnTable<?php echo($index); ?>(rowName))
-                                        {
-                                           while (checkForDuplicateRowOnTable<?php echo($index); ?>(rowName))
-                                           {
-                                              rowName = rowName + ' (2)';
-                                           }
-                                        }
-                                        
-                                        addRowToTable<?php echo($index); ?>(rowName, rowTypeName, thisIndex);
-                                        
-                                        if(<?php foreach($this->extraFieldTypes as $efi => $eft): ?><?php if($eft['hasOptions']): ?>rowType == <?php echo($efi); ?> || <?php endif; ?><?php endforeach; ?> false)
-                                        {
-                                            addOptionsAreaToTable<?php echo($index); ?>(thisIndex, rowName);
-                                        }
-                                        
-                                        appendCommandList('ADDFIELD <?php echo(urlencode($data['type'])); ?> '+encodeURI(rowType)+' '+encodeURI(rowName));
-                                    }
-                                    
+function addRow<?php echo($index); ?>(rowName, rowType, rowTypeName, rowFilterType)
+{
+    thisIndex = onIndex<?php echo($index); ?>;
+    onIndex<?php echo($index); ?>++;
+    
+    if (checkForDuplicateRowOnTable<?php echo($index); ?>(rowName))
+    {
+       while (checkForDuplicateRowOnTable<?php echo($index); ?>(rowName))
+       {
+          rowName = rowName + ' (2)';
+       }
+    }
+    
+    addRowToTable<?php echo($index); ?>(rowName, rowTypeName, thisIndex);
+    
+    if(<?php foreach($this->extraFieldTypes as $efi => $eft): ?><?php if($eft['hasOptions']): ?>rowType == <?php echo($efi); ?> || <?php endif; ?><?php endforeach; ?> false)
+    {
+        addOptionsAreaToTable<?php echo($index); ?>(thisIndex, rowName);
+    }
+
+    appendCommandList('ADDFIELD <?php echo(urlencode($data['type'])); ?> '+encodeURI(rowType)+' '+encodeURI(rowName)+' '+encodeURI(rowFilterType));
+}
                                     //TODO: Document me.
                                     function deleteRow<?php echo($index); ?>(rowIndex, rowName)
                                     {                                      
@@ -392,18 +391,14 @@
                                     //TODO: Document me.
                                     function onAddField<?php echo($index); ?>()
                                     {
-                                       if(document.getElementById('addFieldName<?php echo($index); ?>').value == '')
-                                       {
-                                          return;
-                                       }
-                                       
-                                        addRow<?php echo($index); ?>(document.getElementById('addFieldName<?php echo($index); ?>').value, 
-                                                                     document.getElementById('addFieldSelect<?php echo($index); ?>').value, 
-                                                                     document.getElementById('addFieldSelect<?php echo($index); ?>').options[
-                                                                            document.getElementById('addFieldSelect<?php echo($index); ?>').selectedIndex
-                                                                        ].text
-                                                                    );
-                                                                    
+                                        if(document.getElementById('addFieldName<?php echo($index); ?>').value == '') return;
+                                        
+                                        addRow<?php echo($index); ?>(
+                                            document.getElementById('addFieldName<?php echo($index); ?>').value, 
+                                            document.getElementById('addFieldSelect<?php echo($index); ?>').value, 
+                                            document.getElementById('addFieldSelect<?php echo($index); ?>').options[document.getElementById('addFieldSelect<?php echo($index); ?>').selectedIndex].text,
+                                            document.getElementById('addFieldFilterSelect<?php echo($index); ?>').value  // ← add this
+                                        );
                                         onHideAddArea<?php echo($index); ?>();                             
                                     }
                                     
@@ -455,6 +450,9 @@
                                             <th align="left">
                                                 Field Type
                                             </th>
+                                            <th align="left">
+                                                Filter Type
+                                            </th>
                                         </tr>
                                     </thead>
                                     <?php foreach($data['RS'] as $rsIndex => $rsData): ?>
@@ -478,6 +476,9 @@
                                             </td>
                                             <td align="left">
                                                 <?php $this->_($this->extraFieldTypes[$rsData['extraFieldType']]['name']); ?>
+                                            </td>
+                                            <td align="left">
+                                                <?php echo htmlspecialchars($this->extraFieldFilters[$rsData['filterType']]['name'] ?? 'Default (Text)'); ?>
                                             </td>
                                         </tr>
                                     <?php endforeach; ?>
@@ -514,6 +515,19 @@
                                                     <option value="<?php echo($extraFieldTypeIndex); ?>"><?php $this->_($extraFieldTypeData['name']); ?></option>
                                                   <?php endforeach; ?>
                                                </select>
+                                            </td>
+                                                                                        <td>
+                                                Filter:
+                                            </td>
+                                            <td>
+<select id="addFieldFilterSelect<?php echo($index); ?>">
+  <?php foreach($this->extraFieldFilters as $filterKey => $filterData): ?>
+    <option value="<?php echo($filterKey); ?>">
+      <?php $this->_($filterData['name']); ?>
+    </option>
+  <?php endforeach; ?>
+</select>
+
                                             </td>
                                         </tr>
                                     </table>                                    

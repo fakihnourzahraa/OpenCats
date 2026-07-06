@@ -802,10 +802,25 @@ class Pipelines
     return $indexed;
 }
 
+// public function getExtraFieldDefinitions()
+// {
+//     $sql = sprintf(
+//         "SELECT field_name
+//          FROM extra_field_settings
+//          WHERE data_item_type = %s
+//          AND site_id = %s",
+//         DATA_ITEM_CANDIDATE,
+//         $this->_siteID
+//     );
+
+//     $rs = $this->_db->getAllAssoc($sql);
+//     return $rs ? $rs : array();
+// }
+
 public function getExtraFieldDefinitions()
 {
     $sql = sprintf(
-        "SELECT field_name
+        "SELECT field_name, extra_field_type, extra_field_options, filter_type
          FROM extra_field_settings
          WHERE data_item_type = %s
          AND site_id = %s",

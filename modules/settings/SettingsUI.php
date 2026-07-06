@@ -1486,12 +1486,18 @@ class SettingsUI extends UserInterface
         $jobOrdersRS = $jobOrders->extraFields->getSettings();
 
         $extraFieldTypes = $candidates->extraFields->getValuesTypes();
-
+$this->extraFieldFilters = [
+    'default'  => ['name' => 'Default (Text)'],
+    'date'     => ['name' => 'Date Range'],
+    'range'    => ['name' => 'Range'],
+    'dropdown' => ['name' => 'Dropdown'],
+];
         $this->_template->assign('extraFieldSettingsCandidatesRS', $candidatesRS);
         $this->_template->assign('extraFieldSettingsContactsRS', $contactsRS);
         $this->_template->assign('extraFieldSettingsCompaniesRS', $companiesRS);
         $this->_template->assign('extraFieldSettingsJobOrdersRS', $jobOrdersRS);
         $this->_template->assign('extraFieldTypes', $extraFieldTypes);
+        $this->_template->assign('extraFieldFilters', $this->extraFieldFilters);
         $this->_template->assign('active', $this);
         $this->_template->display('./modules/settings/CustomizeExtraFields.tpl');
     }
@@ -1507,6 +1513,7 @@ class SettingsUI extends UserInterface
         foreach($extraFieldsMaintScriptArray as $index => $commandEncoded)
         {
             $command = urldecode($commandEncoded);
+            
             $args = explode(' ', $command);
 
             if (!isset($args[0]))
@@ -1517,11 +1524,11 @@ class SettingsUI extends UserInterface
             switch ($args[0])
             {
                 case 'ADDFIELD':
-                    $args = explode(' ', $command, 4);
-                    $extraFields = new ExtraFields($this->_siteID, intval($args[1]));
-                    $extraFields->define(urldecode($args[3]), intval($args[2]));
+                    $args = explode(' ', $command, 5);
+                    $extraFields = new ExtraFields($this->_siteID, intval(urldecode($args[1])));
+                    $filterType = isset($args[4]) ? urldecode($args[4]) : 'default';
+                    $extraFields->define(urldecode($args[3]), urldecode($args[2]), $filterType);
                     break;
-
                 case 'DELETEFIELD':
                     $args = explode(' ', $command, 3);
                     $extraFields = new ExtraFields($this->_siteID, intval($args[1]));
