@@ -307,9 +307,99 @@ class JobOrdersUI extends UserInterface
                 }
                 $this->listByView();
                 break;
+            case 'exportPipeline':
+                $this->exportPipeline();
+                break;
         }
     }
 
+    private function exportPipeline()
+{
+    $siteID      = $this->_siteID;
+    $jobOrderID  = $this->getTrimmedInput('jobOrderID', $_GET);
+    $candidateIDs = isset($_GET['candidateIDs'])
+        ? array_map('intval', unserialize(urldecode($_GET['candidateIDs'])))
+        : array();
+
+    if (!$jobOrderID || empty($candidateIDs)) die('Invalid input.');
+
+    $pipelines   = new Pipelines($siteID);
+    $pipelinesRS = $pipelines->getJobOrderPipeline($jobOrderID);
+
+    foreach ($pipelinesRS as $i => $row)
+    {
+        $pipelinesRS[$i]['addedByAbbrName'] = StringUtility::makeInitialName(
+            $row['addedByFirstName'], $row['addedByLastName'], LAST_NAME_MAXLEN
+        );
+    }
+
+    $pipelinesRS = array_values(array_filter($pipelinesRS, function($row) use ($candidateIDs) {
+        return in_array((int)$row['candidateID'], $candidateIDs);
+    }));
+
+    $allCols = array(
+        'firstName'           => array('First Name',       'firstName'),
+        'lastName'            => array('Last Name',        'lastName'),
+        'state'               => array('Loc',              'state'),
+        'city'                => array('City',             'city'),
+        'zip'                 => array('Zip',              'zip'),
+        'address'             => array('Address',          'address'),
+        'dateCreatedInt'      => array('Added',            'dateCreated'),
+        'addedByAbbrName'     => array('Entered By',       'addedByAbbrName'),
+        'status'              => array('Interview Stage',  'status'),
+        'lastActivity'        => array('Last Activity',    'lastActivity'),
+        'candidateEmail'      => array('E-Mail',           'candidateEmail'),
+        'candidateEmail2'     => array('2nd E-Mail',       'candidateEmail2'),
+        'phoneHome'           => array('Home Phone',       'phoneHome'),
+        'phoneCell'           => array('Cell Phone',       'phoneCell'),
+        'phoneWork'           => array('Work Phone',       'phoneWork'),
+        'keySkills'           => array('Key Skills',       'keySkills'),
+        'currentEmployer'     => array('Current Employer', 'currentEmployer'),
+        'currentPay'          => array('Current Pay',      'currentPay'),
+        'desiredPay'          => array('Desired Pay',      'desiredPay'),
+        'canRelocate'         => array('Can Relocate',     'canRelocate'),
+        'source'              => array('Source',           'source'),
+        'webSite'             => array('Web Site',         'webSite'),
+        'notes'               => array('Misc Notes',       'notes'),
+        'dateAvailable'       => array('Available',        'dateAvailable'),
+        'dateModified'        => array('Modified',         'dateModified'),
+        'gpa'                 => array('GPA',              'gpa'),
+        'nationality'         => array('Nationality',      'nationality'),
+        'universityShortName' => array('University',       'universityShortName'),
+    );
+
+    $visibleCols = isset($_SESSION['pipelineCols'][$siteID])
+        ? $_SESSION['pipelineCols'][$siteID]
+        : array('firstName', 'lastName', 'state', 'dateCreatedInt', 'addedByAbbrName', 'status', 'lastActivity');
+
+    $exportCols = array();
+    foreach ($visibleCols as $key)
+    {
+        if (isset($allCols[$key])) $exportCols[$key] = $allCols[$key];
+    }
+
+    header('Content-Disposition: attachment; filename="export.csv"');
+    header('Content-Type: text/x-csv; charset=utf-8');
+
+    $out = fopen('php://output', 'w');
+    fputcsv($out, array_column($exportCols, 0));
+
+    foreach ($pipelinesRS as $row)
+    {
+        $cells = array();
+        foreach ($exportCols as $key => $def)
+        {
+            $val = isset($row[$def[1]]) ? $row[$def[1]] : '';
+            if ($key === 'canRelocate')  $val = ($val == 1 ? 'Yes' : 'No');
+            if ($key === 'lastActivity') $val = strip_tags($val);
+            $cells[] = $val;
+        }
+        fputcsv($out, $cells);
+    }
+
+    fclose($out);
+    die();
+}
 
     /*
      * Called by handleRequest() to process loading the list / main page.

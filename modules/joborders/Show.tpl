@@ -575,27 +575,14 @@ document.addEventListener('DOMContentLoaded', function() {
             <input type="checkbox" name="select_all" onclick="selectAll_candidates(this)" title="Select all candidates" /> <a href="javascript:void(0);" onclick="exportFromPipeline()" title="Export selected candidates">Export</a>&nbsp;&nbsp;&nbsp;&nbsp;
             
             <script type="text/javascript">
-            	function exportFromPipeline(){
-<?php
-	$params = array(
-			'sortBy' => 'dateModifiedSort',
-			'sortDirection' => 'DESC',
-	        'filterVisible' => false,
-	        'rangeStart' => 0,
-	        'maxResults' => 100000000,
-	        'exportIDs' => '<dynamic>',
-	        'noSaveParameters' => true);
-
-	$instance_name = 'candidates:candidatesListByViewDataGrid';
-	$instance_md5 = md5($instance_name);
-?>
-					var exportArray<?= $instance_md5 ?> = getSelected_candidates();
-            		if (exportArray<?= $instance_md5 ?>.length>0) {
-                		window.location.href='<?= CATSUtility::getIndexName()?>?m=export&a=exportByDataGrid&i=<?= urlencode($instance_name); ?>&p=<?= urlencode(serialize($params)) ?>&dynamicArgument<?= $instance_md5 ?>=' + urlEncode(serializeArray(exportArray<?= $instance_md5 ?>));
-            		} else {
-                		alert('No data selected');
-            		}
-            	}
+function exportFromPipeline() {
+    var ids = getSelected_candidates();
+    if (ids.length > 0) {
+        window.location.href = '<?php echo(CATSUtility::getIndexName()); ?>?m=joborders&a=exportPipeline&jobOrderID=<?php echo($this->data['jobOrderID']); ?>&candidateIDs=' + urlEncode(serializeArray(ids));
+    } else {
+        alert('No data selected');
+    }
+}
 
 
             </script>

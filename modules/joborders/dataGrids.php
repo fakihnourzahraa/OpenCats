@@ -190,4 +190,68 @@ class PipelineCandidatesDataGrid extends CandidatesDataGrid
     }
 }
 
+class PipelineExportDataGrid extends PipelineCandidatesDataGrid
+{
+    private static $_pipelineColMap = array(
+        'firstName'           => 'First Name',
+        'lastName'            => 'Last Name',
+        'state'               => 'State',
+        'city'                => 'City',
+        'zip'                 => 'Zip',
+        'address'             => 'Address',
+        'dateCreatedInt'      => 'Created',
+        'status'              => 'Interview Stage',
+        'candidateEmail'      => 'E-Mail',
+        'candidateEmail2'     => '2nd E-Mail',
+        'phoneHome'           => 'Home Phone',
+        'phoneCell'           => 'Cell Phone',
+        'phoneWork'           => 'Work Phone',
+        'keySkills'           => 'Key Skills',
+        'currentEmployer'     => 'Current Employer',
+        'currentPay'          => 'Current Pay',
+        'desiredPay'          => 'Desired Pay',
+        'canRelocate'         => 'Can Relocate',
+        'source'              => 'Source',
+        'webSite'             => 'Web Site',
+        'notes'               => 'Misc Notes',
+        'dateAvailable'       => 'Available',
+        'dateModified'        => 'Modified',
+        'gpa'                 => 'GPA',
+        'nationality'         => 'Nationality',
+        'universityShortName' => 'University',
+    );
+
+    protected function buildColumns()
+    {
+        parent::buildColumns();
+
+        $siteID = $_SESSION['CATS']->getSiteID();
+        $visibleCols = isset($_SESSION['pipelineCols'][$siteID])
+            ? $_SESSION['pipelineCols'][$siteID]
+            : array('firstName', 'lastName', 'state', 'dateCreatedInt', 'status');
+
+        $newCurrentColumns = array();
+        foreach ($visibleCols as $pipelineKey)
+        {
+            if (!isset(self::$_pipelineColMap[$pipelineKey]))
+                continue; // match, addedByAbbrName, lastActivity, action have no DataGrid equivalent
+
+            $dgColName = self::$_pipelineColMap[$pipelineKey];
+
+            if (!isset($this->_classColumns[$dgColName]))
+                continue;
+
+            $newCurrentColumns[] = array(
+                'name'  => $dgColName,
+                'width' => isset($this->_classColumns[$dgColName]['pagerWidth'])
+                               ? $this->_classColumns[$dgColName]['pagerWidth'] : 80,
+                'data'  => $this->_classColumns[$dgColName],
+            );
+        }
+
+        if (!empty($newCurrentColumns))
+            $this->_currentColumns = $newCurrentColumns;
+    }
+}
+
 ?>
