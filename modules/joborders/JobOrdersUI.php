@@ -313,10 +313,10 @@ class JobOrdersUI extends UserInterface
         }
     }
 
-    private function exportPipeline()
+private function exportPipeline()
 {
-    $siteID      = $this->_siteID;
-    $jobOrderID  = $this->getTrimmedInput('jobOrderID', $_GET);
+    $siteID       = $this->_siteID;
+    $jobOrderID   = $this->getTrimmedInput('jobOrderID', $_GET);
     $candidateIDs = isset($_GET['candidateIDs'])
         ? array_map('intval', unserialize(urldecode($_GET['candidateIDs'])))
         : array();
@@ -326,6 +326,7 @@ class JobOrdersUI extends UserInterface
     $pipelines   = new Pipelines($siteID);
     $pipelinesRS = $pipelines->getJobOrderPipeline($jobOrderID);
 
+    /* Build addedByAbbrName */
     foreach ($pipelinesRS as $i => $row)
     {
         $pipelinesRS[$i]['addedByAbbrName'] = StringUtility::makeInitialName(
@@ -333,10 +334,27 @@ class JobOrdersUI extends UserInterface
         );
     }
 
+    /* Merge extra field values into rows */
+    $allCandidateIDs = array_map(function($r) { return $r['candidateID']; }, $pipelinesRS);
+    $extraFieldsByCandidate = $pipelines->getExtraFieldsForPipelineCandidates($allCandidateIDs);
+    foreach ($pipelinesRS as $idx => $row)
+    {
+        $cid = $row['candidateID'];
+        if (isset($extraFieldsByCandidate[$cid]))
+        {
+            foreach ($extraFieldsByCandidate[$cid] as $fieldName => $value)
+            {
+                $pipelinesRS[$idx][$fieldName] = $value;
+            }
+        }
+    }
+
+    /* Filter to selected candidates only */
     $pipelinesRS = array_values(array_filter($pipelinesRS, function($row) use ($candidateIDs) {
         return in_array((int)$row['candidateID'], $candidateIDs);
     }));
 
+    /* Base column map */
     $allCols = array(
         'firstName'           => array('First Name',       'firstName'),
         'lastName'            => array('Last Name',        'lastName'),
@@ -368,6 +386,18 @@ class JobOrdersUI extends UserInterface
         'universityShortName' => array('University',       'universityShortName'),
     );
 
+    /* Add extra field definitions to column map */
+    $extraFieldDefs = $pipelines->getExtraFieldDefinitions();
+    if ($extraFieldDefs)
+    {
+        foreach ($extraFieldDefs as $def)
+        {
+            $fn = $def['field_name'];
+            $allCols[$fn] = array($fn, $fn);
+        }
+    }
+
+    /* Build export columns from visible session cols */
     $visibleCols = isset($_SESSION['pipelineCols'][$siteID])
         ? $_SESSION['pipelineCols'][$siteID]
         : array('firstName', 'lastName', 'state', 'dateCreatedInt', 'addedByAbbrName', 'status', 'lastActivity');
@@ -378,7 +408,7 @@ class JobOrdersUI extends UserInterface
         if (isset($allCols[$key])) $exportCols[$key] = $allCols[$key];
     }
 
-    header('Content-Disposition: attachment; filename="export.csv"');
+    header('Content-Disposition: attachment; filename="pipeline_export.csv"');
     header('Content-Type: text/x-csv; charset=utf-8');
 
     $out = fopen('php://output', 'w');
@@ -400,7 +430,6 @@ class JobOrdersUI extends UserInterface
     fclose($out);
     die();
 }
-
     /*
      * Called by handleRequest() to process loading the list / main page.
      */
