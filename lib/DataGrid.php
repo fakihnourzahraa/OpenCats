@@ -1433,13 +1433,13 @@ file_put_contents('/var/www/html/opencats/export_debug.sql', $sql);
         $this->_getData();
 
         /* Figure out what columns we can export. */
-        $exportableColumns = array();
-        foreach ($this->_classColumns as $index => $data)
-        {
-            $exportableColumns[] = array('name' => $index, 'data' => $data);
-        }
-        $this->_currentColumns = $exportableColumns;
-
+/* Figure out what columns we can export. */
+$exportableColumns = array();
+foreach ($this->_currentColumns as $index => $colData)
+{
+    $exportableColumns[] = array('name' => $colData['name'], 'data' => $colData['data']);
+}
+$this->_currentColumns = $exportableColumns;
         /* Reload data. */
         $this->_rs = false;
         $this->_getData();

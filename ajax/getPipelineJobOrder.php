@@ -245,7 +245,7 @@ if (!isset($_SESSION['pipelineCols'][$siteID])) {
 $visibleCols = $_SESSION['pipelineCols'][$siteID];
 
 /* Count visible columns for colspan (3 fixed: selector, expand arrow, icons) */
-$visibleColCount = 3;
+$visibleColCount = 4;
 foreach ($allPipelineColumns as $k => $v) {
     if ($k === 'action' && $isPopup) continue;
     if (in_array($k, $visibleCols)) $visibleColCount++;
@@ -436,6 +436,10 @@ $jsIsPopup   = $isPopup ? 1 : 0;
                 </div>
             </div>
         </th>
+        <th style="width:28px; text-align:center;">
+            <input type="checkbox" id="pipeline-select-all" title="Select all"
+                   onclick="selectAll_candidates(this)" />
+        </th>
         <th></th>
         <th align="left" width="32" nowrap="nowrap"></th>
         <?php if (in_array('match', $visibleCols)): ?>
@@ -593,6 +597,11 @@ $jsIsPopup   = $isPopup ? 1 : 0;
         <?php $pipelinesData = $pipelinesRS[$i]; $rowNumber = $i - $minEntry; ?>
         <tr class="<?php TemplateUtility::printAlternatingRowClass($rowNumber); ?>" id="pipelineRow<?php echo($rowNumber); ?>">
             <td></td>
+<td style="text-align:center;" valign="top">
+    <input type="checkbox" name="checked"
+           value="<?php echo($pipelinesData['candidateID']); ?>" />
+</td>
+<td valign="top">   <!-- expand arrow -->
             <td valign="top">
                 <span id="pipelineEntryOpen<?php echo($rowNumber); ?>">
                     <a href="javascript:void(0);" onclick="document.getElementById('pipelineDetails<?php echo($rowNumber); ?>').style.display = ''; document.getElementById('pipelineEntryClose<?php echo($rowNumber); ?>').style.display = ''; document.getElementById('pipelineEntryOpen<?php echo($rowNumber); ?>').style.display = 'none'; PipelineDetails_populate(<?php echo($pipelinesData['candidateJobOrderID']); ?>, 'pipelineEntryInner<?php echo($rowNumber); ?>', '<?php echo($_SESSION['CATS']->getCookie()); ?>');">
