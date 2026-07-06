@@ -408,7 +408,7 @@ private function exportPipeline()
         if (isset($allCols[$key])) $exportCols[$key] = $allCols[$key];
     }
 
-    header('Content-Disposition: attachment; filename="pipeline_export.csv"');
+    header('Content-Disposition: attachment; filename="export.csv"');
     header('Content-Type: text/x-csv; charset=utf-8');
 
     $out = fopen('php://output', 'w');

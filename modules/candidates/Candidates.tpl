@@ -21,7 +21,7 @@
     ];
     filterDateRangeRegistry['Created'] = true;
     filterDateRangeRegistry['Modified'] = true;
-    filterDateRangeRegistry['Desired Pay'] = true;
+    filterRangeRegistry['Desired Pay'] = true;
 </script>
     <style type="text/css">
     div.addCandidateButton { background: #4172E3 url(images/nodata/candidatesButton.jpg); cursor: pointer; width: 337px; height: 67px; }

@@ -1486,12 +1486,12 @@ class SettingsUI extends UserInterface
         $jobOrdersRS = $jobOrders->extraFields->getSettings();
 
         $extraFieldTypes = $candidates->extraFields->getValuesTypes();
-$this->extraFieldFilters = [
-    'default'  => ['name' => 'Default (Text)'],
-    'date'     => ['name' => 'Date Range'],
-    'range'    => ['name' => 'Range'],
-    'dropdown' => ['name' => 'Dropdown'],
-];
+        $this->extraFieldFilters = [
+            'default'  => ['name' => 'Default (Text)'],
+            'date'     => ['name' => 'Date Range'],
+            'range'    => ['name' => 'Range'],
+            'dropdown' => ['name' => 'Dropdown'],
+        ];
         $this->_template->assign('extraFieldSettingsCandidatesRS', $candidatesRS);
         $this->_template->assign('extraFieldSettingsContactsRS', $contactsRS);
         $this->_template->assign('extraFieldSettingsCompaniesRS', $companiesRS);

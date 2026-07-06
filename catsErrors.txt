@@ -1,9 +1,0 @@
-An error has occoured in __BACKUP__.  Line 152 of file '/var/www/html/opencats/modules/install/backupDB.php'.
-Script: '/opencats/ajax.php'.
-
-mysqli_query() expects parameter 1 to be mysqli, string given-----------------------------------------------
-
-An error has occoured in __BACKUP__.  Line 152 of file '/var/www/html/opencats/modules/install/backupDB.php'.
-Script: '/opencats/ajax.php'.
-
-mysqli_query() expects parameter 1 to be mysqli, string given

@@ -315,6 +315,7 @@ filter.DropDownFilter.prototype.render = function() {
         style: 'width: 120px'
     });
     operatorSelect.appendChild(this.createOption('==', 'is equal to'));
+    operatorSelect.appendChild(this.createOption('=e', 'is empty'));
     if (filterIsInRegistry[columnName] && filterIsInRegistry[columnName].length > 0)
         operatorSelect.appendChild(this.createOption('=in', 'is in'));
 
@@ -394,6 +395,10 @@ var valueArea = document.createElement('div');
     function updateValueArea() {
         valueArea.innerHTML = '';
         var op = operatorSelect.value;
+        if (op === '=e') {
+        applyDropDownFilter(me.filterAreaID, me.filterCounter, me.instanceName, columnName);
+        return;
+    }
         var options = op === '=in'
             ? (filterIsInRegistry[columnName] || [])
             : (filterDropDownRegistry[columnName] || []);
@@ -414,17 +419,18 @@ function applyDropDownFilter(filterAreaID, filterCounter, instanceName, columnNa
     var filterVal = filterArea.value;
     var op = document.getElementById(filterAreaID + filterCounter + 'operator').value;
 
+    var pattern = new RegExp(',?' + columnName + '(?:==|=in|=e)[^,]*', 'g');
+    filterVal = filterVal.replace(pattern, '').replace(/^,/, '');
 
-    var pattern = new RegExp(',?' + columnName + '(?:==|=in)[^,]*', 'g');
-    filterVal = filterVal.replace(pattern, '');
-    filterVal = filterVal.replace(/^,/, '');
-
-    var val = document.getElementById(filterAreaID + filterCounter + 'value').value;
-    if (val !== '') filterVal += (filterVal ? ',' : '') + columnName + op + val;
-
+    if (op === '=e') {
+        filterVal += (filterVal ? ',' : '') + columnName + '=e';
+    } else {
+        var valEl = document.getElementById(filterAreaID + filterCounter + 'value');
+        var val = valEl ? valEl.value : '';
+        if (val !== '') filterVal += (filterVal ? ',' : '') + columnName + op + val;
+    }
     filterArea.value = filterVal;
 }
-
 
 filter.DateRangeFilter = function(defaultValue, filterCounter, filterAreaID, selectableColumns, instanceName) {
     this.defaultValue = defaultValue;
@@ -454,6 +460,7 @@ filter.DateRangeFilter.prototype.render = function() {
     operatorSelect.appendChild(this.createOption('==',     'is equal to'));
     operatorSelect.appendChild(this.createOption('=>',     'is after'));
     operatorSelect.appendChild(this.createOption('=<',     'is before'));
+    operatorSelect.appendChild(this.createOption('=e', 'is empty'));
     filterDiv.appendChild(operatorSelect);
 
     var singleInput = this.createElement('input', {
@@ -489,19 +496,22 @@ var getColumn = function() { return getFilterColumnNameFromOptionValue(selectCol
         applyDateRangeFilter(me.filterAreaID, me.filterCounter, me.instanceName, getColumn());
     };
 
-    var updateHandler = function() {
-        var op     = document.getElementById(me.filterAreaID + me.filterCounter + 'operator').value;
-        var single = document.getElementById(me.filterAreaID + me.filterCounter + 'value');
-        var range  = document.getElementById(me.filterAreaID + me.filterCounter + 'range');
-        if (op === 'between') {
-            single.style.display = 'none';
-            range.style.display  = '';
-        } else {
-            single.style.display = '';
-            range.style.display  = 'none';
-        }
-        applyFilter();
-    };
+var updateHandler = function() {
+    var op     = document.getElementById(me.filterAreaID + me.filterCounter + 'operator').value;
+    var single = document.getElementById(me.filterAreaID + me.filterCounter + 'value');
+    var range  = document.getElementById(me.filterAreaID + me.filterCounter + 'range');
+    if (op === 'between') {
+        single.style.display = 'none';
+        range.style.display  = '';
+    } else if (op === '=e') {
+        single.style.display = 'none';
+        range.style.display  = 'none';
+    } else {
+        single.style.display = '';
+        range.style.display  = 'none';
+    }
+    applyFilter();
+};
 
     var previousColumn = getFilterColumnNameFromOptionValue(selectColumn.value);
 selectColumn.addEventListener('change', function() {
@@ -524,7 +534,7 @@ function applyDateRangeFilter(filterAreaID, filterCounter, instanceName, columnN
     var op         = document.getElementById(filterAreaID + filterCounter + 'operator').value;
     var filterArea = document.getElementById('filterArea' + instanceName);
     var filterVal  = filterArea.value;
-
+filterVal = filterVal.replace(new RegExp(',?' + escapedColumn + '=e[^,]*', 'g'), '');
     // Remove any existing filters for THIS column (using escapedColumn in the regex)
     var escapedColumn = columnName.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
     filterVal = filterVal.replace(new RegExp(',?' + escapedColumn + '=d>[^,]*', 'g'), '');
@@ -544,6 +554,9 @@ function applyDateRangeFilter(filterAreaID, filterCounter, instanceName, columnN
         var val = document.getElementById(filterAreaID + filterCounter + 'value').value.trim();
         if (val) filterVal += (filterVal ? ',' : '') + columnName + opMap[op] + val;
     }
+     else if (op === '=e') {
+    filterVal += (filterVal ? ',' : '') + columnName + '=e';
+}
 
     filterArea.value = filterVal;
 }
@@ -578,6 +591,7 @@ filter.RangeFilter.prototype.render = function() {
     operatorSelect.appendChild(this.createOption('==',      'is equal to'));
     operatorSelect.appendChild(this.createOption('=>',      'is greater than'));
     operatorSelect.appendChild(this.createOption('=<',      'is less than'));
+    operatorSelect.appendChild(this.createOption('=e', 'is empty'));
     filterDiv.appendChild(operatorSelect);
 
     var singleInput = this.createElement('input', {
@@ -651,6 +665,7 @@ function applyRangeFilter(filterAreaID, filterCounter, instanceName, columnName)
     var op        = document.getElementById(filterAreaID + filterCounter + 'operator').value;
     var filterArea = document.getElementById('filterArea' + instanceName);
     var filterVal  = filterArea.value;
+filterVal = filterVal.replace(new RegExp(',?' + escapedColumn + '=e[^,]*', 'g'), '');
 
     var escapedColumn = columnName.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
     filterVal = filterVal.replace(new RegExp(',?' + escapedColumn + '=>[^,]*',  'g'), '');
@@ -667,6 +682,38 @@ function applyRangeFilter(filterAreaID, filterCounter, instanceName, columnName)
         var val = document.getElementById(filterAreaID + filterCounter + 'value').value;
         if (val !== '') filterVal += (filterVal ? ',' : '') + columnName + op + val;
     }
+    else if (op === '=e') {
+    filterVal += (filterVal ? ',' : '') + columnName + '=e';
+}
 
     filterArea.value = filterVal;
 }
+(function() {
+    if (!filter.DefaultFilter || !filter.DefaultFilter.prototype.render) return;
+    var _origRender = filter.DefaultFilter.prototype.render;
+    filter.DefaultFilter.prototype.render = function() {
+        var me = this;
+        var div = _origRender.call(this);
+        var operatorSel = div.querySelector('[id$="operator"]');
+        var valueInput  = div.querySelector('[id$="value"]');
+        if (operatorSel && valueInput) {
+            operatorSel.addEventListener('change', function() {
+                if (operatorSel.value === '=e') {
+                    valueInput.style.display = 'none';
+                    var colSel = div.querySelector('[id$="columnName"]');
+                    var col = colSel ? getFilterColumnNameFromOptionValue(colSel.value) : '';
+                    var filterArea = document.getElementById('filterArea' + me.instanceName);
+                    if (filterArea && col) {
+                        var fv = filterArea.value;
+                        var esc = col.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+                        fv = fv.replace(new RegExp(',?' + esc + '=[^,]*', 'g'), '').replace(/^,/, '').replace(/,$/, '');
+                        filterArea.value = (fv ? fv + ',' : '') + col + '=e';
+                    }
+                } else {
+                    valueInput.style.display = '';
+                }
+            });
+        }
+        return div;
+    };
+})();

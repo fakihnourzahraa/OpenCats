@@ -1142,7 +1142,7 @@ class DataGrid
                 {
                     continue;
                 }
-
+                
                 if ($argument == '' && $op !=='=e')
                 {
                     continue;
@@ -1336,6 +1336,14 @@ class DataGrid
                         if (isset($this->_classColumns[$columnName]['filter']))
                         {
                             $whereSQL_or[] = $this->_classColumns[$columnName]['filter'] . ' >= STR_TO_DATE(' . $db->makeQueryString($argument) . ', \'%m-%d-%y\') ';
+                        }
+                    }
+                    if (strpos($data, '=e') !== false)
+                    {
+                        if (isset($this->_classColumns[$columnName]['filter']))
+                        {
+                            $whereSQL_or[] = '(' . $this->_classColumns[$columnName]['filter'] . ' IS NULL OR '
+                                . $this->_classColumns[$columnName]['filter'] . " = '')";
                         }
                     }
                  

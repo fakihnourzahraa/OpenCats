@@ -520,13 +520,13 @@ function addRow<?php echo($index); ?>(rowName, rowType, rowTypeName, rowFilterTy
                                                 Filter:
                                             </td>
                                             <td>
-<select id="addFieldFilterSelect<?php echo($index); ?>">
-  <?php foreach($this->extraFieldFilters as $filterKey => $filterData): ?>
-    <option value="<?php echo($filterKey); ?>">
-      <?php $this->_($filterData['name']); ?>
-    </option>
-  <?php endforeach; ?>
-</select>
+                                                <select id="addFieldFilterSelect<?php echo($index); ?>">
+                                                <?php foreach($this->extraFieldFilters as $filterKey => $filterData): ?>
+                                                    <option value="<?php echo($filterKey); ?>">
+                                                    <?php $this->_($filterData['name']); ?>
+                                                    </option>
+                                                <?php endforeach; ?>
+                                                </select>
 
                                             </td>
                                         </tr>
