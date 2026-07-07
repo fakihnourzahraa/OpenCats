@@ -317,7 +317,8 @@ $pipelinesRS = array_filter($pipelinesRS, function($row) use ($col, $op, $val) {
             case '=e':  return $fieldValue === '' || $fieldValue === null;
         }
     }
-     if ($op === '=d>' || $op === '=d<') {
+    if ($op === '=d>' || $op === '=d<')
+    {
         if ($fieldValue === '' || $fieldValue === null) return false;
         $fieldDate = DateTime::createFromFormat('m-d-y', $fieldValue);
         $valDate   = DateTime::createFromFormat('m-d-y', $val);

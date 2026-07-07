@@ -1480,7 +1480,7 @@ foreach ($this->_classColumns as $index => $data)
     {
         $exportableColumns[] = array('name' => $colData['name'], 'data' => $colData['data']);
     }
-$this->_currentColumns = $exportableColumns;
+    $this->_currentColumns = $exportableColumns;
         /* Reload data. */
         $this->_rs = false;
         $this->_getData();
