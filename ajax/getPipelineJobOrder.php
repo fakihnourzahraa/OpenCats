@@ -195,6 +195,7 @@ $allPipelineColumns = array(
     'notes'               => 'Misc Notes',
     'dateAvailable'       => 'Available',
     'dateModified'        => 'Modified',
+    'candidateDateCreated'         => 'Created',
     'gpa'                 => 'GPA',
     'nationality'         => 'Nationality',
     'universityShortName' => 'University',
@@ -260,7 +261,7 @@ $hardcodedCols = array(
     'dateCreatedInt','addedByAbbrName','status','lastActivity',
     'candidateEmail','candidateEmail2','phoneHome','phoneCell','phoneWork',
     'keySkills','currentEmployer','currentPay','desiredPay','canRelocate',
-    'source','webSite','notes','dateAvailable','dateModified',
+    'source','webSite','notes','dateAvailable','dateModified', 'candidateDateCreated',
     'gpa','nationality','universityShortName','jobOrderStatus','action',
 );
 
@@ -292,6 +293,7 @@ $pipelinesRS = array_filter($pipelinesRS, function($row) use ($col, $op, $val) {
     $fieldValue = isset($row[$col]) ? $row[$col] : '';
 
     if ($col === 'gpa') {
+       // if ($op === '=e') return $fieldValue === '' || $fieldValue === null;
         $fieldValue = (float) $fieldValue;
         $val = (float) $val;
         switch ($op) {
@@ -303,17 +305,18 @@ $pipelinesRS = array_filter($pipelinesRS, function($row) use ($col, $op, $val) {
         }
     }
 
-if ($col === 'dateCreated' || $col === 'candidateDateCreated' || $col == 'dateModified') {
-    $fieldValue = DateTime::createFromFormat('m-d-y', $fieldValue);
-    $valDate    = DateTime::createFromFormat('m-d-y', $val);
-    if (!$fieldValue || !$valDate) return true;
-    switch ($op) {
-        case '==':  return $fieldValue == $valDate;
-        case '=d>': return $fieldValue >= $valDate;
-        case '=d<': return $fieldValue <= $valDate;
-        case '=e':  return $fieldValue === '' || $fieldValue === null;
+    if ($col === 'dateCreated' || $col === 'candidateDateCreated' || $col == 'dateModified') {
+        
+        $fieldValue = DateTime::createFromFormat('m-d-y', $fieldValue);
+        $valDate    = DateTime::createFromFormat('m-d-y', $val);
+        if (!$fieldValue || !$valDate) return true;
+        switch ($op) {
+            case '==':  return $fieldValue == $valDate;
+            case '=d>': return $fieldValue >= $valDate;
+            case '=d<': return $fieldValue <= $valDate;
+            case '=e':  return $fieldValue === '' || $fieldValue === null;
+        }
     }
-}
     $fieldValue = strtolower($fieldValue);
     $val = strtolower($val);
     switch ($op) {
@@ -574,6 +577,11 @@ $jsIsPopup   = $isPopup ? 1 : 0;
             <a href="javascript:void(0);" onclick="PipelineJobOrder_populate(<?php echo($jobOrderID); ?>, <?php echo($page); ?>, <?php echo($entriesPerPage); ?>, <?php printSortLink('dateModified'); ?>, <?php if ($isPopup) echo(1); else echo(0); ?>, 'ajaxPipelineTable', '<?php echo($_SESSION['CATS']->getCookie()); ?>', 'ajaxPipelineTableIndicator', '<?php echo($indexFile); ?>');">Modified</a>
         </th>
         <?php endif; ?>
+        <?php if (in_array('candidateDateCreated', $visibleCols)): ?>
+        <th align="left" width="70" nowrap="nowrap">
+            <a href="javascript:void(0);" onclick="PipelineJobOrder_populate(<?php echo($jobOrderID); ?>, <?php echo($page); ?>, <?php echo($entriesPerPage); ?>, <?php printSortLink('candidateDateCreated'); ?>, <?php if ($isPopup) echo(1); else echo(0); ?>, 'ajaxPipelineTable', '<?php echo($_SESSION['CATS']->getCookie()); ?>', 'ajaxPipelineTableIndicator', '<?php echo($indexFile); ?>');">Created</a>
+        </th>
+        <?php endif; ?>
         <?php if (in_array('gpa', $visibleCols)): ?>
         <th align="left" width="50" nowrap="nowrap">
             <a href="javascript:void(0);" onclick="PipelineJobOrder_populate(<?php echo($jobOrderID); ?>, <?php echo($page); ?>, <?php echo($entriesPerPage); ?>, <?php printSortLink('gpa'); ?>, <?php if ($isPopup) echo(1); else echo(0); ?>, 'ajaxPipelineTable', '<?php echo($_SESSION['CATS']->getCookie()); ?>', 'ajaxPipelineTableIndicator', '<?php echo($indexFile); ?>');">GPA</a>
@@ -711,6 +719,9 @@ $jsIsPopup   = $isPopup ? 1 : 0;
             <?php endif; ?>
             <?php if (in_array('dateModified', $visibleCols)): ?>
             <td valign="top" nowrap="nowrap"><?php echo htmlspecialchars($pipelinesData['dateModified']); ?></td>
+            <?php endif; ?>
+            <?php if (in_array('candidateDateCreated', $visibleCols)): ?>
+            <td valign="top" nowrap="nowrap"><?php echo htmlspecialchars($pipelinesData['candidateDateCreated']); ?></td>
             <?php endif; ?>
             <?php if (in_array('gpa', $visibleCols)): ?>
             <td valign="top" nowrap="nowrap"><?php echo htmlspecialchars($pipelinesData['gpa']); ?></td>

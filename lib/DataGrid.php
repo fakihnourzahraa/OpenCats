@@ -793,14 +793,14 @@ class DataGrid
             $currentFilterString = '';
         }
 
-        $filtersApplied = false;
-        foreach ($this->_classColumns as $index => $data)
-        {
-            if (!$filtersApplied && $this->getFilterValue($index))
-            {
-                $filtersApplied = true;
-            }
-        }
+$filtersApplied = false;
+foreach ($this->_classColumns as $index => $data)
+{
+    if (!$filtersApplied && ($this->getFilterValue($index) || $this->getFilterOperator($index) === '=e'))
+    {
+        $filtersApplied = true;
+    }
+}
 
         echo '<fieldset class="filterAreaFieldSet" id="filterResultsArea', $md5InstanceName, '" ';
         if (!$filtersApplied || (isset($this->_parameters['filterVisible']) && $this->_parameters['filterVisible'] == false))
@@ -1138,6 +1138,7 @@ class DataGrid
                 
                 $argument = urldecode(substr($data, $eqPos + $operatorLength));
                 /* Is this a valid column? */
+                $op = substr($data, $eqPos, $operatorLength);
                 if (!isset($this->_classColumns[$columnName]))
                 {
                     continue;

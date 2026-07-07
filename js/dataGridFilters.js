@@ -314,10 +314,9 @@ filter.DropDownFilter.prototype.render = function() {
         className: 'inputbox',
         style: 'width: 120px'
     });
-    operatorSelect.appendChild(this.createOption('==', 'is equal to'));
+    operatorSelect.appendChild(this.createOption('==', 'is in'));
     operatorSelect.appendChild(this.createOption('=e', 'is empty'));
-    if (filterIsInRegistry[columnName] && filterIsInRegistry[columnName].length > 0)
-        operatorSelect.appendChild(this.createOption('=in', 'is in'));
+
 
     filterDiv.appendChild(operatorSelect);
 
@@ -460,7 +459,7 @@ filter.DateRangeFilter.prototype.render = function() {
     operatorSelect.appendChild(this.createOption('==',     'is equal to'));
     operatorSelect.appendChild(this.createOption('=>',     'is after'));
     operatorSelect.appendChild(this.createOption('=<',     'is before'));
-    operatorSelect.appendChild(this.createOption('=e', 'is empty'));
+
     filterDiv.appendChild(operatorSelect);
 
     var singleInput = this.createElement('input', {
