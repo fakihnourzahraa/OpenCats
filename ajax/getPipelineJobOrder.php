@@ -293,7 +293,7 @@ $pipelinesRS = array_filter($pipelinesRS, function($row) use ($col, $op, $val) {
     $fieldValue = isset($row[$col]) ? $row[$col] : '';
 
     if ($col === 'gpa') {
-       // if ($op === '=e') return $fieldValue === '' || $fieldValue === null;
+        if ($op === '=e') return $fieldValue === '' || $fieldValue === null;
         $fieldValue = (float) $fieldValue;
         $val = (float) $val;
         switch ($op) {
@@ -306,7 +306,7 @@ $pipelinesRS = array_filter($pipelinesRS, function($row) use ($col, $op, $val) {
     }
 
     if ($col === 'dateCreated' || $col === 'candidateDateCreated' || $col == 'dateModified') {
-        
+        if ($op === '=e') return $fieldValue === '' || $fieldValue === null;
         $fieldValue = DateTime::createFromFormat('m-d-y', $fieldValue);
         $valDate    = DateTime::createFromFormat('m-d-y', $val);
         if (!$fieldValue || !$valDate) return true;
