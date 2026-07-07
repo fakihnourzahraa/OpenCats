@@ -459,7 +459,7 @@ filter.DateRangeFilter.prototype.render = function() {
     operatorSelect.appendChild(this.createOption('==',     'is equal to'));
     operatorSelect.appendChild(this.createOption('=>',     'is after'));
     operatorSelect.appendChild(this.createOption('=<',     'is before'));
-
+operatorSelect.appendChild(this.createOption('=e', 'is empty'));
     filterDiv.appendChild(operatorSelect);
 
     var singleInput = this.createElement('input', {

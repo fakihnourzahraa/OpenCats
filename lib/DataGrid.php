@@ -813,13 +813,14 @@ foreach ($this->_classColumns as $index => $data)
 
         $counterFilters = 0;
 
-        foreach ($this->_classColumns as $index => $data)
-        {
-            $filterValue = $this->getFilterValue($index);
+foreach ($this->_classColumns as $index => $data)
+{
+    $filterValue = $this->getFilterValue($index);
+    $filterOperator = $this->getFilterOperator($index);
 
-            if ($filterValue != '')
-            {
-                $counterFilters++;
+    if ($filterValue != '' || $filterOperator === '=e')
+    {
+        $counterFilters++;
 
                 /* You can not apply another filter to a column already being filtered. */
                 if (array_search($index, $filterableColumns) !== false)
@@ -827,7 +828,7 @@ foreach ($this->_classColumns as $index => $data)
                     unset ($filterableColumns[array_search($index, $filterableColumns)]);
                 }
 
-                $filterOperator = $this->getFilterOperator($index);
+                //$filterOperator = $this->getFilterOperator($index);
                 $filterOperatorHuman = '';
                 switch ($filterOperator)
                 {
@@ -1138,7 +1139,8 @@ foreach ($this->_classColumns as $index => $data)
                 
                 $argument = urldecode(substr($data, $eqPos + $operatorLength));
                 /* Is this a valid column? */
-                $op = substr($data, $eqPos, $operatorLength);
+              $op = substr($data, $eqPos, $operatorLength);
+
                 if (!isset($this->_classColumns[$columnName]))
                 {
                     continue;
