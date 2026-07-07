@@ -53,6 +53,7 @@ use OpenCATS\UI\QuickActionMenu;
 
     filterDateRangeRegistry['Created'] = true;
     filterDateRangeRegistry['Modified'] = true;
+    filterDateRangeRegistry['Added'] = true;
     filterRangeRegistry['GPA'] = true;
     filterRangeRegistry['Desired Pay'] = true;
 </script>
