@@ -794,8 +794,9 @@ class DataGrid
         }
 
 $filtersApplied = false;
-foreach ($this->_classColumns as $index => $data)
-{
+       foreach ($this->_classColumns as $index => $data)
+        {
+            $filterValue = $this->getFilterValue($index);
     if (!$filtersApplied && ($this->getFilterValue($index) || $this->getFilterOperator($index) === '=e'))
     {
         $filtersApplied = true;
