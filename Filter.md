@@ -2,18 +2,11 @@
 
 The infrastructure that enables candidate filtering on the job order detail page. The pipeline loads via AJAX and never goes through the DataGrid SQL layer, so filtering happens entirely in PHP on the fetched result set.
 
-**This doc covers only what is not already in ranges.md.** The following are intentionally omitted here because ranges.md is the master for them:
-- `PipelineCandidatesDataGrid` class and `PipelineExportDataGrid` class (`dataGrids.php`)
-- `show()` setup, template assignments, and `exportPipeline` method (`JobOrdersUI.php`)
-- Filter registries, `drawFilterArea()`, `submitFilter`, `clearFilter`, export UI (`Show.tpl`)
-- `getExtraFieldsForPipelineCandidates()` and `getExtraFieldDefinitions()` (`Pipelines.php`)
-- `$columnMap`, `$operators`, and GPA/Created filter callbacks (`getPipelineJobOrder.php`)
-
 ---
 
 ## 1. js/pipeline.js
 
-**What:** Passes the current filter string to the AJAX pipeline request so `getPipelineJobOrder.php` can apply it server-side.
+**What:** Passes the current filter string to the AJAX pipeline request so `getPipelineJobOrder.php` can apply it.
 
 Inside `PipelineJobOrder_populate`, after the `/* Build HTTP POST data. */` comment, add:
 
@@ -27,7 +20,7 @@ POSTData += '&filterString=' + urlEncode(filterAreaEl ? filterAreaEl.value : '')
 
 ## 2. modules/joborders/dataGrids.php
 
-**What:** Add the Candidates library as a dependency so `PipelineCandidatesDataGrid` (defined in ranges.md) can extend `CandidatesDataGrid`.
+**What:** Add the Candidates library as a dependency.
 
 At the top of the file:
 
@@ -39,7 +32,7 @@ include_once(LEGACY_ROOT . '/lib/Candidates.php');
 
 ## 3. modules/joborders/Show.tpl
 
-**What:** A single hidden input near the top of the file (before `<div id="contents">`), pre-populated with the saved filter string from PHP. This is what gives the filter area element its initial value when the page loads — without it, `drawFilterArea()` renders an empty filter area even when a saved filter exists.
+**What:** A single hidden input near the top of the file (before `<div id="contents">`), pre-populated with the saved filter string from PHP. This is what gives the filter area element its initial value when the page loads.
 
 ```php
 <input type="hidden"
@@ -69,7 +62,7 @@ $filterOperator = isset($_REQUEST['filterOperator']) ? trim($_REQUEST['filterOpe
 
 ### Merge extra field values into each row
 
-Added right after the row-formatting loop (highlight style, icon tags, rating line). Fetches all extra field values for the current candidates in one query and merges them into each row so the filter block and column renderer can access them by field name.
+Added right after the row-formatting loop. Fetches all extra field values for the current candidates in one query and merges them into each row so the filter block and column renderer can access them by field name.
 
 ```php
 $candidateIDs = array_map(function($row) {
@@ -93,7 +86,7 @@ foreach ($pipelinesRS as $idx => $row)
 
 ---
 
-### Read filter string and persist to session
+### Session presistence
 
 ```php
 $filterString = isset($_REQUEST['filterString']) ? trim($_REQUEST['filterString']) : '';
@@ -103,9 +96,7 @@ $_SESSION['pipelineFilter'][$jobOrderID] = $filterString;
 
 ---
 
-### Column visibility — picker state and session persistence
-
-`$defaultVisibleCols` is the out-of-the-box set. The picker sends `setColumn` + `colAction` (add/remove/reset) via AJAX; this block updates `$_SESSION['pipelineCols'][$siteID]` and then reads it back as `$visibleCols`, which is the single source of truth for every `<th>`/`<td>` conditional below.
+### Column visibility 
 
 ```php
 $defaultVisibleCols = array(
@@ -151,8 +142,6 @@ $visibleCols = $_SESSION['pipelineCols'][$siteID];
 
 ### `$hardcodedCols` and `$visibleColCount`
 
-`$hardcodedCols` marks which columns have hand-written markup in the template — anything in `$allPipelineColumns` not in this list is an extra field rendered generically. `$visibleColCount` drives the details row `colspan` so it still spans the full table regardless of how many columns are toggled on.
-
 ```php
 $hardcodedCols = array(
     'match','firstName','lastName','state','city','zip','address',
@@ -172,9 +161,7 @@ foreach ($allPipelineColumns as $k => $v) {
 
 ---
 
-### JS-safe variable copies
-
-Right after the `JO_AJAX_GET_PIPELINE` hook. The old pagination `<script>` block that followed this in the original file (building "Showing entries X through Y of Z" and Prev/Next links via `PipelineJobOrder_setLimitDefaultVars`) is deleted here.
+### JS copies
 
 ```php
 $jsSortBy    = addslashes($sortBy);
@@ -189,7 +176,7 @@ $jsIsPopup   = $isPopup ? 1 : 0;
 
 ### Column picker UI
 
-Replaces the bare leading `<th></th>` in the header row. The gear icon toggles a dropdown that lists every column in `$allPipelineColumns` with a checkbox next to each, wired to `pipelineToggleColumn()`.
+The gear icon toggles a dropdown that lists every column in `$allPipelineColumns` with a checkbox.
 
 ```php
 <th style="width:10px; border-right:1px solid gray;" align="center">
@@ -226,7 +213,7 @@ Replaces the bare leading `<th></th>` in the header row. The gear icon toggles a
 
 ---
 
-### Per-column visibility gates
+### Checkboxes
 
 Every previously-static `<th>` and `<td>` for the hardcoded columns is wrapped:
 
@@ -236,13 +223,11 @@ Every previously-static `<th>` and `<td>` for the hardcoded columns is wrapped:
 <?php endif; ?>
 ```
 
-The `action` column is additionally gated on `!$isPopup`. Apply this pattern to every column: Match, First Name, Last Name, State, City, Zip, Address, Added, Entered By, Interview Stage, Last Activity, E-Mail, 2nd E-Mail, Home/Cell/Work Phone, Key Skills, Current Employer, Current Pay, Desired Pay, Can Relocate, Source, Web Site, Misc Notes, Available, Modified, GPA, Nationality, University, Job Order Status, Action.
+Apply this pattern to every column!!
 
 ---
 
 ### Generic extra field column rendering
-
-Appended after all hardcoded column blocks, in both the header row and each data row. This is what makes dynamically-defined extra fields show up as real toggleable columns without any per-field template code.
 
 Header row:
 
@@ -266,7 +251,7 @@ Data row:
 
 ---
 
-### Details row `colspan`
+### Details row
 
 Replace the hardcoded `colspan="11"` with the dynamic count:
 

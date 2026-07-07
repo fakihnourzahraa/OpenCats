@@ -1,12 +1,10 @@
-# Ranges & Filters Implementation Notes
+# Ranges Notes
 
 Changes covered by this document:
-- GPA field on candidates (add/edit/display/filter)
-- Date range filtering for Created and Modified columns
+- Date range filtering (Created and Modified)
 - Numeric range filtering (GPA, Desired Pay, etc.)
 - Dropdown filtering (University, Nationality, Source, Interview Stage)
 - Extra field filter types (date/range/dropdown for custom fields)
-- Pipeline export from job order detail page
 
 **Run the database migration first, then go file by file.**
 
@@ -63,7 +61,7 @@ ALTER TABLE `candidate`
 Add parameters after `$disability`:
 
 ```php
-$gender = '', $race = '', $veteran = '', $disability = '', $gpa = '', $universityID = 0, $nationality = '',
+$disability = '', $gpa = '', $universityID = 0, $nationality = '',
 ```
 
 ### `add()` INSERT statement
@@ -76,14 +74,14 @@ $this->_db->makeQueryString($nationality)
 ```
 (immediately after `$this->_db->makeQueryString($gender)`)
 
-### `update()` signature (~line 259)
+### `update()` signature (line 259)
 Add parameters after `$disability`:
 
 ```php
-$gender = '', $race = '', $veteran = '', $disability = '', $gpa = '', $universityID = 0, $nationality = ''
+$disability = '', $gpa = '', $universityID = 0, $nationality = ''
 ```
 
-### `update()` SET clause (~line 296)
+### `update()` SET clause (line 296)
 Add:
 
 ```php
@@ -92,7 +90,7 @@ university_id = %s,
 nationality = %s,
 ```
 
-### `update()` value list (~line 329)
+### `update()` value list (line 329)
 Add:
 
 ```php
@@ -101,7 +99,7 @@ $this->_db->makeQueryInteger($universityID),
 $this->_db->makeQueryString($nationality),
 ```
 
-### `get()` SELECT (~line 495)
+### `get()` SELECT (line 495)
 Add to SELECT clause:
 
 ```php
@@ -119,7 +117,7 @@ LEFT JOIN university
     ON university.university_id = candidate.university_id
 ```
 
-### `getForEditing()` SELECT (~line 636)
+### `getForEditing()` SELECT (line 636)
 Add to SELECT clause:
 
 ```php
@@ -128,7 +126,7 @@ candidate.university_id AS universityID,
 candidate.nationality AS nationality,
 ```
 
-### `getPossibleDropDownOptions()` — new method
+### `getPossibleDropDownOptions()` add this new method
 
 ```php
 public function getPossibleDropDownOptions($table, $valueColumn, $labelColumn, $shortColumn = null, $orderBy = null, $where = null)
@@ -167,7 +165,7 @@ public function getPossibleDropDownOptions($table, $valueColumn, $labelColumn, $
 }
 ```
 
-### `CandidatesDataGrid::_classColumns` — replace `Created`
+### `CandidatesDataGrid::_classColumns` replace `Created`
 
 ```php
 'Created' => array(
@@ -180,7 +178,7 @@ public function getPossibleDropDownOptions($table, $valueColumn, $labelColumn, $
     'filterTypes'    => '=d>=d<=='),
 ```
 
-### `CandidatesDataGrid::_classColumns` — replace `Modified`
+### `CandidatesDataGrid::_classColumns` replace `Modified`
 
 ```php
 'Modified' => array(
@@ -196,7 +194,7 @@ public function getPossibleDropDownOptions($table, $valueColumn, $labelColumn, $
 ),
 ```
 
-### `CandidatesDataGrid::_classColumns` — add new columns
+### `CandidatesDataGrid::_classColumns` add new columns
 
 ```php
 'GPA' => array(
@@ -459,7 +457,7 @@ In the `Created` column definition, add `filterTypes`:
 
 ## 5. lib/DataGrid.php
 
-### filterTypes injection block — replace
+### filterTypes injection block replace
 
 ```php
 // OLD:
@@ -487,9 +485,9 @@ else
 }
 ```
 
-### JS registry emission — add after `$template->assign('md5InstanceName', $md5InstanceName)`
+### JS registry emission, add after `$template->assign('md5InstanceName', $md5InstanceName)`
 
-This block emits JS that auto-populates `filterDateRangeRegistry`, `filterRangeRegistry`, and `filterDropDownRegistry` based on each column's `filterTypes` and `filterDropDownOptions` — so tpl files don't need to manually register built-in columns.
+This block emits JS that auto-populates `filterDateRangeRegistry`, `filterRangeRegistry`, and `filterDropDownRegistry` based on each column's `filterTypes` and `filterDropDownOptions`.
 
 ```php
 echo '<script type="text/javascript">';
@@ -519,7 +517,7 @@ foreach ($this->_classColumns as $columnName => $data) {
 echo '</script>';
 ```
 
-### Argument parsing in `_getData()` — replace
+### Argument parsing in `_getData()`, replace
 
 ```php
 // OLD:
@@ -550,7 +548,7 @@ if (strpos($data, '=in') !== false)
 }
 ```
 
-### `=<` and `=>` blocks — change `makeQueryInteger` to `makeQueryDouble`
+### `=<` and `=>` blocks change `makeQueryInteger` to `makeQueryDouble`
 
 ```php
 if (strpos($data, '=<') !== false)
@@ -578,7 +576,7 @@ if (strpos($data, '=>') !== false)
 }
 ```
 
-### New date operator blocks — add alongside the existing `=<`, `=>`, etc. blocks
+### New date operator blocks, add alongside the existing `=<`, `=>`, etc. blocks
 
 ```php
 if (strpos($data, '=d<') !== false)
@@ -598,7 +596,7 @@ if (strpos($data, '=d>') !== false)
 }
 ```
 
-### `drawFilterArea()` — replace `$filterOperatorHuman` switch
+### `drawFilterArea()` replace `$filterOperatorHuman` 
 
 ```php
 $filterOperatorHuman = '';
@@ -635,7 +633,7 @@ switch ($filterOperator)
 
 ## 6. lib/ExtraFields.php
 
-### `getSettings()` SELECT — add `filter_type`
+### `getSettings()` SELECT add `filter_type`
 
 ```php
 "SELECT
@@ -647,7 +645,7 @@ switch ($filterOperator)
     extra_field_settings.site_id AS siteID
 ```
 
-### `define()` — replace to accept and save `filter_type`
+### `define()`, replace to accept and save `filter_type`
 
 ```php
 public function define($fieldName, $fieldType, $filterType = 'default')
@@ -678,7 +676,7 @@ public function define($fieldName, $fieldType, $filterType = 'default')
 }
 ```
 
-### `getDataGridDefinition()` — add filter type switch before `return $definition`
+### `getDataGridDefinition()`, add filter type switch before `return $definition`
 
 ```php
 $filterType = isset($data['filterType']) ? $data['filterType'] : 'default';
@@ -1021,7 +1019,6 @@ private function exportPipeline()
         );
     }
 
-    /* Merge extra field values into rows */
     $allCandidateIDs = array_map(function($r) { return $r['candidateID']; }, $pipelinesRS);
     $extraFieldsByCandidate = $pipelines->getExtraFieldsForPipelineCandidates($allCandidateIDs);
     foreach ($pipelinesRS as $idx => $row)
@@ -1036,7 +1033,6 @@ private function exportPipeline()
         }
     }
 
-    /* Filter to selected candidates only */
     $pipelinesRS = array_values(array_filter($pipelinesRS, function($row) use ($candidateIDs) {
         return in_array((int)$row['candidateID'], $candidateIDs);
     }));
@@ -1117,7 +1113,7 @@ private function exportPipeline()
 }
 ```
 
-### End of `show()` — add template assignments before `if (!eval(Hooks::get('JO_SHOW'))) return;`
+### End of `show()`, add template assignments before `if (!eval(Hooks::get('JO_SHOW'))) return;`
 
 ```php
 $candidates = new Candidates($this->_siteID);
@@ -1267,8 +1263,6 @@ This populates all the filter registries for the pipeline page. The `filterIsInR
 
 ### Add filter area, pipeline controls, and export
 
-The pipeline uses its own AJAX-based filtering — not the standard DataGrid SQL filter. The `submitFilter` function re-runs `PipelineJobOrder_populate` with the current filter string on every change. The `clearFilter` override also clears the filter pills table.
-
 ```php
 <?php $this->dataGrid->drawFilterArea(); ?>
 
@@ -1398,7 +1392,7 @@ function exportFromPipeline() {
 
 ## 15. ajax/getPipelineJobOrder.php
 
-### `$columnMap` — replace
+### `$columnMap`, replace
 
 ```php
 $columnMap = array(
@@ -1419,15 +1413,15 @@ $columnMap = array(
 );
 ```
 
-### `$operators` — replace
+### `$operators, replace
 
-The 3-character operators must come before the 2-character ones so they match first.
+The 3-character operators must come before the 2 character.
 
 ```php
 $operators = array('=d>', '=d<', '=~', '==', '=>', '=<');
 ```
 
-### Filter comparison callback — add GPA and Created special cases
+### Filter comparison callback, add GPA and Created special cases
 
 Find `$fieldValue = isset($row[$col]) ? $row[$col] : '';` and add immediately after:
 
@@ -1455,8 +1449,6 @@ if ($col === 'dateCreated') {
     }
 }
 ```
-
-The existing string-based comparison for all other columns stays below these blocks.
 
 ---
 
@@ -1584,7 +1576,7 @@ if (getFilterColumnTypesFromOptionValue(possibleOperatorType) == '=@') {
 
 ### Replace the operator type loop in `createOperatorSelect`
 
-Handles 3-character operators (`=d>`, `=d<`, `=in`) correctly instead of always stepping by 2.
+Handles 3-character operators (`=d>`, `=d<`, `=in`) correctly
 
 ```javascript
 var possibleTypes = getFilterColumnTypesFromOptionValue(currentValue);
@@ -1616,7 +1608,6 @@ var filterIsInRegistry = {};
 var filterDateRangeRegistry = {};
 var filterRangeRegistry = {};
 
-// ─── DropDownFilter ───────────────────────────────────────────────────────────
 
 filter.DropDownFilter = function(defaultValue, filterCounter, filterAreaID, selectableColumns, instanceName) {
     this.defaultValue = defaultValue;
@@ -1753,7 +1744,6 @@ function applyDropDownFilter(filterAreaID, filterCounter, instanceName, columnNa
     filterArea.value = filterVal;
 }
 
-// ─── DateRangeFilter ──────────────────────────────────────────────────────────
 
 filter.DateRangeFilter = function(defaultValue, filterCounter, filterAreaID, selectableColumns, instanceName) {
     this.defaultValue = defaultValue;
@@ -1842,7 +1832,7 @@ filter.DateRangeFilter.prototype.render = function() {
     singleInput.addEventListener('change', applyFilter);
     fromInput.addEventListener('change',   applyFilter);
     toInput.addEventListener('change',     applyFilter);
-    setTimeout(updateHandler, 0); // deferred: lets DOM settle before toggling range inputs on first render
+    setTimeout(updateHandler, 0); 
 
     filterDiv.style.float = 'left';
     return filterDiv;
@@ -1874,7 +1864,6 @@ function applyDateRangeFilter(filterAreaID, filterCounter, instanceName, columnN
     filterArea.value = filterVal;
 }
 
-// ─── RangeFilter ──────────────────────────────────────────────────────────────
 
 filter.RangeFilter = function(defaultValue, filterCounter, filterAreaID, selectableColumns, instanceName) {
     this.defaultValue = defaultValue;
@@ -1962,7 +1951,7 @@ filter.RangeFilter.prototype.render = function() {
     singleInput.addEventListener('change', applyFilter);
     fromInput.addEventListener('change',   applyFilter);
     toInput.addEventListener('change',     applyFilter);
-    setTimeout(updateHandler, 0); // deferred: lets DOM settle before toggling range inputs on first render
+    setTimeout(updateHandler, 0);
 
     filterDiv.style.float = 'left';
     return filterDiv;
