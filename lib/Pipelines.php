@@ -570,7 +570,7 @@ class Pipelines
             candidate.is_hot AS isHotCandidate,
             candidate.gpa AS gpa,
             candidate.nationality AS nationality,
-            university.short_name AS universityShortName,
+            candidate.university AS universityShortName,
             candidate_joborder_status.short_description AS statusDescription,
             DATE_FORMAT(
                 candidate_joborder.date_created, '%%m-%%d-%%y'
@@ -643,8 +643,6 @@ class Pipelines
             ON candidate_joborder.status = candidate_joborder_status.candidate_joborder_status_id
         LEFT JOIN candidate_duplicates
             ON candidate_duplicates.new_candidate_id = candidate.candidate_id
-        LEFT JOIN university
-            ON university.university_id = candidate.university_id
         WHERE
             candidate_joborder.joborder_id = %s
         AND

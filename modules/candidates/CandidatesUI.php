@@ -447,7 +447,7 @@ class CandidatesUI extends UserInterface
         $this->_template->assign('topLog', $topLog);
         $this->_template->assign('tagsRS', $tagsRS);
 
-        $universitiesRS = $candidates->getPossibleDropDownOptions('university', 'university_id', 'canonical_name', 'short_name');
+$universitiesRS = $candidates->getPossibleDropDownOptions('university', 'short_name', 'canonical_name', 'short_name');
         $this->_template->assign('universitiesRS', $universitiesRS);
         $nationalitiesRS = $candidates->getPossibleDropDownOptions('nationality', 'name', 'name', null, 'sort_order ASC, name ASC');
         $this->_template->assign('nationalitiesRS', $nationalitiesRS);
@@ -555,14 +555,7 @@ class CandidatesUI extends UserInterface
             $data['titleClass'] = 'jobTitleCold';
         }
         
-        if (!empty($data['universityID']))
-        {
-            $data['university'] = $data['universityShortName'] . ' — ' . $data['universityCanonicalName'];
-        }
-        else
-        {
-            $data['university'] = '';
-        }
+$data['university'] = !empty($data['universityShortName']) ? $data['universityShortName'] : '';
         
         $attachments = new Attachments($this->_siteID);
         $attachmentsRS = $attachments->getAll(
@@ -774,8 +767,7 @@ class CandidatesUI extends UserInterface
         /* Get possible sources. */
         $sourcesRS = $candidates->getPossibleSources();
         $sourcesString = ListEditor::getStringFromList($sourcesRS, 'name');
-
-        $universitiesRS = $candidates->getPossibleDropDownOptions('university', 'university_id', 'canonical_name', 'short_name');
+$universitiesRS = $candidates->getPossibleDropDownOptions('university', 'short_name', 'canonical_name', 'short_name');
         $nationalitiesRS = $candidates->getPossibleDropDownOptions('nationality', 'name', 'name', null, 'sort_order ASC, name ASC');
 
         /* Get extra fields. */
@@ -1362,8 +1354,8 @@ class CandidatesUI extends UserInterface
         $gpa             = $this->getTrimmedInput('gpa', $_POST);
         /* Candidate source list editor. */
         $sourceCSV       = $this->getTrimmedInput('sourceCSV', $_POST);
-        $universityID = $this->getTrimmedInput('universityID', $_POST);
-        $universityID = ($universityID > 0) ? $universityID : null;
+        $university = $this->getTrimmedInput('university', $_POST);
+
         $nationality = $this->getTrimmedInput('nationality', $_POST);
         /* Bail out if any of the required fields are empty. */
         if (empty($firstName) || empty($lastName))
@@ -2694,7 +2686,7 @@ class CandidatesUI extends UserInterface
             $veteran,
             $disability,
             $gpa,
-            $universityID,
+            $university,
             $nationality
         );
 

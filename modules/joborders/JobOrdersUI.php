@@ -650,17 +650,16 @@ private function exportPipeline()
 
         $db = DatabaseConnection::getInstance();
 
-        $pipelineUniversitiesIsIn = $db->getAllAssoc(sprintf(
-            "SELECT DISTINCT university.short_name AS val
-            FROM candidate
-            INNER JOIN candidate_joborder ON candidate_joborder.candidate_id = candidate.candidate_id
-            LEFT JOIN university ON university.university_id = candidate.university_id
-            WHERE candidate_joborder.joborder_id = %d
-            AND candidate_joborder.site_id = %d
-            AND university.short_name IS NOT NULL AND university.short_name != ''
-            ORDER BY university.short_name ASC",
-            $jobOrderID, $this->_siteID
-        ));
+$pipelineUniversitiesIsIn = $db->getAllAssoc(sprintf(
+    "SELECT DISTINCT candidate.university AS val
+    FROM candidate
+    INNER JOIN candidate_joborder ON candidate_joborder.candidate_id = candidate.candidate_id
+    WHERE candidate_joborder.joborder_id = %d
+    AND candidate_joborder.site_id = %d
+    AND candidate.university IS NOT NULL AND candidate.university != ''
+    ORDER BY candidate.university ASC",
+    $jobOrderID, $this->_siteID
+));
         $this->_template->assign('pipelineUniversitiesIsIn', $pipelineUniversitiesIsIn);
 
         $pipelineNationalitiesIsIn = $db->getAllAssoc(sprintf(

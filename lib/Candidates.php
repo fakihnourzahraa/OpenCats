@@ -96,7 +96,7 @@ class Candidates
         $phoneHome, $phoneCell, $phoneWork, $address, $city, $state, $zip,
         $source, $keySkills, $dateAvailable, $currentEmployer, $canRelocate,
         $currentPay, $desiredPay, $notes, $webSite, $bestTimeToCall, $enteredBy, $owner,
-        $gender = '', $race = '', $veteran = '', $disability = '', $gpa = '', $universityID = 0, $nationality = '',
+        $gender = '', $race = '', $veteran = '', $disability = '', $gpa = '', $university = 0, $nationality = '',
         $skipHistory = false)
     {
         $sql = sprintf(
@@ -204,7 +204,7 @@ class Candidates
             $this->_db->makeQueryString($disability),
             $this->_db->makeQueryString($gender),
             $this->_db->makeQueryDouble($gpa),
-            $this->_db->makeQueryInteger($universityID),
+            $this->_db->makeQueryString($university),
             $this->_db->makeQueryString($nationality)
         );
         $queryResult = $this->_db->query($sql);
@@ -262,7 +262,7 @@ class Candidates
         $city, $state, $zip, $source, $keySkills, $dateAvailable,
         $currentEmployer, $canRelocate, $currentPay, $desiredPay,
         $notes, $webSite, $bestTimeToCall, $owner, $isHot, $email, $emailAddress,
-        $gender = '', $race = '', $veteran = '', $disability = '', $gpa ='', $universityID = 0, $nationality = '')
+        $gender = '', $race = '', $veteran = '', $disability = '', $gpa ='', $university = 0, $nationality = '')
     {
         $sql = sprintf(
             "UPDATE
@@ -335,7 +335,7 @@ class Candidates
             $this->_db->makeQueryString($disability),
             $this->_db->makeQueryString($gender),
             $this->_db->makeQueryDouble($gpa),
-            $this->_db->makeQueryInteger($universityID),
+            $this->_db->makeQueryString($university),
             $this->_db->makeQueryString($nationality),
             $this->_db->makeQueryInteger($candidateID),
             $this->_siteID
@@ -503,9 +503,7 @@ class Candidates
                 candidate.is_hot AS isHot,
                 candidate.is_admin_hidden AS isAdminHidden,
                 candidate.gpa AS gpa,
-                candidate.university_id AS universityID,
-                university.canonical_name AS universityCanonicalName,
-                university.short_name AS universityShortName,
+                candidate.university AS universityShortName,
                 candidate.nationality AS nationality,
                 DATE_FORMAT(
                     candidate.date_created, '%%m-%%d-%%y (%%h:%%i %%p)'
@@ -563,8 +561,6 @@ class Candidates
                 ON eeo_ethnic_type.eeo_ethnic_type_id = candidate.eeo_ethnic_type_id
             LEFT JOIN eeo_veteran_type
                 ON eeo_veteran_type.eeo_veteran_type_id = candidate.eeo_veteran_type_id
-            LEFT JOIN university
-                ON university.university_id = candidate.university_id
             WHERE
                 candidate.candidate_id = %s
             AND
@@ -650,7 +646,7 @@ class Candidates
                 candidate.eeo_gender AS eeoGender,
                 candidate.is_admin_hidden AS isAdminHidden,
                 candidate.gpa AS gpa,
-                candidate.university_id AS universityID,
+                candidate.university AS universityShortName,
                 candidate.nationality AS nationality,
                 DATE_FORMAT(
                     candidate.date_available, '%%m-%%d-%%y'
@@ -2306,18 +2302,28 @@ class CandidatesDataGrid extends DataGrid
                                     'filter'         => 'candidate.gpa',
                                     'filterTypes'    => '=>=<=><==', 
                                 ),
-            'University' =>     array(
-                                    'select'         => 'university.canonical_name AS universityCanonicalName,
-                                                        university.short_name AS universityShortName',
-                                    'join'           => 'LEFT JOIN university ON university.university_id = candidate.university_id',
-                                    'pagerRender'    => 'return !empty($rsData[\'universityShortName\']) ? htmlspecialchars($rsData[\'universityShortName\']) : \'\';',
-                                    'exportRender'   => 'return !empty($rsData[\'universityShortName\']) ? $rsData[\'universityShortName\'] . \' — \' . $rsData[\'universityCanonicalName\'] : \'\';',
-                                    'sortableColumn' => 'universityCanonicalName',
-                                    'pagerWidth'     => 100,
-                                    'pagerOptional'  => true,
-                                    'filter'         => 'university.short_name',
-                                    'filterTypes'    => '==',
-                                ),
+            // 'University' =>     array(
+            //                         'select'         => 'university.canonical_name AS universityCanonicalName,
+            //                                             university.short_name AS universityShortName',
+            //                         'join'           => 'LEFT JOIN university ON university.university_id = candidate.university_id',
+            //                         'pagerRender'    => 'return !empty($rsData[\'universityShortName\']) ? htmlspecialchars($rsData[\'universityShortName\']) : \'\';',
+            //                         'exportRender'   => 'return !empty($rsData[\'universityShortName\']) ? $rsData[\'universityShortName\'] . \' — \' . $rsData[\'universityCanonicalName\'] : \'\';',
+            //                         'sortableColumn' => 'universityCanonicalName',
+            //                         'pagerWidth'     => 100,
+            //                         'pagerOptional'  => true,
+            //                         'filter'         => 'university.short_name',
+            //                         'filterTypes'    => '==',
+            //                     ),
+            'University' => array(
+    'select'         => 'candidate.university AS universityShortName',
+    'pagerRender'    => 'return !empty($rsData[\'universityShortName\']) ? htmlspecialchars($rsData[\'universityShortName\']) : \'\';',
+    'exportRender'   => 'return !empty($rsData[\'universityShortName\']) ? $rsData[\'universityShortName\'] : \'\';',
+    'sortableColumn' => 'universityShortName',
+    'pagerWidth'     => 100,
+    'pagerOptional'  => true,
+    'filter'         => 'candidate.university',
+    'filterTypes'    => '==',
+),
             'Nationality' =>    array(
                                     'select'         => 'candidate.nationality AS nationality',
                                     'pagerRender'    => 'return !empty($rsData[\'nationality\']) ? htmlspecialchars($rsData[\'nationality\']) : \'\';',
@@ -2328,24 +2334,24 @@ class CandidatesDataGrid extends DataGrid
                                     'filter'         => 'candidate.nationality',
                                     'filterTypes'    => '==',
                                 ),
-'Interview Stage' => array(
-    'select'         => '(
-        SELECT candidate_joborder_status.short_description
-        FROM candidate_joborder
-        LEFT JOIN candidate_joborder_status
-            ON candidate_joborder_status.candidate_joborder_status_id = candidate_joborder.status
-        WHERE candidate_joborder.candidate_id = candidate.candidate_id
-        ORDER BY candidate_joborder.date_modified DESC
-        LIMIT 1
-    ) AS statusDescription',
-    'pagerRender'    => 'return !empty($rsData[\'statusDescription\']) ? htmlspecialchars($rsData[\'statusDescription\']) : \'\';',
-    'exportRender'   => 'return !empty($rsData[\'statusDescription\']) ? $rsData[\'statusDescription\'] : \'\';',
-    'sortableColumn' => 'statusDescription',
-    'pagerWidth'     => 120,
-    'pagerOptional'  => true,
-    'filter'         => 'candidate_joborder_status.short_description',
-    'filterTypes'    => '==',
-),
+                'Interview Stage' => array(
+                    'select'         => '(
+                        SELECT candidate_joborder_status.short_description
+                        FROM candidate_joborder
+                        LEFT JOIN candidate_joborder_status
+                            ON candidate_joborder_status.candidate_joborder_status_id = candidate_joborder.status
+                        WHERE candidate_joborder.candidate_id = candidate.candidate_id
+                        ORDER BY candidate_joborder.date_modified DESC
+                        LIMIT 1
+                    ) AS statusDescription',
+                    'pagerRender'    => 'return !empty($rsData[\'statusDescription\']) ? htmlspecialchars($rsData[\'statusDescription\']) : \'\';',
+                    'exportRender'   => 'return !empty($rsData[\'statusDescription\']) ? $rsData[\'statusDescription\'] : \'\';',
+                    'sortableColumn' => 'statusDescription',
+                    'pagerWidth'     => 120,
+                    'pagerOptional'  => true,
+                    'filter'         => 'candidate_joborder_status.short_description',
+                    'filterTypes'    => '==',
+                ),
         // Tags filtering
         	'Tags'	=>			array(
                                      'select'	=> '(

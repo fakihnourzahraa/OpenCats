@@ -6,7 +6,7 @@
 <script type="text/javascript">
     filterDropDownRegistry['University'] = [
         <?php foreach ($this->universitiesRS as $i => $u): ?>
-            { value: '<?php echo addslashes($u['shortName']); ?>', label: '<?php echo addslashes($u['shortName'] . ' — ' . $u['optionLabel']); ?>' }<?php echo ($i < count($this->universitiesRS) - 1) ? ',' : ''; ?>
+            { value: '<?php echo addslashes($u['shortName']); ?>', label: '<?php echo addslashes($u['shortName']); ?>' }<?php echo ($i < count($this->universitiesRS) - 1) ? ',' : ''; ?>
         <?php endforeach; ?>
     ];
     filterDropDownRegistry['Nationality'] = [
