@@ -503,14 +503,14 @@
 
                      <tr>
                     <td class="tdVertical">
-                        <label id="universitIDLabel" for="universityID">University:</label>
+                        <label id="universityIDLabel" for="universityID">University:</label>
                     </td>
                     <td class="tdData">
-                        <select tabindex="X" id="universityID" name="universityID" class="inputbox" style="width: 250px;">
-                            <option value="-1">-- Select University --</option>
+                        <select id="university" name="university" class="inputbox" style="width: 250px;">
+                            <option value="">-- Select University --</option>
                             <?php foreach ($this->universitiesRS as $universityData): ?>
                                 <option value="<?php $this->_($universityData['optionValue']) ?>">
-                                    <?php $this->_($universityData['shortName']) ?> &mdash; <?php $this->_($universityData['optionLabel']) ?>
+                                    <?php $this->_($universityData['optionLabel']) ?>
                                 </option>
                             <?php endforeach; ?>
                         </select>
@@ -532,24 +532,30 @@
                         </select>
                     </td>
                 </tr>
-
-                <tr>
-                    <td class="tdVertical">
-                        <label id="interviewStageLabel" for="interviewStage">Interview Stage:</label>
-                    </td>
-                    <td class="tdData">
-                        <select tabindex="X" id="interviewStage" name="interviewStage" class="inputbox" style="width: 250px;">
-                            <option value="">-- Select interviewStage --</option>
-                            <?php foreach ($this->nationalitiesRS as $interviewStageData): ?>
-                                <option value="<?php $this->_($interviewStageData['optionValue']) ?>">
-                                    <?php $this->_($interviewStageData['optionLabel']) ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                    </td>
-                </tr>
-
-
+<tr>
+    <td class="tdVertical">
+        <label for="interviewStage">Interview Stage:</label>
+    </td>
+    <td class="tdData">
+        <select id="interviewStage" name="interviewStage" class="inputbox" style="width: 250px;">
+            <option value="">-- Select Stage --</option>
+            <?php foreach (array(
+                'Applied',
+                '1st Screening',
+                'Interview 1',
+                'Interview 2',
+                'Job offered',
+                'Job offer refused',
+                'Job offer accepted'
+            ) as $stage): ?>
+                <option value="<?php $this->_($stage); ?>"
+                    <?php if (isset($this->data['interviewStage']) && $this->data['interviewStage'] == $stage) echo('selected'); ?>>
+                    <?php $this->_($stage); ?>
+                </option>
+            <?php endforeach; ?>
+        </select>
+    </td>
+</tr>
                 </table>
 
                 <input type="submit" tabindex="<?php echo($tabIndex++); ?>" class="button" value="Add Candidate" />&nbsp;
