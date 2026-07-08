@@ -570,7 +570,8 @@ class Pipelines
             candidate.is_hot AS isHotCandidate,
             candidate.gpa AS gpa,
             candidate.nationality AS nationality,
-            candidate.university_id AS universityShortName,
+            candidate.interviewStage AS interviewStage,
+            candidate.university AS universityShortName,
             candidate_joborder_status.short_description AS statusDescription,
             DATE_FORMAT(
                 candidate_joborder.date_created, '%%m-%%d-%%y'
@@ -662,7 +663,7 @@ class Pipelines
         $this->_siteID,
         $orderBy
     );
-
+error_log("PIPELINE SQL: " . $sql);
         return $this->_db->getAllAssoc($sql);
     }
 

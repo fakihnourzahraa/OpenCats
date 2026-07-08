@@ -634,6 +634,9 @@ filter.RangeFilter.prototype.render = function() {
         if (op === 'between') {
             single.style.display = 'none';
             range.style.display  = '';
+        } else if (op === '=e') {
+            single.style.display = 'none';
+            range.style.display  = 'none';
         } else {
             single.style.display = '';
             range.style.display  = 'none';
@@ -681,8 +684,8 @@ filterVal = filterVal.replace(new RegExp(',?' + escapedColumn + '=e[^,]*', 'g'),
         var val = document.getElementById(filterAreaID + filterCounter + 'value').value;
         if (val !== '') filterVal += (filterVal ? ',' : '') + columnName + op + val;
     }
-    else if (op === '=e') {
-    filterVal += (filterVal ? ',' : '') + columnName + '=e';
+   else if (op === '=e') {
+        filterVal += (filterVal ? ',' : '') + columnName + '=e';
 }
 
     filterArea.value = filterVal;
