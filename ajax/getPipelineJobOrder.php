@@ -165,7 +165,7 @@ $columnMap = array(
     'Created'          => 'candidateDateCreated',
     'University'       => 'universityShortName',
     'Nationality'      => 'nationality',
-    'Interview Stage'  => 'statusDescription',
+    'Status'  => 'statusDescription',
 );
 
 $allPipelineColumns = array(
@@ -178,7 +178,7 @@ $allPipelineColumns = array(
     'address'             => 'Address',
     'dateCreatedInt'      => 'Added',
     'addedByAbbrName'     => 'Entered By',
-    'status'              => 'Interview Stage',
+    'status'              => 'Status',
     'lastActivity'        => 'Last Activity',
     'candidateEmail'      => 'E-Mail',
     'candidateEmail2'     => '2nd E-Mail',
@@ -506,7 +506,7 @@ $jsIsPopup   = $isPopup ? 1 : 0;
         <?php endif; ?>
         <?php if (in_array('status', $visibleCols)): ?>
         <th align="left" width="65" nowrap="nowrap">
-            <a href="javascript:void(0);" onclick="PipelineJobOrder_populate(<?php echo($jobOrderID); ?>, <?php echo($page); ?>, <?php echo($entriesPerPage); ?>, <?php printSortLink('status'); ?>, <?php if ($isPopup) echo(1); else echo(0); ?>, 'ajaxPipelineTable', '<?php echo($_SESSION['CATS']->getCookie()); ?>', 'ajaxPipelineTableIndicator', '<?php echo($indexFile); ?>');">Interview Stage</a>
+            <a href="javascript:void(0);" onclick="PipelineJobOrder_populate(<?php echo($jobOrderID); ?>, <?php echo($page); ?>, <?php echo($entriesPerPage); ?>, <?php printSortLink('status'); ?>, <?php if ($isPopup) echo(1); else echo(0); ?>, 'ajaxPipelineTable', '<?php echo($_SESSION['CATS']->getCookie()); ?>', 'ajaxPipelineTableIndicator', '<?php echo($indexFile); ?>');">Status</a>
         </th>
         <?php endif; ?>
         <?php if (in_array('lastActivity', $visibleCols)): ?>
@@ -762,7 +762,7 @@ $jsIsPopup   = $isPopup ? 1 : 0;
                 <?php if (!isset($frozen)): ?>
                     <?php if ($_SESSION['CATS']->getAccessLevel('pipelines.addActivityChangeStatus') >= ACCESS_LEVEL_EDIT): ?>
                         <a href="#" onclick="showPopWin('<?php echo($indexFile); ?>?m=joborders&amp;a=addActivityChangeStatus&amp;jobOrderID=<?php echo($jobOrderID); ?>&amp;candidateID=<?php echo($pipelinesData['candidateID']); ?>', 600, 550, null); return false;">
-                            <img src="images/actions/edit.gif" width="16" height="16" class="absmiddle" alt="" style="border: none;" title="Log an Activity / Change Interview Stage" />
+                            <img src="images/actions/edit.gif" width="16" height="16" class="absmiddle" alt="" style="border: none;" title="Log an Activity / Change Status" />
                         </a>
                     <?php endif; ?>
                     <?php if ($_SESSION['CATS']->getAccessLevel('pipelines.removeFromPipeline') >= ACCESS_LEVEL_DELETE): ?>

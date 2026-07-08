@@ -204,7 +204,7 @@ class PipelineExportDataGrid extends PipelineCandidatesDataGrid
         'zip'                 => 'Zip',
         'address'             => 'Address',
         'dateCreatedInt'      => 'Created',
-        'status'              => 'Interview Stage',
+        'status'              => 'Status',
         'candidateEmail'      => 'E-Mail',
         'candidateEmail2'     => '2nd E-Mail',
         'phoneHome'           => 'Home Phone',

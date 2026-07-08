@@ -2334,7 +2334,7 @@ class CandidatesDataGrid extends DataGrid
                                     'filter'         => 'candidate.nationality',
                                     'filterTypes'    => '==',
                                 ),
-                'Interview Stage' => array(
+                'Status' => array(
                     'select'         => '(
                         SELECT candidate_joborder_status.short_description
                         FROM candidate_joborder

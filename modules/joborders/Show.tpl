@@ -28,7 +28,7 @@ use OpenCATS\UI\QuickActionMenu;
             { value: '<?php echo addslashes($s['name']); ?>', label: '<?php echo addslashes($s['name']); ?>' }<?php echo ($i < count($this->sourcesRS) - 1) ? ',' : ''; ?>
         <?php endforeach; ?>
     ];
-    filterDropDownRegistry['Interview Stage'] = [
+    filterDropDownRegistry['Status'] = [
         <?php foreach ($this->statusesRS as $i => $s): ?>
             { value: '<?php echo addslashes($s['optionValue']); ?>', label: '<?php echo addslashes($s['optionLabel']); ?>' }<?php echo ($i < count($this->statusesRS) - 1) ? ',' : ''; ?>
         <?php endforeach; ?>
