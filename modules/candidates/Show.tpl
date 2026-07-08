@@ -222,11 +222,7 @@ use OpenCATS\UI\CandidateDuplicateQuickActionMenu;
                                 <td class="vertical">Nationality:</td>
                                 <td class="data"><?php $this->_($this->data['nationality']); ?></td>
                             </tr>
-                                                        <tr>
-                                <td class="vertical">Interview Stage:</td>
-                                <td class="data"><?php $this->_($this->data['interviewStage']); ?></td>
-                            </tr>
-                            
+
                             
                             <?php for ($i = (intval(count($this->extraFieldRS))/2); $i < (count($this->extraFieldRS)); $i++): ?>
                                 <tr>

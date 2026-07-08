@@ -19,15 +19,6 @@
             { value: '<?php echo addslashes($s['name']); ?>', label: '<?php echo addslashes($s['name']); ?>' }<?php echo ($i < count($this->sourcesRS) - 1) ? ',' : ''; ?>
         <?php endforeach; ?>
     ];
-    filterDropDownRegistry['Interview Stage'] = [
-    {value: 'Applied',              label: 'Applied'},
-    {value: '1st Screening',        label: '1st Screening'},
-    {value: 'Interview 1',          label: 'Interview 1'},
-    {value: 'Interview 2',          label: 'Interview 2'},
-    {value: 'Job offered',          label: 'Job offered'},
-    {value: 'Job offer refused',    label: 'Job offer refused'},
-    {value: 'Job offer accepted',   label: 'Job offer accepted'}
-];
 
     filterDateRangeRegistry['Created'] = true;
     filterDateRangeRegistry['Modified'] = true;

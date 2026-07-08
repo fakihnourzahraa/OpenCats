@@ -96,7 +96,7 @@ class Candidates
         $phoneHome, $phoneCell, $phoneWork, $address, $city, $state, $zip,
         $source, $keySkills, $dateAvailable, $currentEmployer, $canRelocate,
         $currentPay, $desiredPay, $notes, $webSite, $bestTimeToCall, $enteredBy, $owner,
-        $gender = '', $race = '', $veteran = '', $disability = '', $gpa = '', $university = 0, $nationality = '', $interviewStage = '',
+        $gender = '', $race = '', $veteran = '', $disability = '', $gpa = '', $university = 0, $nationality = '',
         $skipHistory = false)
     {
         $sql = sprintf(
@@ -135,8 +135,7 @@ class Candidates
                 eeo_gender,
                 gpa,
                 university,
-                nationality,
-                interviewStage
+                nationality
             )
             VALUES (
                 %s,
@@ -167,7 +166,6 @@ class Candidates
                 %s,
                 NOW(),
                 NOW(),
-                %s,
                 %s,
                 %s,
                 %s,
@@ -207,8 +205,7 @@ class Candidates
             $this->_db->makeQueryString($gender),
             $this->_db->makeQueryDouble($gpa),
             $this->_db->makeQueryString($university),
-            $this->_db->makeQueryString($nationality),
-            $this->_db->makeQueryString($interviewStage)
+            $this->_db->makeQueryString($nationality)
         );
 
         $queryResult = $this->_db->query($sql);
@@ -266,7 +263,7 @@ class Candidates
         $city, $state, $zip, $source, $keySkills, $dateAvailable,
         $currentEmployer, $canRelocate, $currentPay, $desiredPay,
         $notes, $webSite, $bestTimeToCall, $owner, $isHot, $email, $emailAddress,
-        $gender = '', $race = '', $veteran = '', $disability = '', $gpa ='', $university = 0, $nationality = '', $interviewStage = '')
+        $gender = '', $race = '', $veteran = '', $disability = '', $gpa ='', $university = 0, $nationality = '')
     {
         $sql = sprintf(
             "UPDATE
@@ -304,8 +301,7 @@ class Candidates
                 eeo_gender            = %s,
                 gpa                   = %s,
                 university            = %s,
-                nationality           = %s,
-                interviewStage        = %s
+                nationality           = %s
             WHERE
                 candidate_id = %s
             AND
@@ -342,7 +338,6 @@ class Candidates
             $this->_db->makeQueryDouble($gpa),
             $this->_db->makeQueryString($university),
             $this->_db->makeQueryString($nationality),
-            $this->_db->makeQueryString($interviewStage),
             $this->_db->makeQueryInteger($candidateID),
             $this->_siteID
         );
@@ -511,7 +506,6 @@ class Candidates
                 candidate.gpa AS gpa,
                 candidate.university AS universityShortName,
                 candidate.nationality AS nationality,
-                candidate.interviewStage AS interviewStage,
                 DATE_FORMAT(
                     candidate.date_created, '%%m-%%d-%%y (%%h:%%i %%p)'
                 ) AS dateCreated,
@@ -655,7 +649,6 @@ class Candidates
                 candidate.gpa AS gpa,
                 candidate.university AS universityShortName,
                 candidate.nationality AS nationality,
-                candidate.interviewStage AS interviewStage,
                 DATE_FORMAT(
                     candidate.date_available, '%%m-%%d-%%y'
                 ) AS dateAvailable
@@ -2360,16 +2353,7 @@ class CandidatesDataGrid extends DataGrid
                     'filter'         => 'candidate_joborder_status.short_description',
                     'filterTypes'    => '==',
                 ),
-                'Interview Stage' => array(
-                                    'select'         => 'candidate.interviewStage AS interviewStage',
-                                    'pagerRender'    => 'return !empty($rsData[\'interviewStage\']) ? htmlspecialchars($rsData[\'interviewStage\']) : \'\';',
-                                    'exportRender'   => 'return !empty($rsData[\'interviewStage\']) ? $rsData[\'interviewStage\'] : \'\';',
-                                    'sortableColumn' => 'interviewStage',
-                                    'pagerWidth'     => 100,
-                                    'pagerOptional'  => true,
-                                    'filter'         => 'candidate.interviewStage',
-                                    'filterTypes'    => '=in==',
-                                ),
+
 
         // Tags filtering
         	'Tags'	=>			array(

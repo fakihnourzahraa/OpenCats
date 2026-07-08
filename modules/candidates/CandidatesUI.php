@@ -1356,8 +1356,7 @@ $data['university'] = !empty($data['universityShortName']) ? $data['universitySh
         $gpa             = $this->getTrimmedInput('gpa', $_POST);
         /* Candidate source list editor. */
         $sourceCSV       = $this->getTrimmedInput('sourceCSV', $_POST);
-        $interviewStage = $this->getTrimmedInput('interviewStage', $_POST);
-        
+
         $university = $this->getTrimmedInput('university', $_POST);
         $nationality = $this->getTrimmedInput('nationality', $_POST);
         /* Bail out if any of the required fields are empty. */
@@ -1404,8 +1403,7 @@ $data['university'] = !empty($data['universityShortName']) ? $data['universitySh
             $disability,
             $gpa,
             $university,
-            $nationality,
-            $interviewStage
+            $nationality
         );
         if (!$updateSuccess)
         {
@@ -2636,7 +2634,6 @@ $data['university'] = !empty($data['universityShortName']) ? $data['universitySh
         $disability      = $this->getTrimmedInput('disability', $_POST);
         $gpa             = $this->getTrimmedInput('gpa', $_POST);
         $university = $this->getTrimmedInput('university', $_POST);
-        $interviewStage = $this->getTrimmedInput('interviewStage', $_POST); 
         $nationality     = $this->getTrimmedInput('nationality', $_POST);
         /* Candidate source list editor. */
         $sourceCSV = $this->getTrimmedInput('sourceCSV', $_POST);
@@ -2691,8 +2688,7 @@ $data['university'] = !empty($data['universityShortName']) ? $data['universitySh
             $disability,
             $gpa,
             $university,
-            $nationality,
-            $interviewStage
+            $nationality
         );
 
         if ($candidateID <= 0)

@@ -532,30 +532,6 @@
                         </select>
                     </td>
                 </tr>
-<tr>
-    <td class="tdVertical">
-        <label for="interviewStage">Interview Stage:</label>
-    </td>
-    <td class="tdData">
-        <select id="interviewStage" name="interviewStage" class="inputbox" style="width: 250px;">
-            <option value="">-- Select Stage --</option>
-            <?php foreach (array(
-                'Applied',
-                '1st Screening',
-                'Interview 1',
-                'Interview 2',
-                'Job offered',
-                'Job offer refused',
-                'Job offer accepted'
-            ) as $stage): ?>
-                <option value="<?php $this->_($stage); ?>"
-                    <?php if (isset($this->data['interviewStage']) && $this->data['interviewStage'] == $stage) echo('selected'); ?>>
-                    <?php $this->_($stage); ?>
-                </option>
-            <?php endforeach; ?>
-        </select>
-    </td>
-</tr>
                 </table>
 
                 <input type="submit" tabindex="<?php echo($tabIndex++); ?>" class="button" value="Add Candidate" />&nbsp;
