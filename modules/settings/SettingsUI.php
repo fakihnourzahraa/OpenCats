@@ -1577,8 +1577,31 @@ class SettingsUI extends UserInterface
     {
         $emailTemplates = new EmailTemplates($this->_siteID);
         $emailTemplatesRS = $emailTemplates->getAll();
-
+        $pipelines = new Pipelines($this->_siteID);
+        $candidateStatusesRS = $pipelines->getStatusesForPicking();
+        $statusChangeFallbackText = '';
+        $statusChangePossibleVariables = '';
+        foreach ($emailTemplatesRS as $tpl) {
+            if ($tpl['emailTemplateTag'] === 'EMAIL_TEMPLATE_STATUSCHANGE') {
+                $statusChangeFallbackText      = $tpl['text'];
+                $statusChangePossibleVariables = $tpl['possibleVariables'];
+                break;
+            }
+        }
+        $statusChangeTemplatesRS = array();
+foreach ($emailTemplatesRS as $tpl) {
+    if (strpos($tpl['emailTemplateTag'], 'EMAIL_TEMPLATE_STATUSCHANGE_') === 0) {
+        $sid = (int) substr($tpl['emailTemplateTag'], strlen('EMAIL_TEMPLATE_STATUSCHANGE_'));
+        $statusChangeTemplatesRS[$sid] = $tpl;
+    }
+}
+        
         if (!eval(Hooks::get('SETTINGS_EMAIL_TEMPLATES'))) return;
+
+        $this->_template->assign('candidateStatusesRS',        $candidateStatusesRS);
+        $this->_template->assign('statusChangeTemplatesRS',     $statusChangeTemplatesRS);
+        $this->_template->assign('statusChangeFallbackText',    $statusChangeFallbackText);
+        $this->_template->assign('statusChangePossibleVariables', $statusChangePossibleVariables);
 
         $this->_template->assign('active', $this);
         $this->_template->assign('subActive', 'Administration');
@@ -1589,8 +1612,12 @@ class SettingsUI extends UserInterface
     //FIXME: Document me.
     private function onEmailTemplates()
     {
-        if (!$this->isRequiredIDValid('templateID', $_POST))
-        {
+        // if (!$this->isRequiredIDValid('templateID', $_POST))
+        // {
+        //     CommonErrors::fatal(COMMONERROR_BADINDEX, $this, 'Invalid template ID.');
+        // }
+        $isStatusSub = !empty($_POST['isStatusSubTemplate']);
+        if (!$isStatusSub && !$this->isRequiredIDValid('templateID', $_POST)) {
             CommonErrors::fatal(COMMONERROR_BADINDEX, $this, 'Invalid template ID.');
         }
 
@@ -1629,8 +1656,16 @@ class SettingsUI extends UserInterface
         }
 
         $emailTemplates = new EmailTemplates($this->_siteID);
-        $emailTemplates->update($templateID, $templateTitle, $text, $disabled);
-
+        // $emailTemplates->update($templateID, $templateTitle, $text, $disabled);
+        $genericTpl = $emailTemplates->getByTag('EMAIL_TEMPLATE_STATUSCHANGE');
+$statusChangePossibleVariables = $genericTpl['possibleVariables'] ?? '';
+if ($isStatusSub && (int)$templateID === 0) {
+    $statusID = (int) $_POST['statusID'];
+    $tag      = 'EMAIL_TEMPLATE_STATUSCHANGE_' . $statusID;
+    $emailTemplates->add($text, $tag, $tag, $this->_siteID, $statusChangePossibleVariables);
+} else {
+    $emailTemplates->update($templateID, $templateTitle, $text, $disabled);
+}
         CATSUtility::transferRelativeURI('m=settings&a=emailTemplates');
     }
 
