@@ -396,39 +396,39 @@
                         </td>
                     </tr>
 
-<tr>
-    <td class="tdVertical">
-        <label id="universityIDLabel" for="universityID">University:</label>
-    </td>
-    <td class="tdData">
-        <select tabindex="X" id="universityID" name="universityID" class="inputbox" style="width: 250px;">
-            <option value="-1">-- Select University --</option>
-            <?php foreach ($this->universitiesRS as $universityData): ?>
-                <option value="<?php $this->_($universityData['optionValue']) ?>"
-                    <?php if (isset($this->data['universityID']) && $this->data['universityID'] == $universityData['optionValue']) echo('selected'); ?>>
-                    <?php $this->_($universityData['shortName']) ?> &mdash; <?php $this->_($universityData['optionLabel']) ?>
-                </option>
-            <?php endforeach; ?>
-        </select>
-    </td>
-</tr>
+                    <tr>
+                        <td class="tdVertical">
+                            <label id="universityIDLabel" for="universityID">University:</label>
+                        </td>
+                        <td class="tdData">
+                            <select id="university" name="university" class="inputbox" style="width: 250px;">
+                                <option value="">-- Select University --</option>
+                                <?php foreach ($this->universitiesRS as $universityData): ?>
+                                    <option value="<?php $this->_($universityData['optionValue']) ?>"
+                                        <?php if (isset($this->data['university']) && $this->data['university'] == $universityData['optionValue']) echo('selected'); ?>>
+                                        <?php $this->_($universityData['optionLabel']) ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </td>
+                    </tr>
  
-<tr>
-    <td class="tdVertical">
-        <label id="nationalityLabel" for="nationality">Nationality:</label>
-    </td>
-    <td class="tdData">
-        <select tabindex="X" id="nationality" name="nationality" class="inputbox" style="width: 250px;">
-            <option value="">-- Select Nationality --</option>
-            <?php foreach ($this->nationalitiesRS as $nationalityData): ?>
-                <option value="<?php $this->_($nationalityData['optionValue']) ?>"
-                    <?php if (isset($this->data['nationality']) && $this->data['nationality'] == $nationalityData['optionValue']) echo('selected'); ?>>
-                    <?php $this->_($nationalityData['optionLabel']) ?>
-                </option>
-            <?php endforeach; ?>
-        </select>
-    </td>
-</tr>
+                    <tr>
+                        <td class="tdVertical">
+                            <label id="nationalityLabel" for="nationality">Nationality:</label>
+                        </td>
+                        <td class="tdData">
+                            <select tabindex="X" id="nationality" name="nationality" class="inputbox" style="width: 250px;">
+                                <option value="">-- Select Nationality --</option>
+                                <?php foreach ($this->nationalitiesRS as $nationalityData): ?>
+                                    <option value="<?php $this->_($nationalityData['optionValue']) ?>"
+                                        <?php if (isset($this->data['nationality']) && $this->data['nationality'] == $nationalityData['optionValue']) echo('selected'); ?>>
+                                        <?php $this->_($nationalityData['optionLabel']) ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </td>
+                    </tr>
 
                 </table>
                 <input type="submit" class="button" name="submit" id="submit" value="Save" />&nbsp;

@@ -570,7 +570,7 @@ class Pipelines
             candidate.is_hot AS isHotCandidate,
             candidate.gpa AS gpa,
             candidate.nationality AS nationality,
-            candidate.university AS universityShortName,
+            candidate.university_id AS universityShortName,
             candidate_joborder_status.short_description AS statusDescription,
             DATE_FORMAT(
                 candidate_joborder.date_created, '%%m-%%d-%%y'

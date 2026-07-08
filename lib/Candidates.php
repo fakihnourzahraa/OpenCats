@@ -134,7 +134,7 @@ class Candidates
                 eeo_disability_status,
                 eeo_gender,
                 gpa,
-                university_id,
+                university,
                 nationality
             )
             VALUES (
@@ -299,7 +299,7 @@ class Candidates
                 eeo_disability_status = %s,
                 eeo_gender            = %s,
                 gpa                   = %s,
-                university_id         = %s,
+                university         = %s,
                 nationality           = %s
             WHERE
                 candidate_id = %s
@@ -2334,7 +2334,7 @@ class CandidatesDataGrid extends DataGrid
                                     'filter'         => 'candidate.nationality',
                                     'filterTypes'    => '==',
                                 ),
-                'Status' => array(
+                'Interview Stage' => array(
                     'select'         => '(
                         SELECT candidate_joborder_status.short_description
                         FROM candidate_joborder

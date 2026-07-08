@@ -503,7 +503,7 @@
 
                      <tr>
                     <td class="tdVertical">
-                        <label id="universityIDLabel" for="universityID">University:</label>
+                        <label id="universitIDLabel" for="universityID">University:</label>
                     </td>
                     <td class="tdData">
                         <select tabindex="X" id="universityID" name="universityID" class="inputbox" style="width: 250px;">
@@ -532,6 +532,23 @@
                         </select>
                     </td>
                 </tr>
+
+                <tr>
+                    <td class="tdVertical">
+                        <label id="interviewStageLabel" for="interviewStage">Interview Stage:</label>
+                    </td>
+                    <td class="tdData">
+                        <select tabindex="X" id="interviewStage" name="interviewStage" class="inputbox" style="width: 250px;">
+                            <option value="">-- Select interviewStage --</option>
+                            <?php foreach ($this->nationalitiesRS as $interviewStageData): ?>
+                                <option value="<?php $this->_($interviewStageData['optionValue']) ?>">
+                                    <?php $this->_($interviewStageData['optionLabel']) ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </td>
+                </tr>
+
 
                 </table>
 

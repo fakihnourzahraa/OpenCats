@@ -446,8 +446,8 @@ class CandidatesUI extends UserInterface
         $this->_template->assign('errMessage', $errMessage);
         $this->_template->assign('topLog', $topLog);
         $this->_template->assign('tagsRS', $tagsRS);
-
-$universitiesRS = $candidates->getPossibleDropDownOptions('university', 'short_name', 'canonical_name', 'short_name');
+        
+        $universitiesRS = $candidates->getPossibleDropDownOptions('candidate', 'university', 'university', null, 'university ASC', 'university IS NOT NULL AND university != "" AND site_id = ' . $this->_siteID);
         $this->_template->assign('universitiesRS', $universitiesRS);
         $nationalitiesRS = $candidates->getPossibleDropDownOptions('nationality', 'name', 'name', null, 'sort_order ASC, name ASC');
         $this->_template->assign('nationalitiesRS', $nationalitiesRS);
@@ -767,7 +767,8 @@ $data['university'] = !empty($data['universityShortName']) ? $data['universitySh
         /* Get possible sources. */
         $sourcesRS = $candidates->getPossibleSources();
         $sourcesString = ListEditor::getStringFromList($sourcesRS, 'name');
-$universitiesRS = $candidates->getPossibleDropDownOptions('university', 'short_name', 'canonical_name', 'short_name');
+        
+        $universitiesRS = $candidates->getPossibleDropDownOptions('candidate', 'university', 'university', null, 'university ASC', 'university IS NOT NULL AND university != "" AND site_id = ' . $this->_siteID);
         $nationalitiesRS = $candidates->getPossibleDropDownOptions('nationality', 'name', 'name', null, 'sort_order ASC, name ASC');
 
         /* Get extra fields. */
@@ -1118,7 +1119,7 @@ $universitiesRS = $candidates->getPossibleDropDownOptions('university', 'short_n
         $sourcesRS = $candidates->getPossibleSources();
         $sourcesString = ListEditor::getStringFromList($sourcesRS, 'name');
 
-        $universitiesRS = $candidates->getPossibleDropDownOptions('university', 'university_id', 'canonical_name', 'short_name');
+        $universitiesRS = $candidates->getPossibleDropDownOptions('candidate', 'university', 'university', null, 'university ASC', 'university IS NOT NULL AND university != "" AND site_id = ' . $this->_siteID);
         $nationalitiesRS = $candidates->getPossibleDropDownOptions('nationality', 'name', 'name', null, 'sort_order ASC, name ASC');
         /* Is current source a possible source? */
         // FIXME: Use array search functions!
@@ -1354,8 +1355,8 @@ $universitiesRS = $candidates->getPossibleDropDownOptions('university', 'short_n
         $gpa             = $this->getTrimmedInput('gpa', $_POST);
         /* Candidate source list editor. */
         $sourceCSV       = $this->getTrimmedInput('sourceCSV', $_POST);
+        
         $university = $this->getTrimmedInput('university', $_POST);
-
         $nationality = $this->getTrimmedInput('nationality', $_POST);
         /* Bail out if any of the required fields are empty. */
         if (empty($firstName) || empty($lastName))
@@ -1400,7 +1401,7 @@ $universitiesRS = $candidates->getPossibleDropDownOptions('university', 'short_n
             $veteran,
             $disability,
             $gpa,
-            $universityID,
+            $university,
             $nationality
         );
         if (!$updateSuccess)
@@ -2631,8 +2632,8 @@ $universitiesRS = $candidates->getPossibleDropDownOptions('university', 'short_n
         $veteran         = $this->getTrimmedInput('veteran', $_POST);
         $disability      = $this->getTrimmedInput('disability', $_POST);
         $gpa             = $this->getTrimmedInput('gpa', $_POST);
-        $universityID    = $this->getTrimmedInput('universityID', $_POST);
-        $universityID    = ($universityID > 0) ? $universityID : null;
+        $university = $this->getTrimmedInput('university', $_POST);
+
         $nationality     = $this->getTrimmedInput('nationality', $_POST);
         /* Candidate source list editor. */
         $sourceCSV = $this->getTrimmedInput('sourceCSV', $_POST);

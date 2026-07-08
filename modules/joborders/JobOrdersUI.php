@@ -364,7 +364,7 @@ private function exportPipeline()
         'address'             => array('Address',          'address'),
         'dateCreatedInt'      => array('Added',            'dateCreated'),
         'addedByAbbrName'     => array('Entered By',       'addedByAbbrName'),
-        'status'              => array('Status',           'status'),
+        // 'status'              => array('Status',           'status'),
         'lastActivity'        => array('Last Activity',    'lastActivity'),
         'candidateEmail'      => array('E-Mail',           'candidateEmail'),
         'candidateEmail2'     => array('2nd E-Mail',       'candidateEmail2'),
