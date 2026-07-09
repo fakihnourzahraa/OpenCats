@@ -663,7 +663,7 @@ class Pipelines
         $this->_siteID,
         $orderBy
     );
-error_log("PIPELINE SQL: " . $sql);
+
         return $this->_db->getAllAssoc($sql);
     }
 

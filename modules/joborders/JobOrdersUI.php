@@ -1716,6 +1716,23 @@ $this->_template->display('./modules/joborders/Show.tpl');
             $statusChangeTemplate
         );
 
+        $statusChangeTemplatesMap = array();
+        foreach ($statusRS as $status)
+        {
+            $perStatusRS = $emailTemplates->getByTag(
+                'EMAIL_TEMPLATE_STATUSCHANGE_' . $status['statusID']
+            );
+            if (!empty($perStatusRS) && !empty($perStatusRS['textReplaced']))
+            {
+                $text = str_replace($stringsToFind, $replacementStrings, $perStatusRS['textReplaced']);
+            }
+            else
+            {
+                $text = $statusChangeTemplate;
+            }
+            $statusChangeTemplatesMap[$status['statusID']] = $text;
+        }
+
         $calendar = new Calendar($this->_siteID);
         $calendarEventTypes = $calendar->getAllEventTypes();
 
@@ -1741,7 +1758,8 @@ $this->_template->display('./modules/joborders/Show.tpl');
         $this->_template->assign('emailDisabled', $emailDisabled);
         $this->_template->assign('isFinishedMode', false);
         $this->_template->assign('isJobOrdersMode', true);
-
+        $this->_template->assign('statusChangeTemplatesMap', $statusChangeTemplatesMap);
+        
         if (!eval(Hooks::get('JO_ADD_ACTIVITY_CHANGE_STATUS'))) return;
 
         $this->_template->display(

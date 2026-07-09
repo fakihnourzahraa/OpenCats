@@ -40,6 +40,15 @@
     <?php foreach ($this->statusRS as $rowNumber => $statusData): ?>
        statusTriggersEmailArray[<?php echo($rowNumber); ?>] = <?php echo($statusData['triggersEmail']); ?>;
     <?php endforeach; ?>
+
+    var statusChangeTemplatesMap = <?php echo json_encode($this->statusChangeTemplatesMap); ?>;
+
+    function AS_updateOriginalTemplate(statusID)
+    {
+        if (statusChangeTemplatesMap[statusID] !== undefined) {
+            document.getElementById('origionalCustomMessage').value = statusChangeTemplatesMap[statusID];
+        }
+    }
 </script>
 
     <form name="changePipelineStatusForm" id="changePipelineStatusForm" action="<?php echo(CATSUtility::getIndexName()); ?>?m=<?php if ($this->isJobOrdersMode): ?>joborders<?php else: ?>candidates<?php endif; ?>&amp;a=addActivityChangeStatus<?php if ($this->onlyScheduleEvent): ?>&amp;onlyScheduleEvent=true<?php endif; ?>" method="post" onsubmit="return checkActivityForm(document.changePipelineStatusForm);" autocomplete="off">
@@ -58,7 +67,7 @@
 <?php if ($this->isJobOrdersMode): ?>
                     <span><?php $this->_($this->pipelineData['title']); ?></span>
 <?php else: ?>
-                    <select id="regardingID" name="regardingID" class="inputbox" style="width: 150px;" onchange="AS_onRegardingChange(statusesArray, jobOrdersArray, 'regardingID', 'statusID', 'statusTR', 'sendEmailCheckTR', 'triggerEmail', 'triggerEmailSpan', 'changeStatus', 'changeStatusSpanA', 'changeStatusSpanB');">
+                    <select id="regardingID" name="regardingID" class="inputbox" style="width: 150px;" onchange="AS_updateOriginalTemplate(this.value); AS_onRegardingChange(statusesArray, jobOrdersArray, 'regardingID', 'statusID', 'statusTR', 'sendEmailCheckTR', 'triggerEmail', 'triggerEmailSpan', 'changeStatus', 'changeStatusSpanA', 'changeStatusSpanB');">
                         <option value="-1">General</option>
 
                         <?php foreach ($this->pipelineRS as $rowNumber => $pipelinesData): ?>
@@ -82,7 +91,7 @@
                     <span id="changeStatusSpanA"<?php if ($this->selectedJobOrderID == -1): ?> style="color: #aaaaaa;"<?php endif;?>>Change Status</span><br />
 
                     <div id="changeStatusDiv" style="margin-top: 4px;">
-                        <select id="statusID" name="statusID" class="inputbox" style="width: 150px;" onchange="AS_onStatusChange(statusesArray, jobOrdersArray, 'regardingID', 'statusID', 'sendEmailCheckTR', 'triggerEmailSpan', 'activityNote', 'activityTypeID', <?php if ($this->isJobOrdersMode): echo $this->selectedJobOrderID; else: ?>null<?php endif; ?>, 'customMessage', 'origionalCustomMessage', 'triggerEmail', statusesArrayString, jobOrdersArrayStringTitle, jobOrdersArrayStringCompany, statusTriggersEmailArray, 'emailIsDisabled');" disabled>
+                        <select id="statusID" name="statusID" class="inputbox" style="width: 150px;" onchange="AS_updateOriginalTemplate(this.value); AS_updateOriginalTemplate(this.value); AS_onStatusChange(statusesArray, jobOrdersArray, 'regardingID', 'statusID', 'sendEmailCheckTR', 'triggerEmailSpan', 'activityNote', 'activityTypeID', <?php if ($this->isJobOrdersMode): echo $this->selectedJobOrderID; else: ?>null<?php endif; ?>, 'customMessage', 'origionalCustomMessage', 'triggerEmail', statusesArrayString, jobOrdersArrayStringTitle, jobOrdersArrayStringCompany, statusTriggersEmailArray, 'emailIsDisabled');" disabled>
                             <option value="-1">(Select an Status)</option>
 
                             <?php if ($this->selectedStatusID == -1): ?>

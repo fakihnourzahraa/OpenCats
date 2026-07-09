@@ -1765,6 +1765,23 @@ $data['university'] = !empty($data['universityShortName']) ? $data['universitySh
             $statusChangeTemplate
         );
 
+        $statusChangeTemplatesMap = array();
+        foreach ($statusRS as $status)
+        {
+            $perStatusRS = $emailTemplates->getByTag(
+                'EMAIL_TEMPLATE_STATUSCHANGE_' . $status['statusID']
+            );
+            if (!empty($perStatusRS) && !empty($perStatusRS['textReplaced']))
+            {
+                $text = str_replace($stringsToFind, $replacementStrings, $perStatusRS['textReplaced']);
+            }
+            else
+            {
+                $text = $statusChangeTemplate;
+            }
+            $statusChangeTemplatesMap[$status['statusID']] = $text;
+        }
+
         /* Are we in "Only Schedule Event" mode? */
         $onlyScheduleEvent = $this->isChecked('onlyScheduleEvent', $_GET);
 
@@ -1795,6 +1812,7 @@ $data['university'] = !empty($data['universityShortName']) ? $data['universitySh
         $this->_template->assign('emailDisabled', $emailDisabled);
         $this->_template->assign('isFinishedMode', false);
         $this->_template->assign('isJobOrdersMode', false);
+        $this->_template->assign('statusChangeTemplatesMap', $statusChangeTemplatesMap);
         $this->_template->display(
             './modules/candidates/AddActivityChangeStatusModal.tpl'
         );

@@ -165,7 +165,7 @@
                                 </td>
                                 <td>
                                     <select id="statusSubSelect" style="width:550px;" onchange="showStatusSubTemplate(this.value);">
-                                        <option value="">-- Generic (fallback for all statuses) --</option>
+                                        <option value="">Generic</option>
                                         <?php foreach ($this->candidateStatusesRS as $status): ?>
                                             <option value="<?php echo((int) $status['statusID']);?>">
                                                 <?php echo(htmlspecialchars($status['status'])); ?>

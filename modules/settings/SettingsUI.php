@@ -1577,6 +1577,9 @@ class SettingsUI extends UserInterface
     {
         $emailTemplates = new EmailTemplates($this->_siteID);
         $emailTemplatesRS = $emailTemplates->getAll();
+        $emailTemplatesRS = array_values(array_filter($emailTemplatesRS, function($tpl) {
+    return strpos($tpl['emailTemplateTag'], 'EMAIL_TEMPLATE_STATUSCHANGE_') !== 0;
+}));
         $pipelines = new Pipelines($this->_siteID);
         $candidateStatusesRS = $pipelines->getStatusesForPicking();
         $statusChangeFallbackText = '';
@@ -1588,8 +1591,15 @@ class SettingsUI extends UserInterface
                 break;
             }
         }
-        $statusChangeTemplatesRS = array();
-foreach ($emailTemplatesRS as $tpl) {
+        $emailTemplates = new EmailTemplates($this->_siteID);
+$allTemplatesRS = $emailTemplates->getAll();
+
+$emailTemplatesRS = array_values(array_filter($allTemplatesRS, function($tpl) {
+    return strpos($tpl['emailTemplateTag'], 'EMAIL_TEMPLATE_STATUSCHANGE_') !== 0;
+}));
+
+$statusChangeTemplatesRS = array();
+foreach ($allTemplatesRS as $tpl) {
     if (strpos($tpl['emailTemplateTag'], 'EMAIL_TEMPLATE_STATUSCHANGE_') === 0) {
         $sid = (int) substr($tpl['emailTemplateTag'], strlen('EMAIL_TEMPLATE_STATUSCHANGE_'));
         $statusChangeTemplatesRS[$sid] = $tpl;
@@ -1659,6 +1669,7 @@ foreach ($emailTemplatesRS as $tpl) {
         // $emailTemplates->update($templateID, $templateTitle, $text, $disabled);
         $genericTpl = $emailTemplates->getByTag('EMAIL_TEMPLATE_STATUSCHANGE');
 $statusChangePossibleVariables = $genericTpl['possibleVariables'] ?? '';
+error_log('isStatusSub: ' . $isStatusSub . ' templateID: ' . $templateID . ' statusID: ' . (isset($_POST['statusID']) ? $_POST['statusID'] : 'not set'));
 if ($isStatusSub && (int)$templateID === 0) {
     $statusID = (int) $_POST['statusID'];
     $tag      = 'EMAIL_TEMPLATE_STATUSCHANGE_' . $statusID;
