@@ -30,10 +30,10 @@
                 }
             ?>
             var STATUS_CHANGE_TEMPLATE_ID = <?php echo $statusChangeMainID; ?>;
-                $(document).ready(function() { 
-                    $("select option:last").attr("selected", "selected");
-                    showLastTemplate();
-                });
+$(document).ready(function() { 
+    $("select option:last").attr("selected", "selected");
+    showTemplate(document.getElementById('titleSelect').value);
+});
 
 
                                 function hideAllStatusSubForms()
@@ -165,7 +165,7 @@
                                 </td>
                                 <td>
                                     <select id="statusSubSelect" style="width:550px;" onchange="showStatusSubTemplate(this.value);">
-                                        <option value="">Generic</option>
+                                        <option value="">Generic </option>
                                         <?php foreach ($this->candidateStatusesRS as $status): ?>
                                             <option value="<?php echo((int) $status['statusID']);?>">
                                                 <?php echo(htmlspecialchars($status['status'])); ?>
