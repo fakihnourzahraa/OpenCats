@@ -30,38 +30,35 @@
                 }
             ?>
             var STATUS_CHANGE_TEMPLATE_ID = <?php echo $statusChangeMainID; ?>;
-$(document).ready(function() { 
-    $("select option:last").attr("selected", "selected");
-    showTemplate(document.getElementById('titleSelect').value);
-});
+            $(document).ready(function() { 
+                $("select option:last").attr("selected", "selected");
+                showTemplate(document.getElementById('titleSelect').value);
+            });
 
 
-                                function hideAllStatusSubForms()
-                {
-                    <?php foreach ($this->candidateStatusesRS as $status): ?>
-                        var _el = document.getElementById('editTableStatus_<?php echo (int) $status['statusID']; ?>');
-                        if (_el) _el.style.display = 'none';
-                    <?php endforeach; ?>
+            function hideAllStatusSubForms()
+            {
+                <?php foreach ($this->candidateStatusesRS as $status): ?>
+                    var _el = document.getElementById('editTableStatus_<?php echo (int) $status['statusID']; ?>');
+                    if (_el) _el.style.display = 'none';
+                <?php endforeach; ?>
+            }
+
+
+
+            function showTemplate(templateID)
+            {
+                <?php foreach ($this->emailTemplatesRS as $data): ?>
+                    document.getElementById('editTable<?php echo($data['emailTemplateID']); ?>').style.display = 'none';
+                <?php endforeach; ?>
+                hideAllStatusSubForms();
+                document.getElementById('statusSubSelectorRow').style.display = 'none';
+                document.getElementById('statusSubSelect').value = '';
+                document.getElementById('editTable' + templateID).style.display = '';
+                if (parseInt(templateID) === STATUS_CHANGE_TEMPLATE_ID)
+                    document.getElementById('statusSubSelectorRow').style.display = '';
                 }
 
-
-
-                function showTemplate(templateID)
-                {
-                    <?php foreach ($this->emailTemplatesRS as $data): ?>
-                        document.getElementById('editTable<?php echo($data['emailTemplateID']); ?>').style.display = 'none';
-                    <?php endforeach; ?>
-                    hideAllStatusSubForms();
-                    document.getElementById('statusSubSelectorRow').style.display = 'none';
-                    document.getElementById('statusSubSelect').value = '';
-
-                    document.getElementById('editTable' + templateID).style.display = '';
-
-                    if (parseInt(templateID) === STATUS_CHANGE_TEMPLATE_ID)
-                    {
-                        document.getElementById('statusSubSelectorRow').style.display = '';
-                    }
-                }
                 function showLastTemplate()
                 {
                     <?php foreach ($this->emailTemplatesRS as $data): ?>
@@ -75,21 +72,21 @@ $(document).ready(function() {
                     if (<?php echo $lastTemplateID; ?> === STATUS_CHANGE_TEMPLATE_ID) {
                         document.getElementById('statusSubSelectorRow').style.display = '';
                     }
+            }
+
+            function showStatusSubTemplate(statusID)
+            {
+                /* Collapse the generic form and all per-status forms. */
+                document.getElementById('editTable' + STATUS_CHANGE_TEMPLATE_ID).style.display = 'none';
+                hideAllStatusSubForms();
+
+            if (statusID === '') {
+                    document.getElementById('editTable' + STATUS_CHANGE_TEMPLATE_ID).style.display = '';
+                    return;
                 }
-
-                function showStatusSubTemplate(statusID)
-                {
-                    /* Collapse the generic form and all per-status forms. */
-                    document.getElementById('editTable' + STATUS_CHANGE_TEMPLATE_ID).style.display = 'none';
-                    hideAllStatusSubForms();
-
-                if (statusID === '') {
-                        document.getElementById('editTable' + STATUS_CHANGE_TEMPLATE_ID).style.display = '';
-                        return;
-                    }
-                    var target = document.getElementById('editTableStatus_' + statusID);
-    if (target) target.style.display = '';
-}
+                var target = document.getElementById('editTableStatus_' + statusID);
+                if (target) target.style.display = '';
+            }
 
                 function insertAtCursor(myField, myValue)
                 {
