@@ -69,8 +69,7 @@ filter.FilterFactory.createFromPossibleOperatorType = function(
      var hasDate  = types.indexOf('=d>') !== -1 || types.indexOf('=d<') !== -1;
     var hasRange = !hasDate && (types.indexOf('=>') !== -1 || types.indexOf('=<') !== -1);
     var hasText  = types.indexOf('=~') !== -1;
-    var hasDrop  = !!(filterDropDownRegistry[col] && filterDropDownRegistry[col].length);
-
+    var hasDrop = !!filterDropDownRegistry[col];
     var families = (hasDate ? 1 : 0) + (hasRange ? 1 : 0) + (hasText ? 1 : 0) + (hasDrop ? 1 : 0);
 
     if (families > 1) {
