@@ -102,6 +102,98 @@ filter.Filter.prototype.createFieldSelect = function(defaultValue, filterAreaID,
     return selectColumn;
 }
 
+filter.Filter.prototype.createSearchableFieldSelect = function(
+    defaultValue, filterAreaID, filterCounter, selectableColumns, instanceName
+) {
+    var selectColumn = this.createFieldSelect(
+        defaultValue, filterAreaID, filterCounter, selectableColumns
+    );
+    var changeHandler = this.createSelectAreaChangeHandler(
+        selectColumn, filterCounter, filterAreaID, selectableColumns, instanceName
+    );
+    selectColumn.addEventListener('change', changeHandler);
+    selectColumn.style.display = 'none';   // kept in DOM for the ID lookup
+
+    var colWrapper = document.createElement('div');
+    colWrapper.style.cssText = 'display:inline-block; vertical-align:middle;';
+
+    var colDisplay = document.createElement('div');
+    colDisplay.className = 'inputbox';
+    colDisplay.style.cssText = 'width:160px; cursor:pointer; padding:2px 4px; background:#fff; border:1px solid #999; display:inline-block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;';
+    colDisplay.textContent = selectColumn.options[selectColumn.selectedIndex]
+        ? selectColumn.options[selectColumn.selectedIndex].text : '-- Select --';
+
+    var colPanel = document.createElement('div');
+    colPanel.style.cssText = 'display:none; position:absolute; z-index:9999; background:#fff; border:1px solid #999; width:200px; box-shadow:2px 2px 4px rgba(0,0,0,0.2);';
+    selectColumn._colPanel = colPanel;
+
+    var colSearch = document.createElement('input');
+    colSearch.type = 'text';
+    colSearch.placeholder = 'Search...';
+    colSearch.style.cssText = 'width:100%; box-sizing:border-box; padding:4px; border:none; border-bottom:1px solid #ccc;';
+
+    var colList = document.createElement('div');
+    colList.style.cssText = 'max-height:260px; overflow-y:auto;';
+
+    function buildColList(filterText) {
+        colList.innerHTML = '';
+        var needle = (filterText || '').toLowerCase();
+        for (var i = 0; i < selectColumn.options.length; i++) {
+            var opt = selectColumn.options[i];
+            if (opt.disabled) continue;
+            if (needle && opt.text.toLowerCase().indexOf(needle) === -1) continue;
+            (function(o) {
+                var item = document.createElement('div');
+                item.style.cssText = 'padding:4px 8px; cursor:pointer;';
+                item.textContent = o.text;
+                item.addEventListener('mouseenter', function() { this.style.background = '#eee'; });
+                item.addEventListener('mouseleave', function() { this.style.background = ''; });
+                item.addEventListener('mousedown', function(e) {   // not click
+                    e.preventDefault();
+                    selectColumn.value = o.value;
+                    colDisplay.textContent = o.text;
+                    colPanel.style.display = 'none';
+                    changeHandler();
+                });
+                colList.appendChild(item);
+            })(opt);
+        }
+    }
+
+    colSearch.addEventListener('keyup', function() { buildColList(this.value); });
+
+    colDisplay.addEventListener('click', function(e) {
+        e.stopPropagation();
+        if (colPanel.style.display === 'none') {
+            var rect = colDisplay.getBoundingClientRect();
+            colPanel.style.left = (rect.left + window.scrollX) + 'px';
+            colPanel.style.top  = (rect.bottom + window.scrollY) + 'px';
+            colPanel.style.display = 'block';
+            colSearch.value = '';
+            buildColList('');
+            colSearch.focus();
+        } else {
+            colPanel.style.display = 'none';
+        }
+    });
+
+    document.addEventListener('click', function(e) {
+        if (!colWrapper.contains(e.target) && !colPanel.contains(e.target)) {
+            colPanel.style.display = 'none';
+        }
+    });
+
+    colPanel.appendChild(colSearch);
+    colPanel.appendChild(colList);
+    colWrapper.appendChild(colDisplay);
+    colWrapper.appendChild(selectColumn);
+    document.body.appendChild(colPanel);   // escapes the <table> overflow clip
+
+    colWrapper.selectColumn = selectColumn;
+
+    return colWrapper;
+}
+
 filter.Filter.prototype.createOption = function(value, innerHtml, isSelected) {
     var option = document.createElement('option');
     option.value = value;
@@ -162,28 +254,31 @@ filter.DefaultFilter.prototype.createOperatorSelect = function(currentValue, fil
     return operatorSelect;
 }
 
+
 filter.Filter.prototype.createSelectAreaChangeHandler = function(
-        selectColumn,
-        filterCounter,
-        filterAreaID,
-        selectableColumns,
-        instanceName
+        selectColumn, filterCounter, filterAreaID, selectableColumns, instanceName
 ) {
-    var me = this;
     return function() {
+        if (selectColumn._colPanel && selectColumn._colPanel.parentNode) {
+            selectColumn._colPanel.parentNode.removeChild(selectColumn._colPanel);
+        }
+
         var newFilter = filter.FilterFactory.createFromPossibleOperatorType(
-            selectColumn.value,
-            filterCounter,
-            filterAreaID,
-            selectableColumns,
-            instanceName
+            selectColumn.value, filterCounter, filterAreaID, selectableColumns, instanceName
         );
-        var currentFilter = selectColumn.parentNode;
-        var filterArea = currentFilter.parentNode;
+
+        var filterArea = document.getElementById(filterAreaID);
+        var currentFilter = selectColumn;
+        while (currentFilter.parentNode && currentFilter.parentNode !== filterArea) {
+            currentFilter = currentFilter.parentNode;
+        }
+        if (!currentFilter.parentNode) return;
+
         filterArea.insertBefore(newFilter.render(), currentFilter);
         filterArea.removeChild(currentFilter);
     };
 }
+
 
 filter.DefaultFilter.prototype.createInputAreaChangeHandler = function(instanceName, filterAreaID, filterCounter) {
     return function() {
@@ -273,19 +368,20 @@ filter.DefaultFilter.prototype.buildDropDownValueWidget = function(options, onSe
     wrapper.appendChild(panel);
     return wrapper;
 };
+
 filter.DefaultFilter.prototype.render = function() {
     var me = this;
     var filterDiv = document.createElement('div');
 
-    var selectColumn = this.createFieldSelect(this.defaultValue, this.filterAreaID, this.filterCounter, this.selectableColumns);
-    filterDiv.appendChild(selectColumn);
+var colWrapper = this.createSearchableFieldSelect(
+    this.defaultValue, this.filterAreaID, this.filterCounter,
+    this.selectableColumns, this.instanceName
+);
+var selectColumn = colWrapper.selectColumn;
+filterDiv.appendChild(colWrapper);
 
     var operatorSelect = this.createOperatorSelect(selectColumn.value, this.filterAreaID, this.filterCounter);
     filterDiv.appendChild(operatorSelect);
-
-    selectColumn.addEventListener('change', this.createSelectAreaChangeHandler(
-        selectColumn, this.filterCounter, this.filterAreaID, this.selectableColumns, this.instanceName
-    ));
 
     var valueArea = document.createElement('div');
     valueArea.style.cssText = 'display:inline-block; vertical-align:middle;';
@@ -529,11 +625,11 @@ filter.DropDownFilter.prototype.render = function() {
     var columnName = getFilterColumnNameFromOptionValue(this.defaultValue);
     var filterDiv = document.createElement('div');
 
-    var selectColumn = this.createFieldSelect(this.defaultValue, this.filterAreaID, this.filterCounter, this.selectableColumns);
-    selectColumn.addEventListener('change', this.createSelectAreaChangeHandler(
-        selectColumn, this.filterCounter, this.filterAreaID, this.selectableColumns, this.instanceName
-    ));
-    filterDiv.appendChild(selectColumn);
+var colWrapper = this.createSearchableFieldSelect(
+    this.defaultValue, this.filterAreaID, this.filterCounter,
+    this.selectableColumns, this.instanceName
+);
+filterDiv.appendChild(colWrapper);
 
     var operatorSelect = this.createElement('select', {
         id: this.filterAreaID + this.filterCounter + 'operator',
