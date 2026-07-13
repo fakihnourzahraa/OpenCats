@@ -392,12 +392,20 @@ function addRow<?php echo($index); ?>(rowName, rowType, rowTypeName, rowFilterTy
                                     function onAddField<?php echo($index); ?>()
                                     {
                                         if(document.getElementById('addFieldName<?php echo($index); ?>').value == '') return;
-                                        
+                                            var checks = document.getElementsByClassName('addFieldFilterCheck<?php echo($index); ?>');
+                                            var selected = [];
+                                            for (var i = 0; i < checks.length; i++) {
+                                                if (checks[i].checked) selected.push(checks[i].value);
+                                            }
+                                            if (selected.length === 0) selected.push('default');
+
+                                            var typeSelect = document.getElementById('addFieldSelect<?php echo($index); ?>');
+
                                         addRow<?php echo($index); ?>(
                                             document.getElementById('addFieldName<?php echo($index); ?>').value, 
-                                            document.getElementById('addFieldSelect<?php echo($index); ?>').value, 
-                                            document.getElementById('addFieldSelect<?php echo($index); ?>').options[document.getElementById('addFieldSelect<?php echo($index); ?>').selectedIndex].text,
-                                            document.getElementById('addFieldFilterSelect<?php echo($index); ?>').value  // ← add this
+                                            typeSelect.value,
+                                            typeSelect.options[typeSelect.selectedIndex].text,
+                                            selected.join('|')
                                         );
                                         onHideAddArea<?php echo($index); ?>();                             
                                     }
@@ -477,9 +485,24 @@ function addRow<?php echo($index); ?>(rowName, rowType, rowTypeName, rowFilterTy
                                             <td align="left">
                                                 <?php $this->_($this->extraFieldTypes[$rsData['extraFieldType']]['name']); ?>
                                             </td>
+
+
                                             <td align="left">
-                                                <?php echo htmlspecialchars($this->extraFieldFilters[$rsData['filterType']]['name'] ?? 'Default (Text)'); ?>
+                                                <?php
+                                                    $filterKeys = array_filter(explode(',', (string)$rsData['filterType']));
+                                                    if (empty($filterKeys)) $filterKeys = array('default');
+                                                    $names = array();
+                                                    foreach ($filterKeys as $fk)
+                                                    {
+                                                        $names[] = isset($this->extraFieldFilters[$fk])
+                                                                ? $this->extraFieldFilters[$fk]['name']
+                                                                : $fk;
+                                                    }
+                                                    echo htmlspecialchars(implode(', ', $names));
+                                                ?>
                                             </td>
+
+
                                         </tr>
                                     <?php endforeach; ?>
                                 </table>
@@ -516,19 +539,23 @@ function addRow<?php echo($index); ?>(rowName, rowType, rowTypeName, rowFilterTy
                                                   <?php endforeach; ?>
                                                </select>
                                             </td>
-                                                                                        <td>
+                                            
+                                            <td>
                                                 Filter:
                                             </td>
                                             <td>
-                                                <select id="addFieldFilterSelect<?php echo($index); ?>">
+                                                <span id="addFieldFilter<?php echo($index); ?>">
                                                 <?php foreach($this->extraFieldFilters as $filterKey => $filterData): ?>
-                                                    <option value="<?php echo($filterKey); ?>">
-                                                    <?php $this->_($filterData['name']); ?>
-                                                    </option>
-                                                <?php endforeach; ?>
-                                                </select>
-
+                                                    <label style="margin-right:8px; white-space:nowrap;">
+                                                        <input type="checkbox" class="addFieldFilterCheck<?php echo($index); ?>"
+                                                            value="<?php echo($filterKey); ?>"
+                                                            <?php echo($filterKey === 'default' ? 'checked="checked"' : ''); ?> />
+                                                        <?php echo htmlspecialchars($filterData['name']); ?>
+                                                    </label>
+                                                    <?php endforeach; ?>
+                                                </span>
                                             </td>
+                                            
                                         </tr>
                                     </table>                                    
                                     <input type="button" class="button" value="Add Field" onclick="onAddField<?php echo($index); ?>();" />&nbsp;

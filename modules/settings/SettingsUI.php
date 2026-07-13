@@ -1527,6 +1527,13 @@ class SettingsUI extends UserInterface
                     $args = explode(' ', $command, 5);
                     $extraFields = new ExtraFields($this->_siteID, intval(urldecode($args[1])));
                     $filterType = isset($args[4]) ? urldecode($args[4]) : 'default';
+                    $validFilters = array('default', 'date', 'range', 'dropdown');
+                    $filterParts = array_values(array_intersect(
+                        array_filter(explode('|', $filterType)),
+                        $validFilters
+                    ));
+                    if (empty($filterParts)) $filterParts = array('default');
+                    $filterType = implode(',', $filterParts);
                     $extraFields->define(urldecode($args[3]), urldecode($args[2]), $filterType);
                     break;
                 case 'DELETEFIELD':

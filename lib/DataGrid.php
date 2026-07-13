@@ -916,19 +916,20 @@ foreach ($this->_classColumns as $index => $data)
         $template->assign('counterFilters', $counterFilters);
 
       
-        echo '<script type="text/javascript">';
+echo '<script type="text/javascript">';
         foreach ($this->_classColumns as $columnName => $data) {
             if (!isset($data['filterTypes'])) continue;
 
             $types = $data['filterTypes'];
 
-            if (strpos($types, '=d>') !== false || strpos($types, '=d<') !== false) {
+            $isDate = (strpos($types, '=d>') !== false || strpos($types, '=d<') !== false);
+
+            if ($isDate) {
                 echo 'if (!filterDateRangeRegistry[' . json_encode($columnName) . ']) {
                     filterDateRangeRegistry[' . json_encode($columnName) . '] = true; }';
             }
 
-            if ((strpos($types, '=>') !== false || strpos($types, '=<') !== false)
-                && strpos($types, '=d') === false) {
+            if (!$isDate && (strpos($types, '=>') !== false || strpos($types, '=<') !== false)) {
                 echo 'if (!filterRangeRegistry[' . json_encode($columnName) . ']) {
                     filterRangeRegistry[' . json_encode($columnName) . '] = true; }';
             }

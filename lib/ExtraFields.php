@@ -758,20 +758,39 @@ class ExtraFields
         }
 
         // Apply filter type from settings
-        $filterType = isset($data['filterType']) ? $data['filterType'] : 'default';
+        // Apply filter type(s) from settings — may be a comma-separated list
+    $filterTypeRaw = isset($data['filterType']) ? (string)$data['filterType'] : 'default';
+   error_log('EF ' . $data['fieldName'] . ' => ' . var_export($data['filterType'] ?? 'MISSING', true));
+   
+    $filterTypes   = array_values(array_filter(array_map('trim', explode(',', $filterTypeRaw))));
+    if (empty($filterTypes))
+    {
+        $filterTypes = array('default');
+    }
+
+
+    $tokens = array();
+
+    foreach ($filterTypes as $filterType)
+    {
         switch ($filterType)
         {
             case 'date':
-                $definition['filterTypes'] = '=d>=d<';
+                $tokens[] = '=bt';
+                $tokens[] = '=d>';
+                $tokens[] = '=d<';
                 $definition['filter'] = 'STR_TO_DATE(extra_field' . $uniqueIndex . '.value, \'%m-%d-%y\')';
                 break;
 
             case 'range':
-                $definition['filterTypes'] = '===>==<';
+                $tokens[] = '=bt';
+                $tokens[] = '==';
+                $tokens[] = '=>';
+                $tokens[] = '=<';
                 break;
 
             case 'dropdown':
-                $definition['filterTypes'] = '==';
+                $tokens[] = '=in';
                 if (!empty($data['extraFieldOptions'])) {
                     $rawOptions = explode(',', $data['extraFieldOptions']);
                 } else {
@@ -793,10 +812,16 @@ class ExtraFields
                     return $opt !== '' ? ['value' => $opt, 'label' => $opt] : null;
                 }, $rawOptions)));
                 break;
+
+            case 'default':
             default:
-                $definition['filterTypes'] = '===~';
+                $tokens[] = '==';
+                $tokens[] = '=~';
                 break;
         }
+    }
+
+    $definition['filterTypes'] = implode('', array_unique($tokens));
 
     return $definition;
 }
