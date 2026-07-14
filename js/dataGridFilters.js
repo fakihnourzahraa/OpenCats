@@ -389,15 +389,6 @@ filterDiv.appendChild(colWrapper);
 
     var getColumn = function() { return getFilterColumnNameFromOptionValue(selectColumn.value); };
 
-    // var applyFilter = function() {
-    //     var valEl = document.getElementById(me.filterAreaID + me.filterCounter + 'value');
-    //     addColumnToFilter(
-    //         'filterArea' + me.instanceName,
-    //         getColumn(),
-    //         operatorSelect.value,
-    //         valEl ? valEl.value : ''
-    //     );
-    // };
     var applyFilter = function() {
         var col = getColumn();
         var op  = operatorSelect.value;
@@ -487,31 +478,6 @@ filterDiv.appendChild(colWrapper);
         valueArea.appendChild(input);
     };
 
-    // var updateValueArea = function() {
-    //     valueArea.innerHTML = '';
-    //     var op  = operatorSelect.value;
-    //     var col = getColumn();
-
-    //     if (op === '=e') {
-    //         applyFilter();
-    //         return;
-    //     }
-
-    //     var dropOptions = filterDropDownRegistry[col] || null;
-
-    //     if (dropOptions && dropOptions.length && (op === '==' || op === '=in')) {
-    //         valueArea.appendChild(me.buildDropDownValueWidget(dropOptions, applyFilter));
-    //         return;
-    //     }
-
-    //     var input = document.createElement('input');
-    //     input.id = me.filterAreaID + me.filterCounter + 'value';
-    //     input.className = 'inputbox';
-    //     input.style.width = '180px';
-    //     input.addEventListener('change', applyFilter);
-    //     valueArea.appendChild(input);
-    // };
-
     operatorSelect.addEventListener('change', updateValueArea);
     updateValueArea();
 
@@ -519,24 +485,6 @@ filterDiv.appendChild(colWrapper);
     return filterDiv;
 };
 
-// filter.DefaultFilter.prototype.render = function() {
-//     var filterDiv = document.createElement('div');
-//     var selectColumn = this.createFieldSelect(this.defaultValue, this.filterAreaID, this.filterCounter, this.selectableColumns);
-//     filterDiv.appendChild(selectColumn);
-//     var operatorSelectColumn = this.createOperatorSelect(selectColumn.value, this.filterAreaID, this.filterCounter);
-//     filterDiv.appendChild(operatorSelectColumn);
-//     selectColumn.addEventListener('change', this.createSelectAreaChangeHandler(
-//         selectColumn,
-//         this.filterCounter,
-//         this.filterAreaID,
-//         this.selectableColumns,
-//         this.instanceName
-//     ));
-//     var inputArea = this.createInputArea(this.filterAreaID, this.filterCounter, this.instanceName);
-//     filterDiv.appendChild(inputArea);
-//     filterDiv.style.float='left';
-//     return filterDiv;
-// }
 
 filter.NearZipCodeFilter = function(defaultValue, filterCounter, filterAreaID, selectableColumns, instanceName) {
     this.defaultValue = defaultValue;

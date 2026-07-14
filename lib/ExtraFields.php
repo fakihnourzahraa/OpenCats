@@ -757,8 +757,6 @@ class ExtraFields
                 break;
         }
 
-        // Apply filter type from settings
-        // Apply filter type(s) from settings — may be a comma-separated list
     $filterTypeRaw = isset($data['filterType']) ? (string)$data['filterType'] : 'default';
    error_log('EF ' . $data['fieldName'] . ' => ' . var_export($data['filterType'] ?? 'MISSING', true));
    

@@ -829,7 +829,6 @@ foreach ($this->_classColumns as $index => $data)
                     unset ($filterableColumns[array_search($index, $filterableColumns)]);
                 }
 
-                //$filterOperator = $this->getFilterOperator($index);
                 $filterOperatorHuman = '';
                 switch ($filterOperator)
                 {

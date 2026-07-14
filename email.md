@@ -256,7 +256,7 @@ Everything else (including editing an existing per-status template, which posts 
 
 ---
 
-## 3. `modules/candidates/AddActivityChangeStatus.tpl`
+## 3. `modules/candidates/AddActivityChangeStatusModal.tpl`
 
 **Add** after the existing `statusTriggersEmailArray` loop and before the closing `</script>` /
 `<form name="changePipelineStatusForm" ...>`:

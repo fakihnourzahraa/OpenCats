@@ -62,9 +62,16 @@ $filterOperator = isset($_REQUEST['filterOperator']) ? trim($_REQUEST['filterOpe
 
 ### Merge extra field values into each row
 
-Added right after the row-formatting loop. Fetches all extra field values for the current candidates in one query and merges them into each row so the filter block and column renderer can access them by field name.
 
 ```php
+
+    // $pipelinesRS[$rowIndex]['ratingLine'] = TemplateUtility::getRatingObject(
+    //     $pipelinesRS[$rowIndex]['ratingValue'],
+    //     $pipelinesRS[$rowIndex]['candidateJobOrderID'],
+    //     $_SESSION['CATS']->getCookie()
+    // );
+}
+
 $candidateIDs = array_map(function($row) {
     return $row['candidateID'];
 }, $pipelinesRS);
@@ -82,23 +89,92 @@ foreach ($pipelinesRS as $idx => $row)
         }
     }
 }
-```
 
----
-
-### Session presistence
-
-```php
 $filterString = isset($_REQUEST['filterString']) ? trim($_REQUEST['filterString']) : '';
 
 $_SESSION['pipelineFilter'][$jobOrderID] = $filterString;
-```
 
----
+$columnMap = array(
+    'First Name'       => 'firstName',
+    'Last Name'        => 'lastName',
+    'State'            => 'state',
+    'City'             => 'city',
+    'Zip'              => 'zip',
+    'Address'          => 'address',
+    'E-Mail'           => 'candidateEmail',
+    '2nd E-Mail'       => 'candidateEmail2',
+    'Home Phone'       => 'phoneHome',
+    'Cell Phone'       => 'phoneCell',
+    'Work Phone'       => 'phoneWork',
+    'Key Skills'       => 'keySkills',
+    'Current Employer' => 'currentEmployer',
+    'Current Pay'      => 'currentPay',
+    'Desired Pay'      => 'desiredPay',
+    'Can Relocate'     => 'canRelocate',
+    'Source'           => 'source',
+    'Web Site'         => 'webSite',
+    'Misc Notes'       => 'notes',
+    'Available'        => 'dateAvailable',
+    'Modified'         => 'dateModified',
+    'Added'            => 'dateCreated',
+    'GPA'              => 'gpa',
+    'Created'          => 'candidateDateCreated',
+    'University'       => 'universityShortName',
+    'Nationality'      => 'nationality',
+    'Interview Stage'  => 'interviewStage',
+    'Status'  => 'statusDescription',
+);
 
-### Column visibility 
+$allPipelineColumns = array(
+    'match'               => 'Match',
+    'firstName'           => 'First Name',
+    'lastName'            => 'Last Name',
+    'state'               => 'Loc',
+    'city'                => 'City',
+    'zip'                 => 'Zip',
+    'address'             => 'Address',
+    'dateCreatedInt'      => 'Added',
+    'addedByAbbrName'     => 'Entered By',
+    'status'              => 'Status',
+    'lastActivity'        => 'Last Activity',
+    'candidateEmail'      => 'E-Mail',
+    'candidateEmail2'     => '2nd E-Mail',
+    'phoneHome'           => 'Home Phone',
+    'phoneCell'           => 'Cell Phone',
+    'phoneWork'           => 'Work Phone',
+    'keySkills'           => 'Key Skills',
+    'currentEmployer'     => 'Current Employer',
+    'currentPay'          => 'Current Pay',
+    'desiredPay'          => 'Desired Pay',
+    'canRelocate'         => 'Can Relocate',
+    'source'              => 'Source',
+    'webSite'             => 'Web Site',
+    'notes'               => 'Misc Notes',
+    'dateAvailable'       => 'Available',
+    'dateModified'        => 'Modified',
+    'candidateDateCreated'         => 'Created',
+    'gpa'                 => 'GPA',
+    'nationality'         => 'Nationality',
+    'interviewStage'         => 'Interview Stage',
+    'universityShortName' => 'University',
+    'jobOrderStatus'      => 'Job Order Status',
+    'action'              => 'Action',
+);
 
-```php
+
+$extraFieldDefs = $pipelines->getExtraFieldDefinitions();
+if ($extraFieldDefs) {
+    $actionLabel = $allPipelineColumns['action'];
+    unset($allPipelineColumns['action']);
+    foreach ($extraFieldDefs as $def) {
+        $fn = $def['field_name'];
+        $columnMap[$fn] = $fn;
+        if (!isset($allPipelineColumns[$fn])) {
+            $allPipelineColumns[$fn] = $def['field_name'];
+        }
+    }
+    $allPipelineColumns['action'] = $actionLabel; // keep Action last
+}
 $defaultVisibleCols = array(
     'match',
     'firstName',
@@ -111,6 +187,7 @@ $defaultVisibleCols = array(
     'action',
 );
 
+/* Handle column toggle requests */
 if (isset($_REQUEST['setColumn'])) {
     $toggleCol    = trim($_REQUEST['setColumn']);
     $toggleAction = isset($_REQUEST['colAction']) ? trim($_REQUEST['colAction']) : '';
@@ -136,40 +213,113 @@ if (!isset($_SESSION['pipelineCols'][$siteID])) {
     $_SESSION['pipelineCols'][$siteID] = $defaultVisibleCols;
 }
 $visibleCols = $_SESSION['pipelineCols'][$siteID];
-```
 
----
-
-### `$hardcodedCols` and `$visibleColCount`
-
-```php
 $hardcodedCols = array(
     'match','firstName','lastName','state','city','zip','address',
     'dateCreatedInt','addedByAbbrName','status','lastActivity',
     'candidateEmail','candidateEmail2','phoneHome','phoneCell','phoneWork',
     'keySkills','currentEmployer','currentPay','desiredPay','canRelocate',
-    'source','webSite','notes','dateAvailable','dateModified',
-    'gpa','nationality','universityShortName','jobOrderStatus','action',
+    'source','webSite','notes','dateAvailable','dateModified', 'candidateDateCreated',
+    'gpa','nationality','interviewStage','universityShortName','jobOrderStatus','action',
 );
+
 
 $visibleColCount = 3;
 foreach ($allPipelineColumns as $k => $v) {
     if ($k === 'action' && $isPopup) continue;
     if (in_array($k, $visibleCols)) $visibleColCount++;
 }
-```
+
+
+if ($filterString !== '')
+{
+    $pipelineFilters = array_filter(explode(',', $filterString));
+    foreach ($pipelineFilters as $filterItem)
+    {
+        $operators = array('=d>', '=d<','=in', '=~', '==', '=>', '=<', '=e');
+        foreach ($operators as $op)
+        {
+            $pos = strpos($filterItem, $op);
+            if ($pos !== false)
+            {
+                $col = urldecode(substr($filterItem, 0, $pos));
+                
+                $val = strtolower(urldecode(substr($filterItem, $pos + strlen($op))));
+                $col = isset($columnMap[$col]) ? $columnMap[$col] : $col;
+
+$pipelinesRS = array_filter($pipelinesRS, function($row) use ($col, $op, $val) {
+    $fieldValue = isset($row[$col]) ? $row[$col] : '';
+
+    if ($col === 'gpa') {
+        if ($op === '=e') return $fieldValue === '' || $fieldValue === null;
+        $fieldValue = (float) $fieldValue;
+        $val = (float) $val;
+        switch ($op) {
+            case '==': return $fieldValue == $val;
+            case '=>':  return $fieldValue >= $val;
+            case '=<':  return $fieldValue <= $val;
+            case '=e': return $fieldValue === '' || $fieldValue === null;
+            default:    return true;
+        }
+    }
+
+    if ($col === 'dateCreated' || $col === 'candidateDateCreated' || $col == 'dateModified') {
+        if ($op === '=e') return $fieldValue === '' || $fieldValue === null;
+        $fieldValue = DateTime::createFromFormat('m-d-y', $fieldValue);
+        $valDate    = DateTime::createFromFormat('m-d-y', $val);
+        if (!$fieldValue || !$valDate) return true;
+        switch ($op) {
+            case '==':  return $fieldValue == $valDate;
+            case '=d>': return $fieldValue >= $valDate;
+            case '=d<': return $fieldValue <= $valDate;
+            case '=e':  return $fieldValue === '' || $fieldValue === null;
+        }
+    }
+    if ($op === '=d>' || $op === '=d<')
+    {
+        if ($fieldValue === '' || $fieldValue === null) return false;
+        $fieldDate = DateTime::createFromFormat('m-d-y', $fieldValue);
+        $valDate   = DateTime::createFromFormat('m-d-y', $val);
+        if (!$fieldDate || !$valDate) return true;
+        return $op === '=d>' ? $fieldDate >= $valDate : $fieldDate <= $valDate;
+    }
+    $fieldValue = strtolower($fieldValue);
+    $val = strtolower($val);
+    switch ($op) {
+        case '=in':
+        case '==': return $fieldValue == $val;
+        case '=~': return strpos($fieldValue, $val) !== false;
+        case '=>':  return $fieldValue >= $val;
+        case '=<':  return $fieldValue <= $val;
+        case '=e': return $fieldValue === '' || $fieldValue === null;
+        default:    return true;
+    }
+});
+                $pipelinesRS = array_values($pipelinesRS);
+                break;
+            }
+        }
+    }
+}
+
 
 ---
 
 ### JS copies
 
 ```php
+
+// if (!eval(Hooks::get('JO_AJAX_GET_PIPELINE'))) return;
+
+// ?>
 $jsSortBy    = addslashes($sortBy);
 $jsSortDir   = addslashes($sortDirection);
 $jsIndexFile = addslashes($indexFile);
 $jsFilter    = addslashes($filterString);
 $jsCookie    = addslashes($_SESSION['CATS']->getCookie());
 $jsIsPopup   = $isPopup ? 1 : 0;
+
+//and delete the script after this
 ```
 
 ---
@@ -179,36 +329,39 @@ $jsIsPopup   = $isPopup ? 1 : 0;
 The gear icon toggles a dropdown that lists every column in `$allPipelineColumns` with a checkbox.
 
 ```php
-<th style="width:10px; border-right:1px solid gray;" align="center">
-    <div style="width:10px; position:relative;">
-        <a href="javascript:void(0);" id="pipelineColumnIcon" onclick="pipelineColumnBox_toggle(); return false;">
-            <img src="images/tab_add.gif" border="0" alt="" />
-        </a>
-        <div class="ajaxSearchResults" id="pipelineColumnBox" onclick="event.stopPropagation();"
-             style="display:none; position:absolute; left:0; top:16px; width:180px; z-index:10000; text-align:left;">
-            <span style="font-weight:bold; color:#000000;">Show Columns:</span><br/><br/>
-            <?php foreach ($allPipelineColumns as $colKey => $colLabel): ?>
-                <?php if ($colKey === 'action' && $isPopup) continue; ?>
-                <?php $isVis = in_array($colKey, $visibleCols); ?>
-                <span style="font-weight:normal;">
-                    <a href="javascript:void(0);"
-                       onclick="pipelineToggleColumn('<?php echo htmlspecialchars($colKey); ?>',
-                                '<?php echo $isVis ? 'remove' : 'add'; ?>');">
-                        <img src="images/<?php echo $isVis ? 'checkbox' : 'checkbox_blank'; ?>.gif" border="0" alt="" />
-                        &nbsp;&nbsp;&nbsp;&nbsp;<?php echo htmlspecialchars($colLabel); ?>
-                    </a>
-                </span><br/>
-            <?php endforeach; ?>
-            <br/>
-            <span style="font-weight:bold;">
-                <a href="javascript:void(0);" onclick="pipelineToggleColumn('', 'reset');">
-                    <img src="images/checkbox_blank.gif" border="0" alt="" />
-                    &nbsp;&nbsp;&nbsp;&nbsp;Reset to Default Columns
+        <th style="width:10px; border-right:1px solid gray;" align="center">
+            <div style="width:10px; position:relative;">
+                <a href="javascript:void(0);" id="pipelineColumnIcon" onclick="pipelineColumnBox_toggle(); return false;">
+                    <img src="images/tab_add.gif" border="0" alt="" />
                 </a>
-            </span><br/>
-        </div>
-    </div>
-</th>
+                <div class="ajaxSearchResults" id="pipelineColumnBox" onclick="event.stopPropagation();"
+                     style="display:none; position:absolute; left:0; top:16px; width:180px; z-index:10000; text-align:left;">
+                    <span style="font-weight:bold; color:#000000;">Show Columns:</span><br/><br/>
+                    <?php foreach ($allPipelineColumns as $colKey => $colLabel): ?>
+                        <?php if ($colKey === 'action' && $isPopup) continue; ?>
+                        <?php $isVis = in_array($colKey, $visibleCols); ?>
+                        <span style="font-weight:normal;">
+                            <a href="javascript:void(0);"
+                               onclick="pipelineToggleColumn('<?php echo htmlspecialchars($colKey); ?>',
+                                        '<?php echo $isVis ? 'remove' : 'add'; ?>');">
+                                <img src="images/<?php echo $isVis ? 'checkbox' : 'checkbox_blank'; ?>.gif" border="0" alt="" />
+                                &nbsp;&nbsp;&nbsp;&nbsp;<?php echo htmlspecialchars($colLabel); ?>
+                            </a>
+                        </span><br/>
+                    <?php endforeach; ?>
+                    <br/>
+                    <span style="font-weight:bold;">
+                        <a href="javascript:void(0);" onclick="pipelineToggleColumn('', 'reset');">
+                            <img src="images/checkbox_blank.gif" border="0" alt="" />
+                            &nbsp;&nbsp;&nbsp;&nbsp;Reset to Default Columns
+                        </a>
+                    </span><br/>
+                </div>
+            </div>
+        //     </th>
+        // <th></th>
+        // <th align="left" width="32" nowrap="nowrap"></th>
+            <?php if (in_array('match', $visibleCols)): ?>
 ```
 
 ---

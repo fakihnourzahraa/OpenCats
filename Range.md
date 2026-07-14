@@ -61,16 +61,17 @@ ALTER TABLE `candidate`
 Add parameters after `$disability`:
 
 ```php
-$disability = '', $gpa = '', $universityID = 0, $nationality = '',
+$disability = '', $gpa = '', $university = 0, $nationality = '', $interviewStage = '',
 ```
 
 ### `add()` INSERT statement
-Add `gpa`, `university_id`, `nationality` to the column list and VALUES, using:
+Add `gpa`, `university_id`, `nationality`, `interviewStage` to the column list and VALUES, using:
 
 ```php
 $this->_db->makeQueryDouble($gpa),
-$this->_db->makeQueryInteger($universityID),
-$this->_db->makeQueryString($nationality)
+$this->_db->makeQueryString($university),
+$this->_db->makeQueryString($nationality),
+$this->_db->makeQueryString($interviewStage)
 ```
 (immediately after `$this->_db->makeQueryString($gender)`)
 
@@ -78,7 +79,7 @@ $this->_db->makeQueryString($nationality)
 Add parameters after `$disability`:
 
 ```php
-$disability = '', $gpa = '', $universityID = 0, $nationality = ''
+$disability = '', $gpa = '', $university = 0, $nationality = '', $interviewStage = ''
 ```
 
 ### `update()` SET clause (line 296)
@@ -86,8 +87,9 @@ Add:
 
 ```php
 gpa = %s,
-university_id = %s,
+university = %s,
 nationality = %s,
+interviewStage = %s
 ```
 
 ### `update()` value list (line 329)
@@ -95,8 +97,9 @@ Add:
 
 ```php
 $this->_db->makeQueryDouble($gpa),
-$this->_db->makeQueryInteger($universityID),
+$this->_db->makeQueryString($university),
 $this->_db->makeQueryString($nationality),
+$this->_db->makeQueryString($interviewStage),
 ```
 
 ### `get()` SELECT (line 495)
@@ -104,25 +107,18 @@ Add to SELECT clause:
 
 ```php
 candidate.gpa AS gpa,
-candidate.university_id AS universityID,
-university.canonical_name AS universityCanonicalName,
-university.short_name AS universityShortName,
+candidate.university AS universityShortName,
 candidate.nationality AS nationality,
+candidate.interviewStage AS interviewStage,
 ```
 
-Add to JOINs (after the `eeo_veteran_type` join):
-
-```php
-LEFT JOIN university
-    ON university.university_id = candidate.university_id
-```
 
 ### `getForEditing()` SELECT (line 636)
 Add to SELECT clause:
 
 ```php
 candidate.gpa AS gpa,
-candidate.university_id AS universityID,
+candidate.university AS universityShortName,
 candidate.nationality AS nationality,
 ```
 
@@ -206,17 +202,15 @@ public function getPossibleDropDownOptions($table, $valueColumn, $labelColumn, $
     'filterTypes'    => '=>=<=><==',
 ),
 'University' => array(
-    'select'         => 'university.canonical_name AS universityCanonicalName,
-                         university.short_name AS universityShortName',
-    'join'           => 'LEFT JOIN university ON university.university_id = candidate.university_id',
-    'pagerRender'    => 'return !empty($rsData[\'universityShortName\']) ? htmlspecialchars($rsData[\'universityShortName\']) : \'\';',
-    'exportRender'   => 'return !empty($rsData[\'universityShortName\']) ? $rsData[\'universityShortName\'] . \' — \' . $rsData[\'universityCanonicalName\'] : \'\';',
-    'sortableColumn' => 'universityCanonicalName',
-    'pagerWidth'     => 100,
-    'pagerOptional'  => true,
-    'filter'         => 'university.short_name',
-    'filterTypes'    => '==',
-),
+'select'         => 'candidate.university AS universityShortName',
+'pagerRender'    => 'return !empty($rsData[\'universityShortName\']) ? htmlspecialchars($rsData[\'universityShortName\']) : \'\';',
+'exportRender'   => 'return !empty($rsData[\'universityShortName\']) ? $rsData[\'universityShortName\'] : \'\';',
+'sortableColumn' => 'universityShortName',
+'pagerWidth'     => 100,
+'pagerOptional'  => true,
+'filter'         => 'candidate.university',
+'filterTypes'    => '==',
+                                ),
 'Nationality' => array(
     'select'         => 'candidate.nationality AS nationality',
     'pagerRender'    => 'return !empty($rsData[\'nationality\']) ? htmlspecialchars($rsData[\'nationality\']) : \'\';',
@@ -228,22 +222,14 @@ public function getPossibleDropDownOptions($table, $valueColumn, $labelColumn, $
     'filterTypes'    => '==',
 ),
 'Interview Stage' => array(
-    'select'         => '(
-        SELECT candidate_joborder_status.short_description
-        FROM candidate_joborder
-        LEFT JOIN candidate_joborder_status
-            ON candidate_joborder_status.candidate_joborder_status_id = candidate_joborder.status
-        WHERE candidate_joborder.candidate_id = candidate.candidate_id
-        ORDER BY candidate_joborder.date_modified DESC
-        LIMIT 1
-    ) AS statusDescription',
-    'pagerRender'    => 'return !empty($rsData[\'statusDescription\']) ? htmlspecialchars($rsData[\'statusDescription\']) : \'\';',
-    'exportRender'   => 'return !empty($rsData[\'statusDescription\']) ? $rsData[\'statusDescription\'] : \'\';',
-    'sortableColumn' => 'statusDescription',
-    'pagerWidth'     => 120,
-    'pagerOptional'  => true,
-    'filter'         => 'candidate_joborder_status.short_description',
-    'filterTypes'    => '==',
+'select'         => 'candidate.interviewStage AS interviewStage',
+'pagerRender'    => 'return !empty($rsData[\'interviewStage\']) ? htmlspecialchars($rsData[\'interviewStage\']) : \'\';',
+'exportRender'   => 'return !empty($rsData[\'interviewStage\']) ? $rsData[\'interviewStage\'] : \'\';',
+'sortableColumn' => 'interviewStage',
+'pagerWidth'     => 100,
+'pagerOptional'  => true,
+'filter'         => 'candidate.interviewStage',
+'filterTypes'    => '=in==',
 ),
 ```
 
@@ -287,7 +273,8 @@ public function getJobOrderPipeline($jobOrderID, $orderBy = '')
             candidate.is_hot AS isHotCandidate,
             candidate.gpa AS gpa,
             candidate.nationality AS nationality,
-            university.short_name AS universityShortName,
+            candidate.interviewStage AS interviewStage,
+            candidate.university AS universityShortName,
             candidate_joborder_status.short_description AS statusDescription,
             DATE_FORMAT(
                 candidate_joborder.date_created, '%%m-%%d-%%y'
@@ -360,8 +347,6 @@ public function getJobOrderPipeline($jobOrderID, $orderBy = '')
             ON candidate_joborder.status = candidate_joborder_status.candidate_joborder_status_id
         LEFT JOIN candidate_duplicates
             ON candidate_duplicates.new_candidate_id = candidate.candidate_id
-        LEFT JOIN university
-            ON university.university_id = candidate.university_id
         WHERE
             candidate_joborder.joborder_id = %s
         AND
@@ -461,14 +446,14 @@ In the `Created` column definition, add `filterTypes`:
 
 ```php
 // OLD:
-if (isset($this->_classColumns[$value]['filterTypes']))
-{
-    $filterableColumns[$index] .= '!@!' . $this->_classColumns[$value]['filterTypes'];
-}
-else
-{
-    $filterableColumns[$index] .= '!@!' . '===~';
-}
+// if (isset($this->_classColumns[$value]['filterTypes']))
+// {
+//     $filterableColumns[$index] .= '!@!' . $this->_classColumns[$value]['filterTypes'];
+// }
+// else
+// {
+//     $filterableColumns[$index] .= '!@!' . '===~';
+// }
 
 // NEW:
 if (isset($this->_classColumns[$value]['filterTypes']))
@@ -490,31 +475,33 @@ else
 This block emits JS that auto-populates `filterDateRangeRegistry`, `filterRangeRegistry`, and `filterDropDownRegistry` based on each column's `filterTypes` and `filterDropDownOptions`.
 
 ```php
+
 echo '<script type="text/javascript">';
-foreach ($this->_classColumns as $columnName => $data) {
-    if (!isset($data['filterTypes'])) continue;
+        foreach ($this->_classColumns as $columnName => $data) {
+            if (!isset($data['filterTypes'])) continue;
 
-    $types = $data['filterTypes'];
+            $types = $data['filterTypes'];
 
-    if (strpos($types, '=d>') !== false || strpos($types, '=d<') !== false) {
-        echo 'if (!filterDateRangeRegistry[' . json_encode($columnName) . ']) {
-            filterDateRangeRegistry[' . json_encode($columnName) . '] = true; }';
-    }
+            $isDate = (strpos($types, '=d>') !== false || strpos($types, '=d<') !== false);
 
-    if ((strpos($types, '=>') !== false || strpos($types, '=<') !== false)
-        && strpos($types, '=d') === false) {
-        echo 'if (!filterRangeRegistry[' . json_encode($columnName) . ']) {
-            filterRangeRegistry[' . json_encode($columnName) . '] = true; }';
-    }
+            if ($isDate) {
+                echo 'if (!filterDateRangeRegistry[' . json_encode($columnName) . ']) {
+                    filterDateRangeRegistry[' . json_encode($columnName) . '] = true; }';
+            }
 
-    if (isset($data['filterDropDownOptions'])) {
-        echo 'if (!filterDropDownRegistry[' . json_encode($columnName) . '] ||
-              !filterDropDownRegistry[' . json_encode($columnName) . '].length) {
-            filterDropDownRegistry[' . json_encode($columnName) . '] = ' .
-            json_encode($data['filterDropDownOptions']) . '; }';
-    }
-}
-echo '</script>';
+            if (!$isDate && (strpos($types, '=>') !== false || strpos($types, '=<') !== false)) {
+                echo 'if (!filterRangeRegistry[' . json_encode($columnName) . ']) {
+                    filterRangeRegistry[' . json_encode($columnName) . '] = true; }';
+            }
+
+            if (isset($data['filterDropDownOptions'])) {
+                echo 'if (!filterDropDownRegistry[' . json_encode($columnName) . '] ||
+                      !filterDropDownRegistry[' . json_encode($columnName) . '].length) {
+                    filterDropDownRegistry[' . json_encode($columnName) . '] = ' .
+                    json_encode($data['filterDropDownOptions']) . '; }';
+            }
+        }
+        echo '</script>';
 ```
 
 ### Argument parsing in `_getData()`, replace
@@ -534,6 +521,7 @@ if (substr($data, $eqPos, 3) === '=d>' || substr($data, $eqPos, 3) === '=d<')
     $operatorLength = 3;
 }
 $argument = urldecode(substr($data, $eqPos + $operatorLength));
+$op = substr($data, $eqPos, $operatorLength);
 ```
 
 ### `=in` filter block — add inside `foreach ($arguments as $argument)` loop
@@ -599,34 +587,56 @@ if (strpos($data, '=d>') !== false)
 ### `drawFilterArea()` replace `$filterOperatorHuman` 
 
 ```php
-$filterOperatorHuman = '';
-switch ($filterOperator)
+
+foreach ($this->_classColumns as $index => $data)
 {
-    case '==':
-        $filterOperatorHuman = ' is equal to';
-        break;
-    case '=~':
-        $filterOperatorHuman = ' contains';
-        break;
-    case '=>':
-        $filterOperatorHuman = ' is greater than';
-        break;
-    case '=<':
-        $filterOperatorHuman = ' is less than';
-        break;
-    case '=#':
-        $filterOperatorHuman = ' has element';
-        break;
-    case '=d>':
-        $filterOperatorHuman = ' from';
-        break;
-    case '=d<':
-        $filterOperatorHuman = ' to';
-        break;
-    case '=e':
-        $filterOperatorHuman = ' is empty';
-        break;
-}
+    $filterValue = $this->getFilterValue($index);
+    $filterOperator = $this->getFilterOperator($index);
+
+    if ($filterValue != '' || $filterOperator === '=e')
+    {
+        $counterFilters++;
+
+                /* You can not apply another filter to a column already being filtered. */
+                if (array_search($index, $filterableColumns) !== false)
+                {
+                    unset ($filterableColumns[array_search($index, $filterableColumns)]);
+                }
+
+                $filterOperatorHuman = '';
+                switch ($filterOperator)
+                {
+                    case '==':
+                        $filterOperatorHuman = ' is equal to';
+                        break;
+
+                    case '=~':
+                        $filterOperatorHuman = ' contains';
+                        break;
+
+                    case '=>':
+                        $filterOperatorHuman = ' is greater than';
+                        break;
+
+                    case '=<':
+                        $filterOperatorHuman = ' is less than';
+                        break;
+
+                    case '=#':
+                        $filterOperatorHuman = ' has element';
+                        break;
+                        
+                    case '=d>':
+                        $filterOperatorHuman = ' from';
+                        break;
+
+                    case '=d<':
+                        $filterOperatorHuman = ' to';
+                        break;
+                    case '=e': 
+                        $filterOperatorHuman = ' is empty';
+                        break;
+                }
 ```
 
 ---
@@ -679,48 +689,71 @@ public function define($fieldName, $fieldType, $filterType = 'default')
 ### `getDataGridDefinition()`, add filter type switch before `return $definition`
 
 ```php
-$filterType = isset($data['filterType']) ? $data['filterType'] : 'default';
-switch ($filterType)
-{
-    case 'date':
-        $definition['filterTypes'] = '=d>=d<';
-        $definition['filter'] = 'STR_TO_DATE(extra_field' . $uniqueIndex . '.value, \'%m-%d-%y\')';
-        break;
+$filterTypeRaw = isset($data['filterType']) ? (string)$data['filterType'] : 'default';
+   error_log('EF ' . $data['fieldName'] . ' => ' . var_export($data['filterType'] ?? 'MISSING', true));
+   
+    $filterTypes   = array_values(array_filter(array_map('trim', explode(',', $filterTypeRaw))));
+    if (empty($filterTypes))
+    {
+        $filterTypes = array('default');
+    }
 
-    case 'range':
-        $definition['filterTypes'] = '===>==<';
-        break;
 
-    case 'dropdown':
-        $definition['filterTypes'] = '==';
-        if (!empty($data['extraFieldOptions'])) {
-            $rawOptions = explode(',', $data['extraFieldOptions']);
-        } else {
-            $distinctSQL = sprintf(
-                "SELECT DISTINCT value FROM extra_field
-                WHERE field_name = %s
-                AND site_id = %s
-                AND data_item_type = %s
-                AND value != ''",
-                $db->makeQueryString($data['fieldName']),
-                $this->_siteID,
-                $this->_dataItemType
-            );
-            $distinctRS = $db->getAllAssoc($distinctSQL);
-            $rawOptions = array_column($distinctRS, 'value');
+    $tokens = array();
+
+    foreach ($filterTypes as $filterType)
+    {
+        switch ($filterType)
+        {
+            case 'date':
+                $tokens[] = '=bt';
+                $tokens[] = '=d>';
+                $tokens[] = '=d<';
+                $definition['filter'] = 'STR_TO_DATE(extra_field' . $uniqueIndex . '.value, \'%m-%d-%y\')';
+                break;
+
+            case 'range':
+                $tokens[] = '=bt';
+                $tokens[] = '==';
+                $tokens[] = '=>';
+                $tokens[] = '=<';
+                break;
+
+            case 'dropdown':
+                $tokens[] = '=in';
+                if (!empty($data['extraFieldOptions'])) {
+                    $rawOptions = explode(',', $data['extraFieldOptions']);
+                } else {
+                    $distinctSQL = sprintf(
+                        "SELECT DISTINCT value FROM extra_field 
+                        WHERE field_name = %s 
+                        AND site_id = %s 
+                        AND data_item_type = %s 
+                        AND value != ''",
+                        $db->makeQueryString($data['fieldName']),
+                        $this->_siteID,
+                        $this->_dataItemType
+                    );
+                    $distinctRS = $db->getAllAssoc($distinctSQL);
+                    $rawOptions = array_column($distinctRS, 'value');
+                }
+                $definition['filterDropDownOptions'] = array_values(array_filter(array_map(function($opt) {
+                    $opt = urldecode(trim($opt));
+                    return $opt !== '' ? ['value' => $opt, 'label' => $opt] : null;
+                }, $rawOptions)));
+                break;
+
+            case 'default':
+            default:
+                $tokens[] = '==';
+                $tokens[] = '=~';
+                break;
         }
-        $definition['filterDropDownOptions'] = array_values(array_filter(array_map(function($opt) {
-            $opt = urldecode(trim($opt));
-            return $opt !== '' ? ['value' => $opt, 'label' => $opt] : null;
-        }, $rawOptions)));
-        break;
+    }
 
-    default:
-        $definition['filterTypes'] = '===~';
-        break;
-}
+    $definition['filterTypes'] = implode('', array_unique($tokens));
 
-return $definition;
+    return $definition;
 ```
 
 ---
@@ -770,6 +803,32 @@ Add GPA, University, and Nationality rows inside the form table:
         </select>
     </td>
 </tr>
+
+
+<tr>
+    <td class="tdVertical">
+        <label for="interviewStage">Interview Stage:</label>
+    </td>
+    <td class="tdData">
+        <select id="interviewStage" name="interviewStage" class="inputbox" style="width: 250px;">
+            <option value="">-- Select Stage --</option>
+            <?php foreach (array(
+                'Applied',
+                '1st Screening',
+                'Interview 1',
+                'Interview 2',
+                'Job offered',
+                'Job offer refused',
+                'Job offer accepted'
+            ) as $stage): ?>
+                <option value="<?php $this->_($stage); ?>"
+                    <?php if (isset($this->data['interviewStage']) && $this->data['interviewStage'] == $stage) echo('selected'); ?>>
+                    <?php $this->_($stage); ?>
+                </option>
+            <?php endforeach; ?>
+        </select>
+    </td>
+</tr>
 ```
 
 ---
@@ -793,13 +852,28 @@ Add GPA row:
 
 ## 9. modules/candidates/Show.tpl
 
-Add GPA display row:
+Add to display row:
 
 ```php
 <tr>
     <td class="vertical">GPA:</td>
     <td class="data"><?php $this->_($this->data['gpa']); ?></td>
 </tr>
+
+<tr>
+    <td class="vertical">University:</td>
+    <td class="data"><?php $this->_($this->data['university']); ?></td>
+</tr>
+
+<tr>
+    <td class="vertical">Nationality:</td>
+    <td class="data"><?php $this->_($this->data['nationality']); ?></td>
+</tr>
+<tr>
+    <td class="vertical">Interview Stage:</td>
+    <td class="data"><?php $this->_($this->data['interviewStage']); ?></td>
+</tr>
+
 ```
 
 ---
@@ -810,21 +884,31 @@ Add this script block (registers dropdown options and date/range columns for the
 
 ```php
 <script type="text/javascript">
-    filterDropDownRegistry['University'] = [
+        filterDropDownRegistry['University'] = [
         <?php foreach ($this->universitiesRS as $i => $u): ?>
-            { value: '<?php echo addslashes($u['shortName']); ?>', label: '<?php echo addslashes($u['shortName'] . ' — ' . $u['optionLabel']); ?>' }<?php echo ($i < count($this->universitiesRS) - 1) ? ',' : ''; ?>
+            { value: '<?php echo addslashes($u['shortName']); ?>', label: '<?php echo addslashes($u['shortName']); ?>' }<?php echo ($i < count($this->universitiesRS) - 1) ? ',' : ''; ?>
         <?php endforeach; ?>
     ];
     filterDropDownRegistry['Nationality'] = [
-        <?php foreach ($this->nationalitiesRS as $i => $n): ?>
-            { value: '<?php echo addslashes($n['optionValue']); ?>', label: '<?php echo addslashes($n['optionLabel']); ?>' }<?php echo ($i < count($this->nationalitiesRS) - 1) ? ',' : ''; ?>
-        <?php endforeach; ?>
+    <?php foreach ($this->nationalitiesRS as $i => $n): ?>
+        { value: '<?php echo addslashes($n['optionValue']); ?>', label: '<?php echo addslashes($n['optionLabel']); ?>' }<?php echo ($i < count($this->nationalitiesRS) - 1) ? ',' : ''; ?>
+    <?php endforeach; ?>
     ];
     filterDropDownRegistry['Source'] = [
         <?php foreach ($this->sourcesRS as $i => $s): ?>
             { value: '<?php echo addslashes($s['name']); ?>', label: '<?php echo addslashes($s['name']); ?>' }<?php echo ($i < count($this->sourcesRS) - 1) ? ',' : ''; ?>
         <?php endforeach; ?>
     ];
+    filterDropDownRegistry['Interview Stage'] = [
+    {value: 'Applied',              label: 'Applied'},
+    {value: '1st Screening',        label: '1st Screening'},
+    {value: 'Interview 1',          label: 'Interview 1'},
+    {value: 'Interview 2',          label: 'Interview 2'},
+    {value: 'Job offered',          label: 'Job offered'},
+    {value: 'Job offer refused',    label: 'Job offer refused'},
+    {value: 'Job offer accepted',   label: 'Job offer accepted'}
+];
+
     filterDateRangeRegistry['Created'] = true;
     filterDateRangeRegistry['Modified'] = true;
     filterRangeRegistry['Desired Pay'] = true;
@@ -1216,10 +1300,11 @@ $this->_template->display('./modules/joborders/Show.tpl');
 This populates all the filter registries for the pipeline page. The `filterIsInRegistry` entries are scoped to candidates actually in this job order (used by the "is in" operator on dropdown filters).
 
 ```php
+
 <script type="text/javascript">
     filterDropDownRegistry['University'] = [
         <?php foreach ($this->universitiesRS as $i => $u): ?>
-            { value: '<?php echo addslashes($u['shortName']); ?>', label: '<?php echo addslashes($u['shortName'] . ' — ' . $u['optionLabel']); ?>' }<?php echo ($i < count($this->universitiesRS) - 1) ? ',' : ''; ?>
+            { value: '<?php echo addslashes($u['shortName']); ?>', label: '<?php echo addslashes($u['shortName']); ?>' }<?php echo ($i < count($this->universitiesRS) - 1) ? ',' : ''; ?>
         <?php endforeach; ?>
     ];
     filterDropDownRegistry['Nationality'] = [
@@ -1232,11 +1317,12 @@ This populates all the filter registries for the pipeline page. The `filterIsInR
             { value: '<?php echo addslashes($s['name']); ?>', label: '<?php echo addslashes($s['name']); ?>' }<?php echo ($i < count($this->sourcesRS) - 1) ? ',' : ''; ?>
         <?php endforeach; ?>
     ];
-    filterDropDownRegistry['Interview Stage'] = [
+    filterDropDownRegistry['Status'] = [
         <?php foreach ($this->statusesRS as $i => $s): ?>
             { value: '<?php echo addslashes($s['optionValue']); ?>', label: '<?php echo addslashes($s['optionLabel']); ?>' }<?php echo ($i < count($this->statusesRS) - 1) ? ',' : ''; ?>
         <?php endforeach; ?>
     ];
+    
 
     filterIsInRegistry['University'] = [
         <?php if (!empty($this->pipelineUniversitiesIsIn)): foreach ($this->pipelineUniversitiesIsIn as $i => $u): ?>
@@ -1256,8 +1342,21 @@ This populates all the filter registries for the pipeline page. The `filterIsInR
 
     filterDateRangeRegistry['Created'] = true;
     filterDateRangeRegistry['Modified'] = true;
+    filterDateRangeRegistry['Added'] = true;
     filterRangeRegistry['GPA'] = true;
     filterRangeRegistry['Desired Pay'] = true;
+    
+
+    filterDropDownRegistry['Interview Stage'] = [
+    {value: 'Applied',              label: 'Applied'},
+    {value: '1st Screening',        label: '1st Screening'},
+    {value: 'Interview 1',          label: 'Interview 1'},
+    {value: 'Interview 2',          label: 'Interview 2'},
+    {value: 'Job offered',          label: 'Job offered'},
+    {value: 'Job offer refused',    label: 'Job offer refused'},
+    {value: 'Job offer accepted',   label: 'Job offer accepted'}
+];
+
 </script>
 ```
 
@@ -1488,25 +1587,61 @@ function addRow<?php echo($index); ?>(rowName, rowType, rowTypeName, rowFilterTy
 function onAddField<?php echo($index); ?>()
 {
     if(document.getElementById('addFieldName<?php echo($index); ?>').value == '') return;
+        var checks = document.getElementsByClassName('addFieldFilterCheck<?php echo($index); ?>');
+        var selected = [];
+        for (var i = 0; i < checks.length; i++) {
+            if (checks[i].checked) selected.push(checks[i].value);
+        }
+        if (selected.length === 0) selected.push('default');
+
+        var typeSelect = document.getElementById('addFieldSelect<?php echo($index); ?>');
+
     addRow<?php echo($index); ?>(
-        document.getElementById('addFieldName<?php echo($index); ?>').value,
-        document.getElementById('addFieldSelect<?php echo($index); ?>').value,
-        document.getElementById('addFieldSelect<?php echo($index); ?>').options[document.getElementById('addFieldSelect<?php echo($index); ?>').selectedIndex].text,
-        document.getElementById('addFieldFilterSelect<?php echo($index); ?>').value
+        document.getElementById('addFieldName<?php echo($index); ?>').value, 
+        typeSelect.value,
+        typeSelect.options[typeSelect.selectedIndex].text,
+        selected.join('|')
     );
-    onHideAddArea<?php echo($index); ?>();
+    onHideAddArea<?php echo($index); ?>();                             
 }
 ```
 
-### Add filter type `<select>` to the add-new-field form (after the existing field type select)
+### Replace addFieldSelect with addFieldFilter
 
 ```php
-<select id="addFieldFilterSelect<?php echo($index); ?>">
-    <?php foreach($this->extraFieldFilters as $filterKey => $filterData): ?>
-        <option value="<?php echo($filterKey); ?>"><?php echo htmlspecialchars($filterData['name']); ?></option>
+<span id="addFieldFilter<?php echo($index); ?>">
+<?php foreach($this->extraFieldFilters as $filterKey => $filterData): ?>
+    <label style="margin-right:8px; white-space:nowrap;">
+        <input type="checkbox" class="addFieldFilterCheck<?php echo($index); ?>"
+            value="<?php echo($filterKey); ?>"
+            <?php echo($filterKey === 'default' ? 'checked="checked"' : ''); ?> />
+        <?php echo htmlspecialchars($filterData['name']); ?>
+    </label>
     <?php endforeach; ?>
-</select>
+</span>
+</td>
 ```
+
+### Replace 
+<!-- <td align="left">
+    <?php echo htmlspecialchars($this->extraFieldFilters[$rsData['filterType']]['name'] ?? 'Default (Text)'); ?>
+</td> -->
+
+### With 
+<td align="left">
+    <?php
+        $filterKeys = array_filter(explode(',', (string)$rsData['filterType']));
+        if (empty($filterKeys)) $filterKeys = array('default');
+        $names = array();
+        foreach ($filterKeys as $fk)
+        {
+            $names[] = isset($this->extraFieldFilters[$fk])
+                    ? $this->extraFieldFilters[$fk]['name']
+                    : $fk;
+        }
+        echo htmlspecialchars(implode(', ', $names));
+    ?>
+</td>
 
 ---
 
@@ -1539,7 +1674,7 @@ case 'ADDFIELD':
 
 ## 18. js/dataGridFilters.js
 
-### Replace `filter.getNames()`
+### Replace `filter.getNames()` 
 
 ```javascript
 getNames: function() {
@@ -1553,7 +1688,8 @@ getNames: function() {
         '=d>': 'is after',
         '=d<': 'is before',
         '=in': 'is in',
-        '=e':  'is empty'
+        '=e':  'is empty',
+        '=bt': 'is between'
     };
 },
 ```
@@ -1561,17 +1697,126 @@ getNames: function() {
 ### Replace `FilterFactory.createFromPossibleOperatorType` if/else block
 
 ```javascript
-if (getFilterColumnTypesFromOptionValue(possibleOperatorType) == '=@') {
-    return new filter.NearZipCodeFilter(possibleOperatorType, filterCounter, filterAreaID, selectableColumns, instanceName);
-} else if (filterDateRangeRegistry && filterDateRangeRegistry[getFilterColumnNameFromOptionValue(possibleOperatorType)]) {
-    return new filter.DateRangeFilter(possibleOperatorType, filterCounter, filterAreaID, selectableColumns, instanceName);
-} else if (filterRangeRegistry && filterRangeRegistry[getFilterColumnNameFromOptionValue(possibleOperatorType)]) {
-    return new filter.RangeFilter(possibleOperatorType, filterCounter, filterAreaID, selectableColumns, instanceName);
-} else if (filterDropDownRegistry && filterDropDownRegistry[getFilterColumnNameFromOptionValue(possibleOperatorType)]) {
-    return new filter.DropDownFilter(possibleOperatorType, filterCounter, filterAreaID, selectableColumns, instanceName);
-} else {
-    return new filter.DefaultFilter(possibleOperatorType, filterCounter, filterAreaID, selectableColumns, instanceName);
+
+var col   = getFilterColumnNameFromOptionValue(possibleOperatorType);
+    var types = getFilterColumnTypesFromOptionValue(possibleOperatorType) || '';
+
+    if (types == '=@') {
+        return new filter.NearZipCodeFilter(possibleOperatorType, filterCounter, filterAreaID, selectableColumns, instanceName);
+    }
+     var hasDate  = types.indexOf('=d>') !== -1 || types.indexOf('=d<') !== -1;
+    var hasRange = !hasDate && (types.indexOf('=>') !== -1 || types.indexOf('=<') !== -1);
+    var hasText  = types.indexOf('=~') !== -1;
+    var hasDrop = !!filterDropDownRegistry[col];
+    var families = (hasDate ? 1 : 0) + (hasRange ? 1 : 0) + (hasText ? 1 : 0) + (hasDrop ? 1 : 0);
+
+    if (families > 1) {
+        return new filter.DefaultFilter(possibleOperatorType, filterCounter, filterAreaID, selectableColumns, instanceName);
+    }
+
+    if (hasDate)  return new filter.DateRangeFilter(possibleOperatorType, filterCounter, filterAreaID, selectableColumns, instanceName);
+    if (hasRange) return new filter.RangeFilter(possibleOperatorType, filterCounter, filterAreaID, selectableColumns, instanceName);
+    if (hasDrop)  return new filter.DropDownFilter(possibleOperatorType, filterCounter, filterAreaID, selectableColumns, instanceName);
+
+        return new filter.DefaultFilter(possibleOperatorType, filterCounter, filterAreaID, selectableColumns, instanceName);
+
+
+```
+
+
+```javascript
+filter.Filter.prototype.createSearchableFieldSelect = function(
+       selectColumn, filterCounter, filterAreaID, selectableColumns, instanceName
+) {
+    var selectColumn = this.createFieldSelect(
+        defaultValue, filterAreaID, filterCounter, selectableColumns
+    );
+    var changeHandler = this.createSelectAreaChangeHandler(
+        selectColumn, filterCounter, filterAreaID, selectableColumns, instanceName
+    );
+    selectColumn.addEventListener('change', changeHandler);
+    selectColumn.style.display = 'none';   // kept in DOM for the ID lookup
+
+    var colWrapper = document.createElement('div');
+    colWrapper.style.cssText = 'display:inline-block; vertical-align:middle;';
+
+    var colDisplay = document.createElement('div');
+    colDisplay.className = 'inputbox';
+    colDisplay.style.cssText = 'width:160px; cursor:pointer; padding:2px 4px; background:#fff; border:1px solid #999; display:inline-block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;';
+    colDisplay.textContent = selectColumn.options[selectColumn.selectedIndex]
+        ? selectColumn.options[selectColumn.selectedIndex].text : '-- Select --';
+
+    var colPanel = document.createElement('div');
+    colPanel.style.cssText = 'display:none; position:absolute; z-index:9999; background:#fff; border:1px solid #999; width:200px; box-shadow:2px 2px 4px rgba(0,0,0,0.2);';
+    selectColumn._colPanel = colPanel;
+
+    var colSearch = document.createElement('input');
+    colSearch.type = 'text';
+    colSearch.placeholder = 'Search...';
+    colSearch.style.cssText = 'width:100%; box-sizing:border-box; padding:4px; border:none; border-bottom:1px solid #ccc;';
+
+    var colList = document.createElement('div');
+    colList.style.cssText = 'max-height:260px; overflow-y:auto;';
+
+    function buildColList(filterText) {
+        colList.innerHTML = '';
+        var needle = (filterText || '').toLowerCase();
+        for (var i = 0; i < selectColumn.options.length; i++) {
+            var opt = selectColumn.options[i];
+            if (opt.disabled) continue;
+            if (needle && opt.text.toLowerCase().indexOf(needle) === -1) continue;
+            (function(o) {
+                var item = document.createElement('div');
+                item.style.cssText = 'padding:4px 8px; cursor:pointer;';
+                item.textContent = o.text;
+                item.addEventListener('mouseenter', function() { this.style.background = '#eee'; });
+                item.addEventListener('mouseleave', function() { this.style.background = ''; });
+                item.addEventListener('mousedown', function(e) {   // not click
+                    e.preventDefault();
+                    selectColumn.value = o.value;
+                    colDisplay.textContent = o.text;
+                    colPanel.style.display = 'none';
+                    changeHandler();
+                });
+                colList.appendChild(item);
+            })(opt);
+        }
+    }
+
+    colSearch.addEventListener('keyup', function() { buildColList(this.value); });
+
+    colDisplay.addEventListener('click', function(e) {
+        e.stopPropagation();
+        if (colPanel.style.display === 'none') {
+            var rect = colDisplay.getBoundingClientRect();
+            colPanel.style.left = (rect.left + window.scrollX) + 'px';
+            colPanel.style.top  = (rect.bottom + window.scrollY) + 'px';
+            colPanel.style.display = 'block';
+            colSearch.value = '';
+            buildColList('');
+            colSearch.focus();
+        } else {
+            colPanel.style.display = 'none';
+        }
+    });
+
+    document.addEventListener('click', function(e) {
+        if (!colWrapper.contains(e.target) && !colPanel.contains(e.target)) {
+            colPanel.style.display = 'none';
+        }
+    });
+
+    colPanel.appendChild(colSearch);
+    colPanel.appendChild(colList);
+    colWrapper.appendChild(colDisplay);
+    colWrapper.appendChild(selectColumn);
+    document.body.appendChild(colPanel);   // escapes the <table> overflow clip
+
+    colWrapper.selectColumn = selectColumn;
+
+    return colWrapper;
 }
+
 ```
 
 ### Replace the operator type loop in `createOperatorSelect`
@@ -1583,7 +1828,7 @@ var possibleTypes = getFilterColumnTypesFromOptionValue(currentValue);
 for (var i = 0; i < possibleTypes.length;)
 {
     var possibleType;
-    if (possibleTypes.substr(i, 3) === '=d>' || possibleTypes.substr(i, 3) === '=d<' || possibleTypes.substr(i, 3) === '=in') {
+    if (possibleTypes.substr(i, 3) === '=d>' || possibleTypes.substr(i, 3) === '=d<' || possibleTypes.substr(i, 3) === '=in'  || possibleTypes.substr(i, 3) == '=bt') {
         possibleType = possibleTypes.substr(i, 3);
         i += 3;
     } else {
@@ -1600,13 +1845,195 @@ for (var i = 0; i < possibleTypes.length;)
 return operatorSelect;
 ```
 
+### Replace filter.DefaultFilter.prototype.render with
+
+```javascript
+
+
+filter.DefaultFilter.prototype.buildDropDownValueWidget = function(options, onSelect) {
+    var me = this;
+    var wrapper = document.createElement('div');
+    wrapper.style.cssText = 'display:inline-block; position:relative; vertical-align:middle;';
+
+    var display = document.createElement('div');
+    display.className = 'inputbox';
+    display.style.cssText = 'width:180px; cursor:pointer; padding:2px 4px; background:#fff; border:1px solid #999; display:inline-block;';
+    display.innerHTML = '-- Select --';
+
+    var panel = document.createElement('div');
+    panel.style.cssText = 'display:none; position:absolute; z-index:9999; background:#fff; border:1px solid #999; width:180px; box-shadow:2px 2px 4px rgba(0,0,0,0.2);';
+
+    var searchInput = document.createElement('input');
+    searchInput.type = 'text';
+    searchInput.placeholder = 'Search...';
+    searchInput.style.cssText = 'width:100%; box-sizing:border-box; padding:4px; border:none; border-bottom:1px solid #ccc;';
+
+    var list = document.createElement('div');
+    list.style.cssText = 'max-height:200px; overflow-y:auto;';
+
+    var hiddenInput = document.createElement('input');
+    hiddenInput.type = 'hidden';
+    hiddenInput.id = me.filterAreaID + me.filterCounter + 'value';
+
+    function buildList(filterText) {
+        list.innerHTML = '';
+        for (var i = 0; i < options.length; i++) {
+            var opt = options[i];
+            if (filterText && opt.label.toLowerCase().indexOf(filterText.toLowerCase()) === -1) continue;
+            (function(o) {
+                var item = document.createElement('div');
+                item.style.cssText = 'padding:4px 8px; cursor:pointer;';
+                item.textContent = o.label;
+                item.addEventListener('mouseenter', function() { this.style.background = '#eee'; });
+                item.addEventListener('mouseleave', function() { this.style.background = ''; });
+                item.addEventListener('click', function() {
+                    hiddenInput.value = o.value;
+                    display.textContent = o.label;
+                    panel.style.display = 'none';
+                    onSelect();
+                });
+                list.appendChild(item);
+            })(opt);
+        }
+    }
+
+    buildList('');
+    searchInput.addEventListener('input', function() { buildList(this.value); });
+    display.addEventListener('click', function(e) {
+        e.stopPropagation();
+        panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+        if (panel.style.display === 'block') { searchInput.value = ''; buildList(''); searchInput.focus(); }
+    });
+    document.addEventListener('click', function() { panel.style.display = 'none'; });
+
+    panel.appendChild(searchInput);
+    panel.appendChild(list);
+    wrapper.appendChild(display);
+    wrapper.appendChild(hiddenInput);
+    wrapper.appendChild(panel);
+    return wrapper;
+};
+
+filter.DefaultFilter.prototype.render = function() {
+    var me = this;
+    var filterDiv = document.createElement('div');
+
+var colWrapper = this.createSearchableFieldSelect(
+    this.defaultValue, this.filterAreaID, this.filterCounter,
+    this.selectableColumns, this.instanceName
+);
+var selectColumn = colWrapper.selectColumn;
+filterDiv.appendChild(colWrapper);
+
+    var operatorSelect = this.createOperatorSelect(selectColumn.value, this.filterAreaID, this.filterCounter);
+    filterDiv.appendChild(operatorSelect);
+
+    var valueArea = document.createElement('div');
+    valueArea.style.cssText = 'display:inline-block; vertical-align:middle;';
+    filterDiv.appendChild(valueArea);
+
+    var getColumn = function() { return getFilterColumnNameFromOptionValue(selectColumn.value); };
+
+    var applyFilter = function() {
+        var col = getColumn();
+        var op  = operatorSelect.value;
+
+        /* '=bt' is a UI-only operator: translate it into two real tokens. */
+        if (op === '=bt') {
+          var filterArea = document.getElementById('filterArea' + me.instanceName);
+            var esc = col.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+            var fv = filterArea.value;
+            fv = fv.replace(new RegExp(',?' + esc + '=d>[^,]*', 'g'), '');
+            fv = fv.replace(new RegExp(',?' + esc + '=d<[^,]*', 'g'), '');
+            fv = fv.replace(new RegExp(',?' + esc + '=>[^,]*', 'g'), '');
+            fv = fv.replace(new RegExp(',?' + esc + '=<[^,]*', 'g'), '');
+            fv = fv.replace(new RegExp(',?' + esc + '==[^,]*', 'g'), '');
+            fv = fv.replace(new RegExp(',?' + esc + '=in[^,]*', 'g'), '');
+            fv = fv.replace(/^,/, '').replace(/,$/, '');
+
+            var isDateCol = !!filterDateRangeRegistry[col];
+            var gt = isDateCol ? '=d>' : '=>';
+            var lt = isDateCol ? '=d<' : '=<';
+
+            var fromEl = document.getElementById(me.filterAreaID + me.filterCounter + 'from');
+            var toEl   = document.getElementById(me.filterAreaID + me.filterCounter + 'to');
+            var from = fromEl ? fromEl.value : '';
+            var to   = toEl   ? toEl.value   : '';
+            if (from !== '') fv += (fv ? ',' : '') + col + gt + from;
+            if (to   !== '') fv += (fv ? ',' : '') + col + lt + to;
+            filterArea.value = fv;
+            return;
+
+        }
+
+        var valEl = document.getElementById(me.filterAreaID + me.filterCounter + 'value');
+        addColumnToFilter('filterArea' + me.instanceName, col, op, valEl ? valEl.value : '');
+    };
+
+    var updateValueArea = function() {
+        valueArea.innerHTML = '';
+        var op  = operatorSelect.value;
+        var col = getColumn();
+
+        if (op === '=e') {
+            applyFilter();
+            return;
+        }
+
+        /* Between: two inputs. */
+        if (op === '=bt') {
+            var fromInput = document.createElement('input');
+            fromInput.id = me.filterAreaID + me.filterCounter + 'from';
+            fromInput.className = 'inputbox';
+            fromInput.style.width = '80px';
+            fromInput.addEventListener('change', applyFilter);
+
+            var andSpan = document.createElement('span');
+            andSpan.innerHTML = ' and ';
+
+            var toInput = document.createElement('input');
+            toInput.id = me.filterAreaID + me.filterCounter + 'to';
+            toInput.className = 'inputbox';
+            toInput.style.width = '80px';
+            toInput.addEventListener('change', applyFilter);
+
+            valueArea.appendChild(fromInput);
+            valueArea.appendChild(andSpan);
+            valueArea.appendChild(toInput);
+              if (filterDateRangeRegistry[col]) {
+                fromInput.placeholder = 'mm-dd-yy';
+                toInput.placeholder   = 'mm-dd-yy';
+            }
+            return;
+        }
+
+        /* Is in: pick from the known values. */
+        var dropOptions = filterDropDownRegistry[col] || null;
+        if (dropOptions && dropOptions.length && op === '=in') {
+            valueArea.appendChild(me.buildDropDownValueWidget(dropOptions, applyFilter));
+            return;
+        }
+
+        /* Everything else: a single typed value. */
+        var input = document.createElement('input');
+        input.id = me.filterAreaID + me.filterCounter + 'value';
+        input.className = 'inputbox';
+        input.style.width = '180px';
+        input.addEventListener('change', applyFilter);
+        valueArea.appendChild(input);
+    };
+
+    operatorSelect.addEventListener('change', updateValueArea);
+    updateValueArea();
+
+    filterDiv.style.float = 'left';
+    return filterDiv;
+};
+
+```
 ### Add at end of file — registries and new filter classes
 
 ```javascript
-var filterDropDownRegistry = {};
-var filterIsInRegistry = {};
-var filterDateRangeRegistry = {};
-var filterRangeRegistry = {};
 
 
 filter.DropDownFilter = function(defaultValue, filterCounter, filterAreaID, selectableColumns, instanceName) {
@@ -1624,23 +2051,24 @@ filter.DropDownFilter.prototype.render = function() {
     var columnName = getFilterColumnNameFromOptionValue(this.defaultValue);
     var filterDiv = document.createElement('div');
 
-    var selectColumn = this.createFieldSelect(this.defaultValue, this.filterAreaID, this.filterCounter, this.selectableColumns);
-    selectColumn.addEventListener('change', this.createSelectAreaChangeHandler(
-        selectColumn, this.filterCounter, this.filterAreaID, this.selectableColumns, this.instanceName
-    ));
-    filterDiv.appendChild(selectColumn);
+var colWrapper = this.createSearchableFieldSelect(
+    this.defaultValue, this.filterAreaID, this.filterCounter,
+    this.selectableColumns, this.instanceName
+);
+filterDiv.appendChild(colWrapper);
 
     var operatorSelect = this.createElement('select', {
         id: this.filterAreaID + this.filterCounter + 'operator',
         className: 'inputbox',
         style: 'width: 120px'
     });
-    operatorSelect.appendChild(this.createOption('==', 'is equal to'));
-    if (filterIsInRegistry[columnName] && filterIsInRegistry[columnName].length > 0)
-        operatorSelect.appendChild(this.createOption('=in', 'is in'));
+    operatorSelect.appendChild(this.createOption('==', 'is in'));
+    operatorSelect.appendChild(this.createOption('=e', 'is empty'));
+
+
     filterDiv.appendChild(operatorSelect);
 
-    var valueArea = document.createElement('div');
+var valueArea = document.createElement('div');
     valueArea.style.cssText = 'display:inline-block; vertical-align:middle;';
     filterDiv.appendChild(valueArea);
 
@@ -1714,6 +2142,10 @@ filter.DropDownFilter.prototype.render = function() {
     function updateValueArea() {
         valueArea.innerHTML = '';
         var op = operatorSelect.value;
+        if (op === '=e') {
+        applyDropDownFilter(me.filterAreaID, me.filterCounter, me.instanceName, columnName);
+        return;
+    }
         var options = op === '=in'
             ? (filterIsInRegistry[columnName] || [])
             : (filterDropDownRegistry[columnName] || []);
@@ -1727,23 +2159,25 @@ filter.DropDownFilter.prototype.render = function() {
 
     filterDiv.style.float = 'left';
     return filterDiv;
-};
+}
 
 function applyDropDownFilter(filterAreaID, filterCounter, instanceName, columnName) {
     var filterArea = document.getElementById('filterArea' + instanceName);
     var filterVal = filterArea.value;
     var op = document.getElementById(filterAreaID + filterCounter + 'operator').value;
 
-    var pattern = new RegExp(',?' + columnName + '(?:==|=in)[^,]*', 'g');
-    filterVal = filterVal.replace(pattern, '');
-    filterVal = filterVal.replace(/^,/, '');
+    var pattern = new RegExp(',?' + columnName + '(?:==|=in|=e)[^,]*', 'g');
+    filterVal = filterVal.replace(pattern, '').replace(/^,/, '');
 
-    var val = document.getElementById(filterAreaID + filterCounter + 'value').value;
-    if (val !== '') filterVal += (filterVal ? ',' : '') + columnName + op + val;
-
+    if (op === '=e') {
+        filterVal += (filterVal ? ',' : '') + columnName + '=e';
+    } else {
+        var valEl = document.getElementById(filterAreaID + filterCounter + 'value');
+        var val = valEl ? valEl.value : '';
+        if (val !== '') filterVal += (filterVal ? ',' : '') + columnName + op + val;
+    }
     filterArea.value = filterVal;
 }
-
 
 filter.DateRangeFilter = function(defaultValue, filterCounter, filterAreaID, selectableColumns, instanceName) {
     this.defaultValue = defaultValue;
@@ -1770,9 +2204,10 @@ filter.DateRangeFilter.prototype.render = function() {
         style: 'width: 120px'
     });
     operatorSelect.appendChild(this.createOption('between', 'is between'));
-    operatorSelect.appendChild(this.createOption('==',      'is equal to'));
-    operatorSelect.appendChild(this.createOption('=>',      'is after'));
-    operatorSelect.appendChild(this.createOption('=<',      'is before'));
+    operatorSelect.appendChild(this.createOption('==',     'is equal to'));
+    operatorSelect.appendChild(this.createOption('=>',     'is after'));
+    operatorSelect.appendChild(this.createOption('=<',     'is before'));
+operatorSelect.appendChild(this.createOption('=e', 'is empty'));
     filterDiv.appendChild(operatorSelect);
 
     var singleInput = this.createElement('input', {
@@ -1802,37 +2237,41 @@ filter.DateRangeFilter.prototype.render = function() {
     rangeSpan.appendChild(toInput);
     filterDiv.appendChild(rangeSpan);
 
-    var getColumn = function() { return getFilterColumnNameFromOptionValue(selectColumn.value); };
+
+var getColumn = function() { return getFilterColumnNameFromOptionValue(selectColumn.value); };
     var applyFilter = function() {
         applyDateRangeFilter(me.filterAreaID, me.filterCounter, me.instanceName, getColumn());
     };
 
-    var updateHandler = function() {
-        var op     = document.getElementById(me.filterAreaID + me.filterCounter + 'operator').value;
-        var single = document.getElementById(me.filterAreaID + me.filterCounter + 'value');
-        var range  = document.getElementById(me.filterAreaID + me.filterCounter + 'range');
-        if (op === 'between') {
-            single.style.display = 'none';
-            range.style.display  = '';
-        } else {
-            single.style.display = '';
-            range.style.display  = 'none';
-        }
-        applyFilter();
-    };
+var updateHandler = function() {
+    var op     = document.getElementById(me.filterAreaID + me.filterCounter + 'operator').value;
+    var single = document.getElementById(me.filterAreaID + me.filterCounter + 'value');
+    var range  = document.getElementById(me.filterAreaID + me.filterCounter + 'range');
+    if (op === 'between') {
+        single.style.display = 'none';
+        range.style.display  = '';
+    } else if (op === '=e') {
+        single.style.display = 'none';
+        range.style.display  = 'none';
+    } else {
+        single.style.display = '';
+        range.style.display  = 'none';
+    }
+    applyFilter();
+};
 
     var previousColumn = getFilterColumnNameFromOptionValue(selectColumn.value);
-    selectColumn.addEventListener('change', function() {
-        applyDateRangeFilter(me.filterAreaID, me.filterCounter, me.instanceName, previousColumn);
-        previousColumn = getFilterColumnNameFromOptionValue(selectColumn.value);
-        applyFilter();
-    });
+selectColumn.addEventListener('change', function() {
+    applyDateRangeFilter(me.filterAreaID, me.filterCounter, me.instanceName, previousColumn);
+    previousColumn = getFilterColumnNameFromOptionValue(selectColumn.value);
+    applyFilter();
+});
 
     operatorSelect.addEventListener('change', updateHandler);
     singleInput.addEventListener('change', applyFilter);
     fromInput.addEventListener('change',   applyFilter);
     toInput.addEventListener('change',     applyFilter);
-    setTimeout(updateHandler, 0); 
+    setTimeout(updateHandler, 0);
 
     filterDiv.style.float = 'left';
     return filterDiv;
@@ -1842,13 +2281,15 @@ function applyDateRangeFilter(filterAreaID, filterCounter, instanceName, columnN
     var op         = document.getElementById(filterAreaID + filterCounter + 'operator').value;
     var filterArea = document.getElementById('filterArea' + instanceName);
     var filterVal  = filterArea.value;
-
+filterVal = filterVal.replace(new RegExp(',?' + escapedColumn + '=e[^,]*', 'g'), '');
+    // Remove any existing filters for THIS column (using escapedColumn in the regex)
     var escapedColumn = columnName.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
     filterVal = filterVal.replace(new RegExp(',?' + escapedColumn + '=d>[^,]*', 'g'), '');
     filterVal = filterVal.replace(new RegExp(',?' + escapedColumn + '=d<[^,]*', 'g'), '');
     filterVal = filterVal.replace(new RegExp(',?' + escapedColumn + '==[^,]*',  'g'), '');
     filterVal = filterVal.replace(/^,/, '').replace(/,$/, '');
 
+    // Map the UI operator values to the filter string operators
     var opMap = { '=>': '=d>', '=<': '=d<', '==': '==' };
 
     if (op === 'between') {
@@ -1860,6 +2301,9 @@ function applyDateRangeFilter(filterAreaID, filterCounter, instanceName, columnN
         var val = document.getElementById(filterAreaID + filterCounter + 'value').value.trim();
         if (val) filterVal += (filterVal ? ',' : '') + columnName + opMap[op] + val;
     }
+     else if (op === '=e') {
+    filterVal += (filterVal ? ',' : '') + columnName + '=e';
+}
 
     filterArea.value = filterVal;
 }
@@ -1894,6 +2338,7 @@ filter.RangeFilter.prototype.render = function() {
     operatorSelect.appendChild(this.createOption('==',      'is equal to'));
     operatorSelect.appendChild(this.createOption('=>',      'is greater than'));
     operatorSelect.appendChild(this.createOption('=<',      'is less than'));
+    operatorSelect.appendChild(this.createOption('=e', 'is empty'));
     filterDiv.appendChild(operatorSelect);
 
     var singleInput = this.createElement('input', {
@@ -1910,18 +2355,22 @@ filter.RangeFilter.prototype.render = function() {
     });
     var fromInput = this.createElement('input', {
         id: this.filterAreaID + this.filterCounter + 'from',
-        className: 'inputbox', type: 'number', style: 'width: 80px;'
+        className: 'inputbox',
+        type: 'number',
+        style: 'width: 80px;'
     });
     var toInput = this.createElement('input', {
         id: this.filterAreaID + this.filterCounter + 'to',
-        className: 'inputbox', type: 'number', style: 'width: 80px;'
+        className: 'inputbox',
+        type: 'number',
+        style: 'width: 80px;'
     });
     rangeSpan.appendChild(fromInput);
     rangeSpan.appendChild(this.createElement('span', { innerHTML: ' and ' }));
     rangeSpan.appendChild(toInput);
     filterDiv.appendChild(rangeSpan);
 
-    var getColumn = function() { return getFilterColumnNameFromOptionValue(selectColumn.value); };
+   var getColumn = function() { return getFilterColumnNameFromOptionValue(selectColumn.value); };
     var applyFilter = function() {
         applyRangeFilter(me.filterAreaID, me.filterCounter, me.instanceName, getColumn());
     };
@@ -1933,6 +2382,9 @@ filter.RangeFilter.prototype.render = function() {
         if (op === 'between') {
             single.style.display = 'none';
             range.style.display  = '';
+        } else if (op === '=e') {
+            single.style.display = 'none';
+            range.style.display  = 'none';
         } else {
             single.style.display = '';
             range.style.display  = 'none';
@@ -1940,12 +2392,14 @@ filter.RangeFilter.prototype.render = function() {
         applyFilter();
     };
 
-    var previousColumn = getFilterColumnNameFromOptionValue(selectColumn.value);
-    selectColumn.addEventListener('change', function() {
-        applyRangeFilter(me.filterAreaID, me.filterCounter, me.instanceName, previousColumn);
-        previousColumn = getFilterColumnNameFromOptionValue(selectColumn.value);
-        applyFilter();
-    });
+var previousColumn = getFilterColumnNameFromOptionValue(selectColumn.value);
+
+selectColumn.addEventListener('change', function() {
+    applyRangeFilter(me.filterAreaID, me.filterCounter, me.instanceName, previousColumn);
+    previousColumn = getFilterColumnNameFromOptionValue(selectColumn.value);
+    applyFilter();
+});
+
 
     operatorSelect.addEventListener('change', updateHandler);
     singleInput.addEventListener('change', applyFilter);
@@ -1958,9 +2412,10 @@ filter.RangeFilter.prototype.render = function() {
 };
 
 function applyRangeFilter(filterAreaID, filterCounter, instanceName, columnName) {
-    var op         = document.getElementById(filterAreaID + filterCounter + 'operator').value;
+    var op        = document.getElementById(filterAreaID + filterCounter + 'operator').value;
     var filterArea = document.getElementById('filterArea' + instanceName);
     var filterVal  = filterArea.value;
+filterVal = filterVal.replace(new RegExp(',?' + escapedColumn + '=e[^,]*', 'g'), '');
 
     var escapedColumn = columnName.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
     filterVal = filterVal.replace(new RegExp(',?' + escapedColumn + '=>[^,]*',  'g'), '');
@@ -1977,7 +2432,11 @@ function applyRangeFilter(filterAreaID, filterCounter, instanceName, columnName)
         var val = document.getElementById(filterAreaID + filterCounter + 'value').value;
         if (val !== '') filterVal += (filterVal ? ',' : '') + columnName + op + val;
     }
+   else if (op === '=e') {
+        filterVal += (filterVal ? ',' : '') + columnName + '=e';
+}
 
     filterArea.value = filterVal;
 }
+
 ```

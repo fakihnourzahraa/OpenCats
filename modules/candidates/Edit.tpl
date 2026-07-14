@@ -396,40 +396,23 @@
                         </td>
                     </tr>
 
-                    <tr>
+                   <tr>
                         <td class="tdVertical">
-                            <label id="universityIDLabel" for="universityID">University:</label>
+                            <label id="universityIDLabel" for="university">University:</label>
                         </td>
                         <td class="tdData">
-                            <select id="university" name="university" class="inputbox" style="width: 250px;">
-                                <option value="">-- Select University --</option>
-                                <?php foreach ($this->universitiesRS as $universityData): ?>
-                                    <option value="<?php $this->_($universityData['optionValue']) ?>"
-                                        <?php if (isset($this->data['university']) && $this->data['university'] == $universityData['optionValue']) echo('selected'); ?>>
-                                        <?php $this->_($universityData['optionLabel']) ?>
-                                    </option>
-                                <?php endforeach; ?>
-                            </select>
+                            <input type="text" id="university" name="university" class="inputbox" style="width: 250px;" value="<?php $this->_($this->data['universityShortName']); ?>" />
                         </td>
                     </tr>
- 
+
                     <tr>
                         <td class="tdVertical">
                             <label id="nationalityLabel" for="nationality">Nationality:</label>
                         </td>
                         <td class="tdData">
-                            <select tabindex="X" id="nationality" name="nationality" class="inputbox" style="width: 250px;">
-                                <option value="">-- Select Nationality --</option>
-                                <?php foreach ($this->nationalitiesRS as $nationalityData): ?>
-                                    <option value="<?php $this->_($nationalityData['optionValue']) ?>"
-                                        <?php if (isset($this->data['nationality']) && $this->data['nationality'] == $nationalityData['optionValue']) echo('selected'); ?>>
-                                        <?php $this->_($nationalityData['optionLabel']) ?>
-                                    </option>
-                                <?php endforeach; ?>
-                            </select>
+                            <input type="text" id="nationality" name="nationality" class="inputbox" style="width: 250px;" value="<?php $this->_($this->data['nationality']); ?>" />
                         </td>
                     </tr>
-
                     <tr>
                         <td class="tdVertical">
                             <label for="interviewStage">Interview Stage:</label>
