@@ -252,8 +252,6 @@ So: a per-status form submitted with `templateID = 0` **inserts** a new template
 Everything else (including editing an existing per-status template, which posts its real
 `templateID`) goes down the normal `update()` path.
 
-> The `error_log()` line is debug output — remove it before shipping.
-
 ---
 
 ## 3. `modules/candidates/AddActivityChangeStatusModal.tpl`

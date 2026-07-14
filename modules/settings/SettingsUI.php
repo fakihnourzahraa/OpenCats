@@ -1573,6 +1573,17 @@ class SettingsUI extends UserInterface
                     $extraFields = new ExtraFields($this->_siteID, intval($args[1]));
                     $extraFields->renameColumn(urldecode($args2[0]), urldecode($args2[1]));
                     break;
+                    
+                case 'CHANGEFILTER':
+                    $args = explode(' ', $command, 3);
+                    $args2 = explode(':', $args[2]);
+
+                    $extraFields = new ExtraFields($this->_siteID, intval($args[1]));
+                    $extraFields->setFilterType(
+                        urldecode($args2[0]),
+                        isset($args2[1]) ? urldecode($args2[1]) : 'default'
+                    );
+                    break;
             }
         }
 

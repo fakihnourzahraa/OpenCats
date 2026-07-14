@@ -690,7 +690,7 @@ public function define($fieldName, $fieldType, $filterType = 'default')
 
 ```php
 $filterTypeRaw = isset($data['filterType']) ? (string)$data['filterType'] : 'default';
-   error_log('EF ' . $data['fieldName'] . ' => ' . var_export($data['filterType'] ?? 'MISSING', true));
+
    
     $filterTypes   = array_values(array_filter(array_map('trim', explode(',', $filterTypeRaw))));
     if (empty($filterTypes))

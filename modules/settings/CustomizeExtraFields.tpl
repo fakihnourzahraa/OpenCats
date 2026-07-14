@@ -272,28 +272,29 @@
                                     }
                                     
                                     //TODO: Document me.
-function addRow<?php echo($index); ?>(rowName, rowType, rowTypeName, rowFilterType)
-{
-    thisIndex = onIndex<?php echo($index); ?>;
-    onIndex<?php echo($index); ?>++;
-    
-    if (checkForDuplicateRowOnTable<?php echo($index); ?>(rowName))
-    {
-       while (checkForDuplicateRowOnTable<?php echo($index); ?>(rowName))
-       {
-          rowName = rowName + ' (2)';
-       }
-    }
-    
-    addRowToTable<?php echo($index); ?>(rowName, rowTypeName, thisIndex);
-    
-    if(<?php foreach($this->extraFieldTypes as $efi => $eft): ?><?php if($eft['hasOptions']): ?>rowType == <?php echo($efi); ?> || <?php endif; ?><?php endforeach; ?> false)
-    {
-        addOptionsAreaToTable<?php echo($index); ?>(thisIndex, rowName);
-    }
+                                    function addRow<?php echo($index); ?>(rowName, rowType, rowTypeName, rowFilterType)
+                                    {
+                                        thisIndex = onIndex<?php echo($index); ?>;
+                                        onIndex<?php echo($index); ?>++;
+                                        
+                                        if (checkForDuplicateRowOnTable<?php echo($index); ?>(rowName))
+                                        {
+                                        while (checkForDuplicateRowOnTable<?php echo($index); ?>(rowName))
+                                        {
+                                            rowName = rowName + ' (2)';
+                                        }
+                                        }
+                                        
+                                        addRowToTable<?php echo($index); ?>(rowName, rowTypeName, thisIndex);
+                                        
+                                        if(<?php foreach($this->extraFieldTypes as $efi => $eft): ?><?php if($eft['hasOptions']): ?>rowType == <?php echo($efi); ?> || <?php endif; ?><?php endforeach; ?> false)
+                                        {
+                                            addOptionsAreaToTable<?php echo($index); ?>(thisIndex, rowName);
+                                        }
 
-    appendCommandList('ADDFIELD <?php echo(urlencode($data['type'])); ?> '+encodeURI(rowType)+' '+encodeURI(rowName)+' '+encodeURI(rowFilterType));
-}
+                                        appendCommandList('ADDFIELD <?php echo(urlencode($data['type'])); ?> '+encodeURI(rowType)+' '+encodeURI(rowName)+' '+encodeURI(rowFilterType));
+                                    }
+
                                     //TODO: Document me.
                                     function deleteRow<?php echo($index); ?>(rowIndex, rowName)
                                     {                                      
@@ -386,7 +387,28 @@ function addRow<?php echo($index); ?>(rowName, rowType, rowTypeName, rowFilterTy
                                           appendCommandList('RENAMEROW <?php echo(urlencode($data['type'])); ?> '+encodeURI(rowNameOrg)+':'+encodeURI(rowNameNew));
 
                                           document.getElementById('editSettingsForm').submit();
-                                      }                                    
+                                      }    
+
+                                     function saveFilter<?php echo($index); ?>(rowIndex, rowName)
+                                     {
+                                         var checks = document.getElementsByClassName('editFilterCheck<?php echo($index); ?>_' + rowIndex);
+                                         var selected = [];
+                                         for (var i = 0; i < checks.length; i++)
+                                         {
+                                             if (checks[i].checked) selected.push(checks[i].value);
+                                         }
+                                         if (selected.length === 0) selected.push('default');
+
+                                         appendCommandList('CHANGEFILTER <?php echo(urlencode($data['type'])); ?> '+encodeURI(rowName)+':'+selected.join('|'));
+
+                                         document.getElementById('editSettingsForm').submit();
+                                     }
+
+                                     function editFilter<?php echo($index); ?>(rowIndex)
+                                     {
+                                         document.getElementById('filterDisplay<?php echo($index); ?>_' + rowIndex).style.display = 'none';
+                                         document.getElementById('filterEdit<?php echo($index); ?>_' + rowIndex).style.display = '';
+                                     }                              
                                     
                                     //TODO: Document me.
                                     function onAddField<?php echo($index); ?>()
@@ -447,15 +469,15 @@ function addRow<?php echo($index); ?>(rowName, rowType, rowTypeName, rowFilterTy
                                     }
                                 </script>
                                 
-                                <table class="sortable" width="560" id="extraFieldsTable<?php echo($index); ?>">
+                                <table class="sortable" width="800" id="extraFieldsTable<?php echo($index); ?>">
                                     <thead>
                                         <tr>
-                                            <th width="75">
+                                            <th width="90" nowrap="nowrap">
                                             </th>
-                                            <th align="left" width="325" nowrap="nowrap">
+                                            <th align="left" width="200" nowrap="nowrap">
                                                 Field Name
                                             </th>
-                                            <th align="left">
+                                            <th align="left" width="90" nowrap="nowrap">
                                                 Field Type
                                             </th>
                                             <th align="left">
@@ -487,7 +509,7 @@ function addRow<?php echo($index); ?>(rowName, rowType, rowTypeName, rowFilterTy
                                             </td>
 
 
-                                            <td align="left">
+<td align="left" nowrap="nowrap">
                                                 <?php
                                                     $filterKeys = array_filter(explode(',', (string)$rsData['filterType']));
                                                     if (empty($filterKeys)) $filterKeys = array('default');
@@ -498,8 +520,25 @@ function addRow<?php echo($index); ?>(rowName, rowType, rowTypeName, rowFilterTy
                                                                 ? $this->extraFieldFilters[$fk]['name']
                                                                 : $fk;
                                                     }
-                                                    echo htmlspecialchars(implode(', ', $names));
                                                 ?>
+                                                <span id="filterDisplay<?php echo($index); ?>_<?php echo($rsIndex); ?>">
+                                                    <?php echo htmlspecialchars(implode(', ', $names)); ?>
+                                                    <a href="javascript:void(0);" onclick="editFilter<?php echo($index); ?>(<?php echo($rsIndex); ?>);" style="padding:0px;">
+                                                        <img src="images/edit.gif" border="0" style="padding:0px;" />
+                                                    </a>
+                                                </span>
+                                                <span id="filterEdit<?php echo($index); ?>_<?php echo($rsIndex); ?>" style="display:none;">
+                                                    <?php foreach($this->extraFieldFilters as $filterKey => $filterData): ?>
+                                                        <label style="margin-right:8px; white-space:nowrap;">
+                                                            <input type="checkbox" class="editFilterCheck<?php echo($index); ?>_<?php echo($rsIndex); ?>"
+                                                                value="<?php echo($filterKey); ?>"
+                                                                <?php echo(in_array($filterKey, $filterKeys) ? 'checked="checked"' : ''); ?> />
+                                                            <?php echo htmlspecialchars($filterData['name']); ?>
+                                                        </label>
+                                                    <?php endforeach; ?>
+                                                    <input type="button" class="button" value="Save"
+                                                        onclick="saveFilter<?php echo($index); ?>(<?php echo($rsIndex); ?>, urlDecode('<?php echo(urlencode($rsData['fieldName'])); ?>'));" />
+                                                </span>
                                             </td>
 
 

@@ -395,6 +395,47 @@ class ExtraFields
     }
 
     /**
+     * Changes the filter type(s) of an existing extra field.
+     *
+     * @param string field name
+     * @param string filter type(s), pipe-separated
+     * @return void
+     */
+    public function setFilterType($fieldName, $filterType)
+    {
+        $validFilters = array('default', 'date', 'range', 'dropdown');
+
+        $filterParts = array_values(array_intersect(
+            array_filter(explode('|', $filterType)),
+            $validFilters
+        ));
+
+        if (empty($filterParts))
+        {
+            $filterParts = array('default');
+        }
+
+        $sql = sprintf(
+            "UPDATE
+                extra_field_settings
+            SET
+                extra_field_settings.filter_type = %s
+            WHERE
+                extra_field_settings.site_id = %s
+            AND
+                extra_field_settings.data_item_type = %s
+            AND
+                extra_field_settings.field_name = %s",
+            $this->_db->makeQueryString(implode(',', $filterParts)),
+            $this->_siteID,
+            $this->_dataItemType,
+            $this->_db->makeQueryString($fieldName)
+        );
+
+        $this->_db->query($sql);
+    }
+
+    /**
      * Returns all extra fields fields for a company.
      *
      * @param integer candidate ID
@@ -758,8 +799,7 @@ class ExtraFields
         }
 
     $filterTypeRaw = isset($data['filterType']) ? (string)$data['filterType'] : 'default';
-   error_log('EF ' . $data['fieldName'] . ' => ' . var_export($data['filterType'] ?? 'MISSING', true));
-   
+
     $filterTypes   = array_values(array_filter(array_map('trim', explode(',', $filterTypeRaw))));
     if (empty($filterTypes))
     {

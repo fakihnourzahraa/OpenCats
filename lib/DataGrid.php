@@ -644,27 +644,40 @@ class DataGrid
      * @param string column name
      * @return string filter value
      */
-    public function getFilterValue($columnName)
+public function getFilterValue($columnName)
     {
         if (isset($this->_parameters['filter']))
         {
             $filterStrings = explode(',', $this->_parameters['filter']);
+            $operators = array('=d>', '=d<', '=in', '=bt', '=~', '==', '=>', '=<', '=#', '=@', '=e');
 
             foreach ($filterStrings as $index => $data)
             {
-                if (strpos($data, '=') === false)
+                $eqPos = strpos($data, '=');
+
+                if ($eqPos === false)
                 {
                     continue;
                 }
 
-                $dataColumnName = urldecode(substr($data, 0, strpos($data, '=')));
+                $dataColumnName = urldecode(substr($data, 0, $eqPos));
 
-                if ($columnName == $dataColumnName)
+                if ($columnName != $dataColumnName)
                 {
-                    return urldecode(substr($data, strpos($data, '=') + 2));
+                    continue;
                 }
+
+                foreach ($operators as $op)
+                {
+                    if (substr($data, $eqPos, strlen($op)) === $op)
+                    {
+                        return urldecode(substr($data, $eqPos + strlen($op)));
+                    }
+                }
+                return urldecode(substr($data, $eqPos + 2));
             }
         }
+
         return '';
     }
 
@@ -1133,7 +1146,8 @@ echo '<script type="text/javascript">';
                 $eqPos = strpos($data, '=');
 
                 $operatorLength = 2;
-                if (substr($data, $eqPos, 3) === '=d>' || substr($data, $eqPos, 3) === '=d<')
+                $threeCharOps = array('=d>', '=d<', '=in', '=bt');
+                if (in_array(substr($data, $eqPos, 3), $threeCharOps))
                 {
                     $operatorLength = 3;
                 }
