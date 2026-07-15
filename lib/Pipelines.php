@@ -619,7 +619,26 @@ class Pipelines
                 candidate.first_name AS firstName,
                 candidate.last_name AS lastName,
                 candidate.state As state,
+                candidate.city AS city,
+                candidate.zip AS zip,
+                candidate.address AS address,
                 candidate.email1 AS candidateEmail,
+                   candidate.email1 AS candidateEmail,
+            candidate.email2 AS candidateEmail2,
+            candidate.phone_home AS phoneHome,
+            candidate.phone_cell AS phoneCell,
+            candidate.phone_work AS phoneWork,
+            candidate.key_skills AS keySkills,
+            candidate.current_employer AS currentEmployer,
+            candidate.current_pay AS currentPay,
+            candidate.desired_pay AS desiredPay,
+            candidate.can_relocate AS canRelocate,
+            candidate.source AS source,
+            candidate.web_site AS webSite,
+            candidate.notes AS notes,
+            DATE_FORMAT(candidate.date_available, '%%m-%%d-%%y') AS dateAvailable,
+            DATE_FORMAT(candidate.date_modified, '%%m-%%d-%%y') AS dateModified,
+            DATE_FORMAT(candidate.date_created, '%%m-%%d-%%y') AS candidateDateCreated,
                 candidate_joborder.status AS jobOrderStatus,
                 candidate.is_hot AS isHotCandidate,
                 DATE_FORMAT(
@@ -807,6 +826,70 @@ class Pipelines
 
         return $this->_db->getAllAssoc($sql);
     }
+
+    		
+    public function getExtraFieldsForPipelineCandidates(array $candidateIDs)
+    {
+        if (empty($candidateIDs))
+        {
+            return array();
+        }
+        $safeIDs = implode(',', array_map('intval', $candidateIDs));
+        $sql = sprintf(
+            "SELECT
+                data_item_id AS candidateID,
+                field_name,
+                value
+            FROM
+                extra_field
+            WHERE
+                data_item_type = %s
+            AND
+                site_id = %s
+            AND
+                data_item_id IN (%s)",
+            DATA_ITEM_CANDIDATE,
+            $this->_siteID,
+            $safeIDs
+        );
+        $rs = $this->_db->getAllAssoc($sql);
+        if (!$rs)
+        {
+            return array();
+        }
+        $indexed = array();
+        foreach ($rs as $row)
+        {
+            $indexed[$row['candidateID']][$row['field_name']] = $row['value'];
+        }
+        return $indexed;
+    }
+// public function getExtraFieldDefinitions()
+// {
+//     $sql = sprintf(
+//         "SELECT field_name
+//          FROM extra_field_settings
+//          WHERE data_item_type = %s
+//          AND site_id = %s",
+//         DATA_ITEM_CANDIDATE,
+//         $this->_siteID
+//     );
+//     $rs = $this->_db->getAllAssoc($sql);
+//     return $rs ? $rs : array();
+// }
+public function getExtraFieldDefinitions()
+{
+    $sql = sprintf(
+        "SELECT field_name, extra_field_type, extra_field_options, filter_type
+         FROM extra_field_settings
+         WHERE data_item_type = %s
+         AND site_id = %s",
+        DATA_ITEM_CANDIDATE,
+        $this->_siteID
+    );
+    $rs = $this->_db->getAllAssoc($sql);
+    return $rs ? $rs : array();
+}
 
 }
 
