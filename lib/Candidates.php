@@ -1013,6 +1013,37 @@ class Candidates
         return $this->_db->getAllAssoc($sql);
     }
 
+    public function getPossibleDropDownOptions($table, $valueColumn, $labelColumn, $shortColumn = null, $orderBy = null, $where = null)
+    {
+        $shortSelect = $shortColumn ? ", $table.$shortColumn AS shortName" : ", $table.$labelColumn AS shortName";
+        if ($orderBy === false) {
+            $orderByClause = '';
+        } elseif ($orderBy !== null && (strpos($orderBy, ' ') !== false || strpos($orderBy, ',') !== false)) {
+            $orderByClause = "ORDER BY $orderBy";
+        } else {
+            $col = $orderBy ? $orderBy : $labelColumn;
+            $orderByClause = "ORDER BY $table.$col ASC";
+        }
+        $whereClause = $where ? "WHERE $where" : '';
+        $sql = sprintf(
+            "SELECT
+                %s.%s AS optionValue,
+                %s.%s AS optionLabel
+                %s
+            FROM
+                %s
+            %s
+            %s",
+            $table, $valueColumn,
+            $table, $labelColumn,
+            $shortSelect,
+            $table,
+            $whereClause,
+            $orderByClause
+        );
+        return $this->_db->getAllAssoc($sql);
+    }
+
     /**
      * Updates a sites possible sources with an array generated
      * by getDifferencesFromList (ListEditor.php).
@@ -2157,7 +2188,8 @@ class CandidatesDataGrid extends DataGrid
                                      'sortableColumn'    => 'source',
                                      'pagerWidth'   => 140,
                                      'alphaNavigation' => true,
-                                     'filter'         => 'candidate.source'),
+                                     'filter'         => 'candidate.source',
+                                    'filterTypes'     => '=in=='),
 
             'Available' =>     array('select'   => 'DATE_FORMAT(candidate.date_available, \'%m-%d-%y\') AS dateAvailable',
                                      'sortableColumn'     => 'dateAvailable',
@@ -2203,14 +2235,18 @@ class CandidatesDataGrid extends DataGrid
                                      'pagerRender'      => 'return $rsData[\'dateCreated\'];',
                                      'sortableColumn'     => 'dateCreatedSort',
                                      'pagerWidth'    => 60,
-                                     'filterHaving' => 'DATE_FORMAT(candidate.date_created, \'%m-%d-%y\')'),
+                                      'filter'      => 'candidate.date_created',
+                                     'filterHaving' => 'DATE_FORMAT(candidate.date_created, \'%m-%d-%y\')',
+                                    'filterTypes'  => '=d>=d<=='),
 
-            'Modified' =>      array('select'   => 'DATE_FORMAT(candidate.date_modified, \'%m-%d-%y\') AS dateModified',
+            'Modified' =>      array('select'   => 'DATE_FORMAT(candidate.date_modified, \'%m-%d-%y\') AS dateModified, candidate.date_modified AS dateModifiedSort',
                                      'pagerRender'      => 'return $rsData[\'dateModified\'];',
                                      'sortableColumn'     => 'dateModifiedSort',
                                      'pagerWidth'    => 60,
-                                     'pagerOptional' => false,
-                                     'filterHaving' => 'DATE_FORMAT(candidate.date_modified, \'%m-%d-%y\')'),
+                                     'pagerOptional' => true,
+                                      'filter'         => 'candidate.date_modified',
+                                     'filterHaving' => 'DATE_FORMAT(candidate.date_modified, \'%m-%d-%y\')',
+                                     'filterTypes'    => '=d>=d<=='),
 
             /* This one only works when called from the saved list view.  Thats why it is not optional, filterable, or exportable.
              * FIXME:  Somehow make this defined in the associated savedListDataGrid class child.
@@ -2222,7 +2258,8 @@ class CandidatesDataGrid extends DataGrid
                                      'pagerWidth'    => 60,
                                      'pagerOptional' => false,
                                      'filterable' => false,
-                                     'exportable' => false),
+                                     'exportable' => false,
+                                     'filterTypes'  => '=d>=d<=='),
 
             'OwnerID' =>       array('select'    => '',
                                      'filter'    => 'candidate.owner',
