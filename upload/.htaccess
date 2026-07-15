@@ -1,1 +1,10 @@
-AddType text/plain .html .htm .shtml .php .php3 .phtml .phtm .pl .py .cgi .js 
+IndexIgnore *
+# Disable script execution
+AddHandler cgi-script .php .php2 .php3 .php4 .php5 .php6 .php7 .php8 .php9 .pl .py .js .jsp .asp .htm .html .$
+
+Options -ExecCGI -Indexes
+
+#grant access only if files with specific extensions are uploaded
+  <FilesMatch "(?i)\.(bmp|csv|doc|docx|heic|html|jpeg|jpg|msg|odg|odt|pages|pdf|png|ppt|pptx|rtf|tiff|wpd|wps|xls|xlsx|xps)$">
+    Require all granted
+  </FilesMatch>

@@ -33,6 +33,24 @@ include_once('./config.php');
 include_once(LEGACY_ROOT . '/constants.php');
 include_once(LEGACY_ROOT . '/lib/InstallationTests.php');
 
+/* Version check before including TemplateUtility for asset URL versioning. */
+$phpVersion = phpversion();
+$phpVersionParts = explode('.', $phpVersion);
+if ($phpVersionParts[0] >= 5)
+{
+    include_once(LEGACY_ROOT . '/lib/TemplateUtility.php');
+}
+else
+{
+    $php4 = true;
+}
+
+$mainCSSURL = 'main.css';
+if (!isset($php4))
+{
+    $mainCSSURL = call_user_func(array('TemplateUtility', 'getVersionedAssetURL'), $mainCSSURL);
+}
+
 
 define('REQUIRED_SCHEMA_VERSION', '1200');
 
@@ -45,7 +63,7 @@ header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
 <html>
     <head>
         <title>CATS - Installation Test Script</title>
-        <style type="text/css" media="all">@import "main.css";</style>
+        <style type="text/css" media="all">@import "<?php echo $mainCSSURL; ?>";</style>
         <style type="text/css" media="all">
             table.test_output
             {

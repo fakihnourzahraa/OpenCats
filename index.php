@@ -3,7 +3,7 @@
  * CATS
  * Index (Delegation Module)
  *
- * CATS Version: 0.9.6
+ * CATS Version: 0.10.0
  *
  * Copyright (C) 2005 - 2007 Cognizo Technologies, Inc.
  *
@@ -78,36 +78,6 @@ session_start();
 header('Last-Modified: ' . gmdate('D, d M Y H:i:s') . ' GMT');
 header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
 
-// This function assures to strip the values from
-// request arrays even if as values are arrays not only values
-function stripslashes_deep($value)
-{
-    $value = is_array($value) ?
-                array_map('stripslashes_deep', $value) :
-                stripslashes($value);
-
-    return $value;
-}
-
-/* Make sure we aren't getting screwed over by magic quotes. */
-if (get_magic_quotes_runtime())
-{
-    if (function_exists('set_magic_quotes_runtime')) {
-        set_magic_quotes_runtime(0);
-    }
-}
-if (get_magic_quotes_gpc())
-{
-    include_once(LEGACY_ROOT . '/lib/ArrayUtility.php');
-
-    $_GET     = array_map('stripslashes_deep', $_GET);
-    $_POST    = array_map('stripslashes_deep', $_POST);
-    $_REQUEST = array_map('stripslashes_deep', $_REQUEST);
-    $_GET     = ArrayUtility::arrayMapKeys('stripslashes_deep', $_GET);
-    $_POST    = ArrayUtility::arrayMapKeys('stripslashes_deep', $_POST);
-    $_REQUEST = ArrayUtility::arrayMapKeys('stripslashes_deep', $_REQUEST);
-}
-
 /* Objects can't be stored in the session if session.auto_start is enabled. */
 if (ini_get('session.auto_start') !== '0' &&
     ini_get('session.auto_start') !== 'Off')
@@ -172,6 +142,26 @@ if ($_SESSION['CATS']->isLoggedIn())
     }
 }
 
+if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] === 'POST' &&
+    $_SESSION['CATS']->isLoggedIn() &&
+    (!isset($careerPage) || !$careerPage) &&
+    (!isset($_GET['showCareerPortal']) || $_GET['showCareerPortal'] != '1') &&
+    (!isset($rssPage) || !$rssPage) &&
+    (!isset($xmlPage) || !$xmlPage))
+{
+    $token = null;
+
+    if (isset($_POST['csrfToken']))
+    {
+        $token = $_POST['csrfToken'];
+    }
+
+    if (!$_SESSION['CATS']->isCSRFTokenValid($token))
+    {
+        CommonErrors::fatal(COMMONERROR_BADFIELDS, null, 'Invalid request.');
+    }
+}
+
 /* Check to see if we are supposed to display the career page. */
 if (((isset($careerPage) && $careerPage) ||
     (isset($_GET['showCareerPortal']) && $_GET['showCareerPortal'] == '1')))
@@ -219,6 +209,11 @@ else
 {
     if ($_GET['m'] == 'logout')
     {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST')
+        {
+            CommonErrors::fatal(COMMONERROR_BADFIELDS, null, 'Invalid request.');
+        }
+
         /* There isn't really a logout module. It's just a few lines. */
         $unixName = $_SESSION['CATS']->getUnixName();
 
@@ -233,12 +228,20 @@ else
             $URI .= '&s=' . $unixName;
         }
 
-        if (isset($_GET['message']))
+        if (isset($_POST['message']))
+        {
+            $URI .= '&message=' . urlencode($_POST['message']);
+        }
+        else if (isset($_GET['message']))
         {
             $URI .= '&message=' . urlencode($_GET['message']);
         }
 
-        if (isset($_GET['messageSuccess']))
+        if (isset($_POST['messageSuccess']))
+        {
+            $URI .= '&messageSuccess=' . urlencode($_POST['messageSuccess']);
+        }
+        else if (isset($_GET['messageSuccess']))
         {
             $URI .= '&messageSuccess=' . urlencode($_GET['messageSuccess']);
         }

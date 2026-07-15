@@ -2,6 +2,9 @@
 <?php TemplateUtility::printHeader('Job Orders', array('modules/joborders/validator.js', 'js/company.js', 'js/sweetTitles.js',  'js/suggest.js', 'js/joborder.js', 'js/lib.js', 'js/listEditor.js', 'vendor/ckeditor/ckeditor/ckeditor.js', 'js/ckeditor-manager.js')); ?>
 <?php TemplateUtility::printHeaderBlock(); ?>
 <?php TemplateUtility::printTabs($this->active); ?>
+    <script type="text/javascript">
+        window.CATSUserDateFormat = '<?php echo($_SESSION['CATS']->isDateDMY() ? 'DD-MM-YY' : 'MM-DD-YY'); ?>';
+    </script>
     <div id="main">
         <?php TemplateUtility::printQuickSearch(); ?>
 
@@ -34,10 +37,10 @@
                             <label id="startDateLabel" for="startDate">Start Date:</label>
                         </td>
                         <td class="tdData">
-                            <?php if (!empty($this->data['startDate'])): ?>
-                                <script type="text/javascript">DateInput('startDate', false, 'MM-DD-YY', '<?php echo($this->data['startDateMDY']); ?>', 9);</script>
+<?php if (!empty($this->data['startDate'])): ?>
+                                <script type="text/javascript">DateInput('startDate', false, (typeof window.CATSUserDateFormat !== 'undefined' ? window.CATSUserDateFormat : 'MM-DD-YY'), <?php echo json_encode((string) $this->data['startDateUser'], JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>, 9);</script>
                             <?php else: ?>
-                                <script type="text/javascript">DateInput('startDate', false, 'MM-DD-YY', '', 9);</script>
+                                <script type="text/javascript">DateInput('startDate', false, (typeof window.CATSUserDateFormat !== 'undefined' ? window.CATSUserDateFormat : 'MM-DD-YY'), '', 9);</script>
                             <?php endif; ?>
                         </td>
                     </tr>
@@ -75,7 +78,7 @@
                          </td>
                          <td class="tdData">
                             <?php if ($this->defaultCompanyID !== false): ?>
-                                <input type="radio" name="typeCompany" <?php if ($this->defaultCompanyID == $this->data['companyID']) echo(' checked'); ?> id="defaultCompany" onchange="if(document.getElementById('companyName').disabled == false && document.getElementById('companyID').value > 0) {oldCompanyID = document.getElementById('companyID').value; } else if(document.getElementById('companyName').disabled == false) { oldCompanyID = 0; } document.getElementById('companyName').disabled = true; document.getElementById('companyID').value = '<?php echo($this->defaultCompanyID); ?>'; ">&nbsp;Internal Posting
+                                <input type="radio" name="typeCompany" <?php if ($this->defaultCompanyID == $this->data['companyID']) echo(' checked'); ?> id="defaultCompany" onchange="if(document.getElementById('companyName').disabled == false && document.getElementById('companyID').value > 0) {oldCompanyID = document.getElementById('companyID').value; } else if(document.getElementById('companyName').disabled == false) { oldCompanyID = 0; } document.getElementById('companyName').disabled = true; document.getElementById('companyID').value = '<?php echo($this->defaultCompanyID); ?>'; ">&nbsp;<?php echo($this->defaultCompanyRS['name']); ?>
                             <?php endif; ?>
                             <script type="text/javascript">oldCompanyID = -1; watchCompanyIDChangeJO('<?php echo($this->sessionCookie); ?>');</script>
                          </td>
@@ -175,7 +178,7 @@
                             <label id="stateLabel" for="state">State:</label>
                         </td>
                         <td class="tdData">
-                            <input type="text" tabindex="5" class="inputbox" id="state" name="state" value="<?php $this->_($this->data['state']); ?>" style="width: 150px;" />&nbsp;*
+                            <input type="text" tabindex="5" class="inputbox" id="state" name="state" value="<?php $this->_($this->data['state']); ?>" style="width: 150px;" />
                         </td>
 
                         <td class="tdVertical">

@@ -41,16 +41,118 @@ class Template
     private $_filters = array();
 
     /**
+     * Normalizes values before escaping for template output.
+     *
+     * @param mixed $value
+     * @return string
+     */
+    private static function normalizeEscapedValue($value)
+    {
+        if (!is_scalar($value) && !(is_object($value) && method_exists($value, '__toString')))
+        {
+            return '';
+        }
+
+        return (string) $value;
+    }
+
+    /**
+     * Escapes value for HTML text output.
+     *
+     * @param mixed $value
+     * @return string
+     */
+    public static function escapeHtml($value)
+    {
+        return htmlspecialchars(
+            self::normalizeEscapedValue($value),
+            ENT_QUOTES | ENT_SUBSTITUTE,
+            HTML_ENCODING
+        );
+    }
+
+    /**
+     * Escapes value for HTML attribute output.
+     *
+     * @param mixed $value
+     * @return string
+     */
+    public static function escapeAttr($value)
+    {
+        return self::escapeHtml($value);
+    }
+
+    /**
+     * Escapes value for URL attribute output and blocks dangerous schemes.
+     *
+     * @param mixed $value
+     * @return string
+     */
+    public static function escapeUrl($value)
+    {
+        $url = self::normalizeEscapedValue($value);
+        if ($url === '')
+        {
+            return '';
+        }
+
+        $normalizedUrl = html_entity_decode($url, ENT_QUOTES, HTML_ENCODING);
+        $normalizedUrl = strtolower($normalizedUrl);
+        $normalizedUrl = preg_replace('/[\x00-\x20\x7f]+/', '', $normalizedUrl);
+
+        if (preg_match('/^([a-z][a-z0-9+\-.]*):/', $normalizedUrl, $matches))
+        {
+            if (in_array($matches[1], array('javascript', 'vbscript', 'data'), true))
+            {
+                return '';
+            }
+        }
+
+        return self::escapeAttr($url);
+    }
+
+    /**
+     * Escapes value for JavaScript literal output.
+     *
+     * @param mixed $value
+     * @return string
+     */
+    public static function escapeJs($value)
+    {
+        $encoded = json_encode(
+            self::normalizeEscapedValue($value),
+            JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT
+        );
+        if ($encoded === false)
+        {
+            return '""';
+        }
+
+        return $encoded;
+    }
+
+    /**
+     * Escapes value for JavaScript string literal output inside HTML attributes.
+     *
+     * @param mixed $value
+     * @return string
+     */
+    public static function escapeJsAttr($value)
+    {
+        return self::escapeAttr(self::escapeJs($value));
+    }
+
+    /**
      * Prints $string with all html special characters converted to &codes;.
      *
      * Ex: 'If x < 2 & x > 0, x = 1.' -> 'If x &lt; 2 &amp; x &gt; 0, x = 1.'.
      *
-     * @param string input
+     * @param mixed $string
      * @return void
      */
     public function _($string)
     {
-        echo(htmlspecialchars($string));
+        echo(self::escapeHtml($string));
     }
 
     /**

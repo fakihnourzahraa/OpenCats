@@ -184,11 +184,21 @@ class FileUtility
 
         /* Is the file extension safe? */
         $fileExtension = self::getFileExtension($filename);
-        if (in_array($fileExtension, $GLOBALS['badFileExtensions']))
+        
+        /* Use a whitelist instead of a blacklist to prevent possible bypasses */
+/*
+        if (!preg_match("/(?i)\.(pdf|docx?|rtf|odt?g?|txt|wpd|jpe?g|png|csv|xlsx?|ppt|msg|heic|tiff?|html?|bmp|wps|xps)$/i", $fileExtension))
+*/
+        $GoodFileExtensions = array('bak', 'bmp', 'csv', 'doc', 'docx', 'heic', 'html', 'jpeg', 'jpg', 'msg', 'odg', 'odt', 'pages', 'pdf', 'png', 'ppt', 'pptx', 'rtf', 'tiff', 'txt', 'wpd', 'wps', 'xls', 'xlsx', 'xps');
+        if (!in_array($fileExtension, $GoodFileExtensions))
+        {
+            $filename .= ".txt";
+        }
+/*        if (in_array($fileExtension, $GLOBALS['badFileExtensions']))
         {
             $filename .= '.txt';
         }
-
+*/
         return $filename;
     }
 
@@ -317,7 +327,15 @@ class FileUtility
      */
     public static function getFileExtension($filename)
     {
-        return strtolower(substr($filename, strrpos($filename, '.') + 1));
+        $lastDotPosition = strrpos($filename, '.');
+
+        // Treat dotless names and dotfiles as having no extension.
+        if ($lastDotPosition === false || $lastDotPosition === 0)
+        {
+            return '';
+        }
+
+        return strtolower(substr($filename, $lastDotPosition + 1));
     }
 
     /**
@@ -563,7 +581,7 @@ class FileUtility
             if (!eval(Hooks::get('FILE_UTILITY_SPACE_CHECK'))) return;
 
             $uploadPath = FileUtility::getUploadPath($siteID, $subDirectory);
-            $newFileName = $_FILES[$id]['name'];
+            $newFileName = FileUtility::makeSafeFilename($_FILES[$id]['name']);
 
             // Could just while(file_exists) it, but I'm paranoid of infinate loops
             // Shouldn't have 1000 files of the same name anyway

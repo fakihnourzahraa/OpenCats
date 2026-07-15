@@ -28,12 +28,22 @@
  */
 
 
-include_once(LEGACY_ROOT . '/lib/StringUtility.php');
 include_once(LEGACY_ROOT . '/lib/ActivityEntries.php');
-include_once(LEGACY_ROOT . '/lib/Pipelines.php');
 
 
 $interface = new SecureAJAXInterface();
+
+if ($_SERVER['REQUEST_METHOD'] !== 'POST')
+{
+    $interface->outputXMLErrorPage(-1, 'Invalid request.');
+    die();
+}
+
+if ($_SESSION['CATS']->getAccessLevel('contacts.editActivity') < ACCESS_LEVEL_EDIT)
+{
+    $interface->outputXMLErrorPage(-1, ERROR_NO_PERMISSION);
+    die();
+}
 
 if (!$interface->isRequiredIDValid('activityID'))
 {
@@ -53,7 +63,7 @@ if (!$interface->isOptionalIDValid('jobOrderID'))
     die();
 }
 
-if (!isset($_REQUEST['notes']))
+if (!isset($_POST['notes']))
 {
     $interface->outputXMLErrorPage(-1, 'Invalid notes.');
     die();
@@ -61,21 +71,32 @@ if (!isset($_REQUEST['notes']))
 
 $siteID = $interface->getSiteID();
 
-$activityID = $_REQUEST['activityID'];
-$type       = $_REQUEST['type'];
-$jobOrderID = $_REQUEST['jobOrderID'];
+$activityID = $_POST['activityID'];
+$type       = $_POST['type'];
+$jobOrderID = isset($_POST['jobOrderID']) ? trim($_POST['jobOrderID']) : null;
 
 /* Decode and trim the activity notes from the company. */
-$activityNote = trim(urldecode($_REQUEST['notes']));
-$activityDate = trim(urldecode($_REQUEST['date']));
-$activityHour = trim(urldecode($_REQUEST['hour']));
-$activityMinute = trim(urldecode($_REQUEST['minute']));
-$activityAMPM = trim(urldecode($_REQUEST['ampm']));
+$activityNote = trim(urldecode($_POST['notes']));
+$activityDate = trim(urldecode($_POST['date']));
+$activityHour = trim(urldecode($_POST['hour']));
+$activityMinute = trim(urldecode($_POST['minute']));
+$activityAMPM = trim(urldecode($_POST['ampm']));
 
-if (!DateUtility::validate('-', $activityDate, DATE_FORMAT_MMDDYY))
+$dateFormatFlag = $_SESSION['CATS']->isDateDMY()
+    ? DATE_FORMAT_DDMMYY
+    : DATE_FORMAT_MMDDYY;
+
+if (!DateUtility::validate('-', $activityDate, $dateFormatFlag))
 {
     die('Invalid availability date.');
     return;
+}
+
+if ($jobOrderID === null || $jobOrderID === '' || $jobOrderID === 'NULL' ||
+    $jobOrderID === '0' || $jobOrderID === '-1' || !is_numeric($jobOrderID) ||
+    (int) $jobOrderID <= 0)
+{
+    $jobOrderID = -1;
 }
 
 /* Convert formatted time to UNIX timestamp. */
@@ -87,26 +108,10 @@ $time = strtotime(
 $date = sprintf(
     '%s %s',
     DateUtility::convert(
-        '-', $activityDate, DATE_FORMAT_MMDDYY, DATE_FORMAT_YYYYMMDD
+        '-', $activityDate, $dateFormatFlag, DATE_FORMAT_YYYYMMDD
     ),
     date('H:i:00', $time)
 );
-
-/* Highlight what needs highlighting. */
-if (strpos($activityNote, 'Status change: ') === 0)
-{
-    $pipelines = new Pipelines($siteID);
-
-    $statusRS = $pipelines->getStatusesForPicking();
-    foreach ($statusRS as $data)
-    {
-        $activityNote = StringUtility::replaceOnce(
-            $data['status'],
-            '<span style="color: #ff6c00;">' . $data['status'] . '</span>',
-            $activityNote
-        );
-    }
-}
 
 /* Save the new activity entry. */
 $activityEntries = new ActivityEntries($siteID);

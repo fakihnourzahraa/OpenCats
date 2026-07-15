@@ -1328,6 +1328,210 @@ class CATSSchema
             '364' => '
                 UPDATE user SET password = md5(password) WHERE can_change_password=1;
             ',
+            '365' => '
+                ALTER IGNORE TABLE `site`
+                ADD COLUMN `default_phone_country_code` varchar(8)
+                COLLATE utf8_unicode_ci NOT NULL DEFAULT \'+1\'
+                AFTER `date_format_ddmmyy`;
+            ',
+            '366' => '
+                ALTER IGNORE TABLE `candidate` ADD COLUMN `address2` TEXT COLLATE utf8_unicode_ci AFTER `address`;
+                ALTER IGNORE TABLE `contact` ADD COLUMN `address2` TEXT COLLATE utf8_unicode_ci AFTER `address`;
+                ALTER IGNORE TABLE `company` ADD COLUMN `address2` TEXT COLLATE utf8_unicode_ci AFTER `address`;
+            ',
+            '367' => '
+                UPDATE candidate
+                SET address = REPLACE(address, \'\\r\\n\', \'\\n\')
+                WHERE address LIKE \'%\\r\\n%\';
+                UPDATE candidate
+                SET
+                    address2 = TRIM(REPLACE(SUBSTRING(address, INSTR(address, \'\\n\') + 1), \'\\n\', \', \')),
+                    address  = TRIM(SUBSTRING_INDEX(address, \'\\n\', 1))
+                WHERE address IS NOT NULL
+                  AND INSTR(address, \'\\n\') > 0;
+
+                UPDATE contact
+                SET address = REPLACE(address, \'\\r\\n\', \'\\n\')
+                WHERE address LIKE \'%\\r\\n%\';
+                UPDATE contact
+                SET
+                    address2 = TRIM(REPLACE(SUBSTRING(address, INSTR(address, \'\\n\') + 1), \'\\n\', \', \')),
+                    address  = TRIM(SUBSTRING_INDEX(address, \'\\n\', 1))
+                WHERE address IS NOT NULL
+                  AND INSTR(address, \'\\n\') > 0;
+
+                UPDATE company
+                SET address = REPLACE(address, \'\\r\\n\', \'\\n\')
+                WHERE address LIKE \'%\\r\\n%\';
+                UPDATE company
+                SET
+                    address2 = TRIM(REPLACE(SUBSTRING(address, INSTR(address, \'\\n\') + 1), \'\\n\', \', \')),
+                    address  = TRIM(SUBSTRING_INDEX(address, \'\\n\', 1))
+                WHERE address IS NOT NULL
+                  AND INSTR(address, \'\\n\') > 0;
+            ',
+            '368' => '
+                ALTER TABLE `user`
+                    MODIFY `password` varchar(255) COLLATE utf8_unicode_ci NOT NULL DEFAULT \'\';
+            ',
+            '369' => 'PHP:
+                $col = $db->getAssoc("SHOW COLUMNS FROM `site` LIKE \'last_viewed_day\'");
+
+                if (!empty($col))
+                {
+                    $db->query(
+                        "UPDATE `site`
+                         SET `last_viewed_day` = \'1000-01-01\'
+                         WHERE `last_viewed_day` IS NULL OR `last_viewed_day` = \'0000-00-00\'",
+                        true
+                    );
+
+                    $db->query(
+                        "ALTER TABLE `site`
+                         MODIFY `last_viewed_day` DATE NOT NULL DEFAULT \'1000-01-01\'",
+                        true
+                    );
+                }
+            ',
+            '370' => '
+                DELETE FROM module_schema WHERE name = \'toolbar\';
+            ',
+            '371' => '
+                DELETE FROM extra_field
+                WHERE data_item_type = 100
+                AND data_item_id NOT IN (SELECT candidate_id FROM candidate);
+
+                DELETE FROM extra_field
+                WHERE data_item_type = 200
+                AND data_item_id NOT IN (SELECT company_id FROM company);
+
+                DELETE FROM extra_field
+                WHERE data_item_type = 300
+                AND data_item_id NOT IN (SELECT contact_id FROM contact);
+
+                DELETE FROM extra_field
+                WHERE data_item_type = 400
+                AND data_item_id NOT IN (SELECT joborder_id FROM joborder);
+            ',
+            '372' => 'PHP:
+                include_once(\'modules/install/scripts/372.php\');
+                update_372($db);
+            ',
+            '373' => '
+                INSERT IGNORE INTO `activity_type` (`activity_type_id`, `short_description`) VALUES (800, \'Status Change\');
+            ',
+            '374' => '
+                UPDATE `activity`
+                SET `joborder_id` = NULL
+                WHERE `joborder_id` IN (0, -1);
+            ',
+            '375' => 'PHP:
+                $rs = $db->getAllAssoc(
+                    "SELECT
+                        TABLE_NAME AS table_name
+                     FROM
+                        information_schema.TABLES
+                     WHERE
+                        TABLE_SCHEMA = DATABASE()
+                        AND TABLE_TYPE = \'BASE TABLE\'
+                        AND ENGINE = \'MyISAM\'"
+                );
+
+                foreach ($rs as $rowIndex => $row)
+                {
+                    $db->query("ALTER TABLE `".$row[\'table_name\']."` ENGINE=InnoDB");
+                }
+            ',
+            '376' => '
+                UPDATE activity_type
+                SET short_description = \'Not reached\'
+                WHERE activity_type_id = 100;
+            ',
+            '377' => 'PHP:
+                $lastActivityID = 0;
+                $batchSize = 200;
+
+                while (true)
+                {
+                    $rows = $db->getAllAssoc(
+                        "SELECT activity_id, notes
+                         FROM activity
+                         WHERE activity_id > " . (int) $lastActivityID . "
+                           AND notes LIKE \'Status change: %\'
+                           AND notes LIKE \'%<span%\'
+                           AND notes LIKE \'%#ff6c00%\'
+                         ORDER BY activity_id ASC
+                         LIMIT " . (int) $batchSize
+                    );
+
+                    if (empty($rows))
+                    {
+                        break;
+                    }
+
+                    foreach ($rows as $row)
+                    {
+                        $activityID = (int) $row[\'activity_id\'];
+                        $lastActivityID = $activityID;
+                        $notes = $row[\'notes\'];
+
+                        $cleanedNotes = preg_replace(
+                            \'/<span\\b(?=[^>]*\\bstyle\\s*=\\s*([\\\'"])[^\\\'"]*\\bcolor\\s*:\\s*#ff6c00\\b[^\\\'"]*\\1)[^>]*>(.*?)<\\/span>/is\',
+                            \'$2\',
+                            $notes
+                        );
+
+                        if ($cleanedNotes === null || $cleanedNotes === $notes)
+                        {
+                            continue;
+                        }
+
+                        $db->query(
+                            "UPDATE activity
+                             SET notes = " . $db->makeQueryString($cleanedNotes) . "
+                             WHERE activity_id = " . $activityID
+                        );
+                    }
+                }
+            ',
+            '378' => '
+                ALTER TABLE `joborder`
+                CHANGE `state` `state` VARCHAR(64) CHARACTER SET utf8 COLLATE utf8_unicode_ci NULL DEFAULT NULL;
+            ',
+            '379' => '
+                ALTER TABLE `calendar_event` MODIFY `joborder_id` int(11) NULL DEFAULT NULL;
+
+                UPDATE `calendar_event`
+                SET `joborder_id` = NULL
+                WHERE `joborder_id` = -1;
+
+                UPDATE
+                    `calendar_event` AS `ce`
+                LEFT JOIN
+                    `joborder` AS `jo` ON
+                        `ce`.`joborder_id` = `jo`.`joborder_id` AND
+                        `ce`.`site_id` = `jo`.`site_id`
+                SET
+                    `ce`.`joborder_id` = NULL
+                WHERE
+                    `ce`.`joborder_id` IS NOT NULL AND
+                    `jo`.`joborder_id` IS NULL;
+            ',
+            '380' => '
+                ALTER TABLE `activity`
+                ADD COLUMN `date_occurred` datetime NOT NULL DEFAULT \'1000-01-01 00:00:00\'
+                AFTER `entered_by`;
+                UPDATE `activity`
+                SET `date_occurred` = `date_created`;
+                CREATE INDEX `IDX_date_occurred` ON `activity` (`date_occurred`);
+                CREATE INDEX `IDX_site_occurred` ON `activity` (`site_id`,`date_occurred`);
+                CREATE INDEX `IDX_activity_site_type_occurred_job` ON `activity` (`site_id`,`data_item_type`,`date_occurred`,`entered_by`,`joborder_id`);
+            ',
+            '381' => 'PHP:
+                $db->query("ALTER IGNORE TABLE `site`
+                    ADD COLUMN `time_zone_iana` varchar(64) NOT NULL DEFAULT \'UTC\'
+                    AFTER `time_zone`", true);
+            ',
 
         );
     }

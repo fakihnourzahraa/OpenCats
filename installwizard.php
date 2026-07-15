@@ -1,32 +1,52 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
-"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <?php
     include_once('constants.php');
     include_once('config.php');
 
-    /* We aren't using any TemplateUtility methods that require us to pull in
-     * any of its dependencies.
-     */
     /* Version check before we include this. */
-   
     $phpVersion = phpversion();
     $phpVersionParts = explode('.', $phpVersion);
     if ($phpVersionParts[0] >= 5)
     {
+        include_once(LEGACY_ROOT . '/lib/Template.php');
+        include_once(LEGACY_ROOT . '/lib/Session.php');
         include_once(LEGACY_ROOT . '/lib/TemplateUtility.php');
+
+        @session_name(CATS_SESSION_NAME);
+        session_start();
     }
     else
     {
         $php4 = true;
     }
+
+    $installLibURL = 'js/lib.js';
+    $installScriptURL = 'js/install.js';
+    $subModalScriptURL = 'js/submodal/subModal.js';
+    $installCSSURL = 'modules/install/install.css';
+    if (!isset($php4))
+    {
+        $installLibURL = call_user_func(array('TemplateUtility', 'getVersionedAssetURL'), $installLibURL);
+        $installScriptURL = call_user_func(array('TemplateUtility', 'getVersionedAssetURL'), $installScriptURL);
+        $subModalScriptURL = call_user_func(array('TemplateUtility', 'getVersionedAssetURL'), $subModalScriptURL);
+        $installCSSURL = call_user_func(array('TemplateUtility', 'getVersionedAssetURL'), $installCSSURL);
+    }
 ?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html>
     <head>
         <title>OpenCATS - Installation Wizard Script</title>
-        <script type="text/javascript" src="js/lib.js"></script>
-        <script type="text/javascript" src="js/install.js"></script>
-        <script type="text/javascript" src="js/submodal/subModal.js"></script>
-        <style type="text/css" media="all">@import "modules/install/install.css";</style>
+        <?php
+            if (!isset($php4) && isset($_SESSION['CATS']) && $_SESSION['CATS']->isLoggedIn())
+            {
+                echo '<script type="text/javascript">CATSCsrfToken = ',
+                     Template::escapeJs($_SESSION['CATS']->getCSRFToken()), ';</script>', "\n";
+            }
+        ?>
+        <script type="text/javascript" src="<?php echo $installLibURL; ?>"></script>
+        <script type="text/javascript" src="<?php echo $installScriptURL; ?>"></script>
+        <script type="text/javascript" src="<?php echo $subModalScriptURL; ?>"></script>
+        <style type="text/css" media="all">@import "<?php echo $installCSSURL; ?>";</style>
     </head>
 
     <body>
@@ -123,7 +143,7 @@
                                                 </tr>
                                                 <tr>
                                                     <td nowrap="nowrap">Database Password:</td>
-                                                    <td valign="top"><input type="text" size="20" id="dbpass" value="" /></td>
+                                                    <td valign="top"><input type="password" size="20" id="dbpass" value="" /></td>
                                                 </tr>
                                                 <tr>
                                                     <td>Database Host: <span style="color: #ff0000">*</span></td>
@@ -416,7 +436,7 @@
                                             <br />
                                             You may now login to OpenCATS. If it is a new installation, use the following logon information:<br /><br />
                                             Username: admin<br />
-                                            Password: admin<br />
+                                            Password: cats<br />
                                             <br />
                                             <br />
                                             OpenCATS will periodically check for new versions of the software from catsone.com, and will send non confidential information about your
@@ -466,6 +486,16 @@
                                                             <option value="mdy" selected="selected">MM-DD-YYYY (US)</option>
                                                             <option value="dmy">DD-MM-YYYY (UK)</option>
                                                         </select>
+                                                    </td>
+                                                </tr>
+                                                <tr>
+                                                    <td>Please enter your default phone country calling code.</td>
+                                                </tr>
+                                                <tr>
+                                                    <td>
+                                                        <span>+</span>
+                                                        <input type="text" name="defaultPhoneCountryCodeDigits" id="defaultPhoneCountryCodeDigits" value="" size="5" maxlength="5" oninput="this.value = this.value.replace(/[^0-9]/g, '');"
+                                                        />
                                                     </td>
                                                 </tr>
                                             </table>

@@ -221,7 +221,7 @@ class JobOrders
             $this->_db->makeQueryString($status),
             $this->_db->makeQueryString($salary),
             $this->_db->makeQueryString($city),
-            $this->_db->makeQueryString($state),
+            $this->_db->makeQueryStringOrNULL($state),
             $this->_db->makeQueryInteger($departmentID),
             $this->_db->makeQueryInteger($recruiter),
             $this->_db->makeQueryInteger($owner),
@@ -287,6 +287,21 @@ class JobOrders
         /* Store history. */
         $history = new History($this->_siteID);
         $history->storeHistoryDeleted(DATA_ITEM_JOBORDER, $jobOrderID);
+
+        /* Clear calendar event associations for this job order. */
+        $sql = sprintf(
+            "UPDATE
+                calendar_event
+            SET
+                joborder_id = NULL
+            WHERE
+                joborder_id = %s
+            AND
+                site_id = %s",
+            $this->_db->makeQueryInteger($jobOrderID),
+            $this->_siteID
+        );
+        $this->_db->query($sql);
 
         /* Delete pipeline entries from candidate_joborder. */
         $sql = sprintf(
@@ -971,8 +986,7 @@ class JobOrdersDataGrid extends DataGrid
                                      'pagerRender'      => 'return $rsData[\'dateCreated\'];',
                                      'sortableColumn'     => 'dateCreatedSort',
                                      'pagerWidth'    => 60,
-                                     'filterHaving' => 'DATE_FORMAT(joborder.date_created, \'%m-%d-%y\')',
-                                    'filterTypes'  => '=d>=d<=='),
+                                     'filterHaving' => 'DATE_FORMAT(joborder.date_created, \'%m-%d-%y\')'),
 
             'Modified' =>      array('select'   => 'DATE_FORMAT(joborder.date_modified, \'%m-%d-%y\') AS dateModified',
                                      'pagerRender'      => 'return $rsData[\'dateModified\'];',

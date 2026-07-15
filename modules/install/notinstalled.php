@@ -1,12 +1,14 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
 "http://www.w3.org/TR/html4/transitional.dtd">
 <?php include_once('config.php'); ?>
+<?php include_once('constants.php'); ?>
+<?php include_once(LEGACY_ROOT . '/lib/TemplateUtility.php'); ?>
 <html>
     <head>
         <title>OpenCATS - Installation Wizard Script</title>
-        <script type="text/javascript" src="js/lib.js"></script>
-        <script type="text/javascript" src="js/install.js"></script>
-        <style type="text/css" media="all">@import "modules/install/install.css";</style>
+        <script type="text/javascript" src="<?php echo TemplateUtility::getVersionedAssetURL('js/lib.js'); ?>"></script>
+        <script type="text/javascript" src="<?php echo TemplateUtility::getVersionedAssetURL('js/install.js'); ?>"></script>
+        <style type="text/css" media="all">@import "<?php echo TemplateUtility::getVersionedAssetURL('modules/install/install.css'); ?>";</style>
     </head>
 
     <body>

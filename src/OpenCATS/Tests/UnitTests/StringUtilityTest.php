@@ -1,11 +1,6 @@
 <?php
 use PHPUnit\Framework\TestCase;
 
-if( !defined('LEGACY_ROOT') )
-{
-    define('LEGACY_ROOT', '.');
-}
-
 include_once(LEGACY_ROOT . '/lib/StringUtility.php');
 
 class StringUtilityTest extends TestCase
@@ -173,7 +168,7 @@ class StringUtilityTest extends TestCase
         }
 
         /* Some sample text to test with. */
-        $fairyTale = implode('', file('./modules/tests/SampleText.txt'));
+        $fairyTale = implode('', file('./src/OpenCATS/Tests/Fixtures/SampleText.txt'));
 
         /* I can assure you that none of Grimm's fairy tales contain phone numbers. */
         $this->assertFalse(StringUtility::containsPhoneNumber($fairyTale));
@@ -184,35 +179,35 @@ class StringUtilityTest extends TestCase
         $phoneNumbersToExtract = array(
             array(
                 '(+01)9094444444extension 15',
-                '909-444-4444 x 15'
+                '+01909444444415'
             ),
             array(
                 '1-800-444-3899 x 90',
-                '800-444-3899 x 90'
+                '+11800444389990'
             ),
             array(
                 '+019094444444',
-                '909-444-4444'
+                '+019094444444'
             ),
             array(
                 '7706675085',
-                '770-667-5085'
+                '+17706675085'
             ),
             array(
                 '770-667-5085 extension 15',
-                '770-667-5085 x 15'
+                '+1770667508515'
             ),
             array(
                 '(770) 667/5085',
-                '770-667-5085'
+                '+17706675085'
             ),
             array(
                 '(770) 667.5085',
-                '770-667-5085'
+                '+17706675085'
             ),
             array(
                 'my phone number is (770) 667.5085extension 15, it is.',
-                '770-667-5085 x 15'
+                '+1770667508515'
             ),
             array(
                 '+420466052932',
@@ -220,7 +215,7 @@ class StringUtilityTest extends TestCase
             ),
             array(
                 '+17706675085',
-                '770-667-5085'
+                '+17706675085'
             )
         );
 
@@ -304,7 +299,7 @@ class StringUtilityTest extends TestCase
         }
 
         /* Some sample text to test with. */
-        $fairyTale = implode('', file('./modules/tests/SampleText.txt'));
+        $fairyTale = implode('', file('./src/OpenCATS/Tests/Fixtures/SampleText.txt'));
 
         /* I can assure you that none of Grimm's fairy tales contain e-mail addresses. */
         $this->assertFalse(StringUtility::containsEmailAddress($fairyTale));
@@ -553,6 +548,44 @@ class StringUtilityTest extends TestCase
         $this->assertSame(
             StringUtility::makeInitialName('Michael', 'Zimmermann',  true, 1),
             'Z, M.'
+            );
+    }
+
+    function testMakeCityStateString()
+    {
+        $this->assertSame(
+            'Chicago, IL',
+            StringUtility::makeCityStateString('Chicago', 'IL')
+            );
+
+        $this->assertSame(
+            'Chicago',
+            StringUtility::makeCityStateString('Chicago', '')
+            );
+
+        $this->assertSame(
+            'IL',
+            StringUtility::makeCityStateString('', 'IL')
+            );
+
+        $this->assertSame(
+            '',
+            StringUtility::makeCityStateString('', '')
+            );
+
+        $this->assertSame(
+            'Chicago',
+            StringUtility::makeCityStateString('Chicago', null)
+            );
+
+        $this->assertSame(
+            'IL',
+            StringUtility::makeCityStateString(null, 'IL')
+            );
+
+        $this->assertSame(
+            '',
+            StringUtility::makeCityStateString(null, null)
             );
     }
 

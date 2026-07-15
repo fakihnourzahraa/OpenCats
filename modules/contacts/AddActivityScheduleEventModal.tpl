@@ -3,19 +3,55 @@
 <?php if(!$this->onlyScheduleEvent): ?>
 <?php TemplateUtility::printModalHeader('Contacts', array('modules/contacts/activityvalidator.js', 'js/activity.js'), 'Contacts: Log Activity'); ?>
 <?php else: ?>
-    <?php TemplateUtility::printModalHeader('Contacts', array('modules/contacts/activityvalidator.js', 'js/activity.js'), 'Contacts: Schedule Event'); ?>
+<?php TemplateUtility::printModalHeader('Contacts', array('modules/contacts/activityvalidator.js', 'js/activity.js'), 'Contacts: Schedule Event'); ?>
 <?php endif; ?>
 
 <?php if (!$this->isFinishedMode): ?>
 
 <script type="text/javascript">
+    window.CATSUserDateFormat = '<?php echo($_SESSION['CATS']->isDateDMY() ? 'DD-MM-YY' : 'MM-DD-YY'); ?>';
 </script>
 
-    <form name="logActivityForm" id="logActivityForm" action="<?php echo(CATSUtility::getIndexName()); ?>?m=contacts&amp;a=addActivityScheduleEvent<?php if($this->onlyScheduleEvent): ?>&amp;onlyScheduleEvent=true<?php endif; ?>" method="post" autocomplete="off">
+    <form name="logActivityForm" id="logActivityForm" action="<?php echo(CATSUtility::getIndexName()); ?>?m=contacts&amp;a=addActivityScheduleEvent<?php if($this->onlyScheduleEvent): ?>&amp;onlyScheduleEvent=true<?php endif; ?>" method="post" onsubmit="return checkActivityForm(document.logActivityForm);" autocomplete="off">
         <input type="hidden" name="postback" id="postback" value="postback" />
         <input type="hidden" id="contactID" name="contactID" value="<?php echo($this->contactID); ?>" />
 
         <table class="editTable" width="560">
+            <?php if(!$this->onlyScheduleEvent): ?>
+            <tr id="activityDateTR">
+                <td class="tdVertical">
+                    <label id="activityDateLabel" for="activityDate_Month_ID">Date:</label>
+                </td>
+                <td class="tdData">
+                    <script type="text/javascript">DateInput('activityDate', true, (typeof window.CATSUserDateFormat !== 'undefined' ? window.CATSUserDateFormat : 'MM-DD-YY'), '', -1);</script>
+                </td>
+            </tr>
+
+            <tr id="activityTimeTR">
+                <td class="tdVertical">
+                    <label id="activityTimeLabel" for="activityHour">Time:</label>
+                </td>
+                <td class="tdData">
+                    <select id="activityHour" name="activityHour" class="inputbox" style="width: 40px;">
+                        <?php for ($i = 1; $i <= 12; ++$i): ?>
+                            <option value="<?php echo($i); ?>"><?php echo(sprintf('%02d', $i)); ?></option>
+                        <?php endfor; ?>
+                    </select>&nbsp;
+                    <select id="activityMinute" name="activityMinute" class="inputbox" style="width: 40px;">
+                        <?php for ($i = 0; $i <= 59; ++$i): ?>
+                            <option value="<?php echo(sprintf('%02d', $i)); ?>">
+                                <?php echo(sprintf('%02d', $i)); ?>
+                            </option>
+                        <?php endfor; ?>
+                    </select>&nbsp;
+                    <select id="activityMeridiem" name="activityMeridiem" class="inputbox" style="width: 45px;">
+                        <option value="AM">AM</option>
+                        <option value="PM">PM</option>
+                    </select>
+                </td>
+            </tr>
+            <?php endif; ?>
+
             <tr id="visibleTR" <?php if($this->onlyScheduleEvent): ?>style="display:none;"<?php endif; ?>>
                 <td class="tdVertical">
                     <label id="regardingIDLabel" for="regardingID">Regarding:</label>
@@ -40,11 +76,12 @@
                     <div id="activityNoteDiv" style="margin-top: 4px;">
                         <span id="addActivitySpanA">Activity Type</span><br />
                         <select id="activityTypeID" name="activityTypeID" class="inputbox" style="width: 150px; margin-bottom: 4px;">
-                            <option selected="selected" value="<?php echo(ACTIVITY_CALL); ?>">Call</option>
+                            <option selected="selected" value="">-- Select --</option>
+                            <option value="<?php echo(ACTIVITY_CALL); ?>">Not reached</option>
                             <option value="<?php echo(ACTIVITY_CALL_TALKED); ?>">Call (Talked)</option>
                             <option value="<?php echo(ACTIVITY_CALL_LVM); ?>">Call (LVM)</option>
                             <option value="<?php echo(ACTIVITY_CALL_MISSED); ?>">Call (Missed)</option>
-                            <option value="<?php echo(ACTIVITY_EMAIL); ?>">E-Mail</option>
+                            <option value="<?php echo(ACTIVITY_EMAIL); ?>">Email</option>
                             <option value="<?php echo(ACTIVITY_MEETING); ?>">Meeting</option>
                             <option value="<?php echo(ACTIVITY_OTHER); ?>">Other</option>
                         </select><br />
@@ -73,7 +110,7 @@
                                     </div>
 
                                     <div style="margin-bottom: 4px;">
-                                        <script type="text/javascript">DateInput('dateAdd', true, 'MM-DD-YY', '', -1);</script>
+                                        <script type="text/javascript">DateInput('dateAdd', true, (typeof window.CATSUserDateFormat !== 'undefined' ? window.CATSUserDateFormat : 'MM-DD-YY'), '', -1);</script>
                                     </div>
 
                                     <div style="margin-bottom: 4px;">
@@ -121,7 +158,7 @@
                                     
                                     <div style="display:none;" id="reminderArea">
                                         <div>
-                                            <label>E-Mail To:</label><br />
+                                            <label>Email To:</label><br />
                                             <input type="text" id="sendEmail" name="sendEmail" class="inputbox" style="width: 150px" value="<?php $this->_($this->userEmail); ?>" />
                                         </div>
                                         <div>
@@ -145,11 +182,27 @@
 
         </table>
         <input type="submit" class="button" name="submit" id="submit" value="Save" />&nbsp;
-        <input type="button" class="button" name="close" value="Cancel" onclick="parentGoToURL('<?php echo(CATSUtility::getIndexName()); ?>?m=contacts&amp;a=show&amp;contactID=<?php echo($this->contactID); ?>');" />
+        <input type="button" class="button" name="close" value="Cancel" onclick="parentGoToURL(<?php echo Template::escapeJsAttr(CATSUtility::getIndexName() . '?m=contacts&a=show&contactID=' . $this->contactID); ?>);" />
     </form>
 
     <script type="text/javascript">
-        document.changePipelineStatusForm.activityNote.focus();
+        if (!<?php echo($this->onlyScheduleEvent ? 'true' : 'false'); ?>)
+        {
+            var now = new Date();
+            var currentHour = now.getHours() % 12;
+            if (currentHour == 0)
+            {
+                currentHour = 12;
+            }
+            document.getElementById('activityHour').value = currentHour.toString();
+            document.getElementById('activityMinute').value = (now.getMinutes() < 10 ? '0' : '') + now.getMinutes();
+            document.getElementById('activityMeridiem').value = (now.getHours() >= 12 ? 'PM' : 'AM');
+            document.logActivityForm.activityNote.focus();
+        }
+        else
+        {
+            document.getElementById('title').focus();
+        }
     </script>
 
 <?php else: ?>
@@ -159,7 +212,7 @@
         <?php if(!$this->onlyScheduleEvent): ?>
             <?php if ($this->activityAdded): ?>
                 <?php if (!empty($this->activityDescription)): ?>
-                    <p>An activity entry of type <span class="bold"><?php $this->_($this->activityType); ?></span> has been added with the following note: &quot;<?php echo($this->activityDescription); ?>&quot;.</p>
+                    <p>An activity entry of type <span class="bold"><?php $this->_($this->activityType); ?></span> has been added with the following note: &quot;<?php $this->_($this->activityDescription); ?>&quot;.</p>
                 <?php else: ?>
                     <p>An activity entry of type <span class="bold"><?php $this->_($this->activityType); ?></span> has been added with no notes.</p>
                 <?php endif; ?>
@@ -172,7 +225,7 @@
     <?php echo($this->eventHTML); ?>
     
     <form>
-        <input type="button" name="close" class="button" value="Close" onclick="parentGoToURL('<?php echo(CATSUtility::getIndexName()); ?>?m=contacts&amp;a=show&amp;contactID=<?php echo($this->contactID); ?>');" />
+        <input type="button" name="close" class="button" value="Close" onclick="parentGoToURL(<?php echo Template::escapeJsAttr(CATSUtility::getIndexName() . '?m=contacts&a=show&contactID=' . $this->contactID); ?>);" />
     </form>
 <?php endif; ?>
 

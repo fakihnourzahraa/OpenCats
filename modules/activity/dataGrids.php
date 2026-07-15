@@ -3,7 +3,7 @@
  * CATS
  * Contacts Datagrid
  *
- * CATS Version: 0.9.6
+ * CATS Version: 0.10.0
  *
  * Copyright (C) 2005 - 2007 Cognizo Technologies, Inc.
  *
@@ -54,20 +54,37 @@ class ActivityDataGrid extends DataGrid
         $this->allowResizing = true;
         $this->dateCriterion = '';
         
-        if (isset($parameters['period']) && !empty($parameters['period']))
+        $periods = array(
+            'DATE_SUB(CURDATE(), INTERVAL 1 WEEK)',
+            'DATE_SUB(CURDATE(), INTERVAL 1 MONTH)',
+            'DATE_SUB(CURDATE(), INTERVAL 6 MONTH)',
+            'DATE_SUB(CURDATE(), INTERVAL 1 YEAR)'
+        );
+        $period = isset($parameters['period'])
+            ? array_search($parameters['period'], $periods, true)
+            : false;
+
+        if ($period !== false)
         {
-            $this->dateCriterion .= ' AND activity.date_created >= ' . $parameters['period'] . ' ';
+            $this->dateCriterion .= ' AND activity.date_occurred >= ' .
+                $periods[$period] . ' ';
         }
         else
         {
-            if (isset($parameters['startDate']) && !empty($parameters['startDate']))
+            $db = DatabaseConnection::getInstance();
+
+            if (isset($parameters['startDate']) &&
+                self::isValidDate($parameters['startDate']))
             {
-                $this->dateCriterion .= ' AND activity.date_created >= \'' .$parameters['startDate'].'\' ';
+                $this->dateCriterion .= ' AND activity.date_occurred >= ' .
+                    $db->makeQueryString($parameters['startDate']) . ' ';
             }
-            
-            if (isset($parameters['endDate']) && !empty($parameters['endDate']))
+
+            if (isset($parameters['endDate']) &&
+                self::isValidDate($parameters['endDate']))
             {
-                $this->dateCriterion .= ' AND activity.date_created <= \''.$parameters['endDate'].'\' ';
+                $this->dateCriterion .= ' AND activity.date_occurred <= ' .
+                    $db->makeQueryString($parameters['endDate']) . ' ';
             }
         }
 
@@ -96,9 +113,9 @@ class ActivityDataGrid extends DataGrid
                                       'pagerWidth'     => 110,
                                       'pagerOptional'  => true,
                                       'alphaNavigation'=> true,
-                                      'filter' => 'activity.date_created'),
+                                      'filter' => 'activity.date_occurred'),
 
-            'First Name' =>     array('pagerRender'    => 'if ($rsData[\'dataItemType\']=='.DATA_ITEM_CANDIDATE.') {$ret = \'<img src="images/mru/candidate.gif" height="12" alt="" />\';} else if ($rsData[\'dataItemType\']=='.DATA_ITEM_CONTACT.') {$ret = \'<img src="images/mru/contact.gif" height="12">\';} else {$ret = \'<img src="images/mru/blank.gif">\';} if ($rsData[\'isHot\'] == 1) $className =  \'jobLinkHot\'; else $className = \'jobLinkCold\'; if ($rsData[\'dataItemType\']=='.DATA_ITEM_CANDIDATE.') {return $ret.\'&nbsp;<a href="'.CATSUtility::getIndexName().'?m=candidates&amp;a=show&amp;candidateID=\'.$rsData[\'dataItemID\'].\'" class="\'.$className.\'" title="\'.htmlspecialchars(InfoString::make($rsData[\'dataItemType\'],$rsData[\'dataItemID\'],$rsData[\'siteID\'])).\'">\'.htmlspecialchars($rsData[\'firstName\']).\'</a>\';} else {return  $ret.\'&nbsp;<a href="'.CATSUtility::getIndexName().'?m=contacts&amp;a=show&amp;contactID=\'.$rsData[\'dataItemID\'].\'" class="\'.$className.\'" title="\'.htmlspecialchars(InfoString::make($rsData[\'dataItemType\'],$rsData[\'dataItemID\'],$rsData[\'siteID\'])).\'">\'.htmlspecialchars($rsData[\'firstName\']).\'</a>\';}', 
+            'First Name' =>     array('pagerRender'    => 'if ($rsData[\'dataItemType\']=='.DATA_ITEM_CANDIDATE.') {$ret = \'<img src="images/mru/candidate.gif" height="12" alt="" />\';} else if ($rsData[\'dataItemType\']=='.DATA_ITEM_CONTACT.') {$ret = \'<img src="images/mru/contact.gif" height="12">\';} else {$ret = \'<img src="images/mru/blank.gif">\';} if ($rsData[\'isHot\'] == 1) $className =  \'jobLinkHot\'; else $className = \'jobLinkCold\'; if ($rsData[\'dataItemType\']=='.DATA_ITEM_CANDIDATE.') {return $ret.\'&nbsp;<a href="'.CATSUtility::getIndexName().'?m=candidates&amp;a=show&amp;candidateID=\'.$rsData[\'dataItemID\'].\'" class="\'.$className.\'" title="\'.Template::escapeAttr(InfoString::make($rsData[\'dataItemType\'],$rsData[\'dataItemID\'],$rsData[\'siteID\'])).\'">\'.Template::escapeHtml($rsData[\'firstName\']).\'</a>\';} else {return  $ret.\'&nbsp;<a href="'.CATSUtility::getIndexName().'?m=contacts&amp;a=show&amp;contactID=\'.$rsData[\'dataItemID\'].\'" class="\'.$className.\'" title="\'.Template::escapeAttr(InfoString::make($rsData[\'dataItemType\'],$rsData[\'dataItemID\'],$rsData[\'siteID\'])).\'">\'.Template::escapeHtml($rsData[\'firstName\']).\'</a>\';}', 
                                      'sortableColumn'  => 'firstName',
                                      'pagerWidth'      => 85,
                                      'pagerOptional'   => false,
@@ -106,7 +123,7 @@ class ActivityDataGrid extends DataGrid
 									 'filterable' 	   => false,
                                      'filterHaving'    => 'firstName'),
 
-            'Last Name' =>      array('pagerRender'    => 'if ($rsData[\'isHot\'] == 1) $className =  \'jobLinkHot\'; else $className = \'jobLinkCold\'; if ($rsData[\'dataItemType\']=='.DATA_ITEM_CANDIDATE.') {return \'<a href="'.CATSUtility::getIndexName().'?m=candidates&amp;a=show&amp;candidateID=\'.$rsData[\'dataItemID\'].\'" class="\'.$className.\'" title="\'.htmlspecialchars(InfoString::make($rsData[\'dataItemType\'],$rsData[\'dataItemID\'],$rsData[\'siteID\'])).\'"> \'.htmlspecialchars($rsData[\'lastName\']).\'</a>\';} else {return \'<a href="'.CATSUtility::getIndexName().'?m=contacts&amp;a=show&amp;contactID=\'.$rsData[\'dataItemID\'].\'" class="\'.$className.\'" title="\'.htmlspecialchars(InfoString::make($rsData[\'dataItemType\'],$rsData[\'dataItemID\'],$rsData[\'siteID\'])).\'"> \'.htmlspecialchars($rsData[\'lastName\']).\'</a>\';}', 
+            'Last Name' =>      array('pagerRender'    => 'if ($rsData[\'isHot\'] == 1) $className =  \'jobLinkHot\'; else $className = \'jobLinkCold\'; if ($rsData[\'dataItemType\']=='.DATA_ITEM_CANDIDATE.') {return \'<a href="'.CATSUtility::getIndexName().'?m=candidates&amp;a=show&amp;candidateID=\'.$rsData[\'dataItemID\'].\'" class="\'.$className.\'" title="\'.Template::escapeAttr(InfoString::make($rsData[\'dataItemType\'],$rsData[\'dataItemID\'],$rsData[\'siteID\'])).\'"> \'.Template::escapeHtml($rsData[\'lastName\']).\'</a>\';} else {return \'<a href="'.CATSUtility::getIndexName().'?m=contacts&amp;a=show&amp;contactID=\'.$rsData[\'dataItemID\'].\'" class="\'.$className.\'" title="\'.Template::escapeAttr(InfoString::make($rsData[\'dataItemType\'],$rsData[\'dataItemID\'],$rsData[\'siteID\'])).\'"> \'.Template::escapeHtml($rsData[\'lastName\']).\'</a>\';}', 
                                      'sortableColumn'  => 'lastName',
                                      'pagerWidth'      => 75,
                                      'pagerOptional'   => false,
@@ -114,7 +131,7 @@ class ActivityDataGrid extends DataGrid
 									 'filterable'      => false,
                                      'filterHaving'    => 'lastName'),
                                                              
-             'Regarding' =>      array('pagerRender'   => 'if ($rsData[\'jobIsHot\'] == 1) $className =  \'jobLinkHot\'; else $className = \'jobLinkCold\'; if ($rsData[\'companyIsHot\'] == 1) $companyClassName =  \'jobLinkHot\'; else $companyClassName = \'jobLinkCold\';  if ($rsData[\'regardingJobTitle\'] == \'\') {$ret = \'General\'; } else {$ret = \'<a href="'.CATSUtility::getIndexName().'?m=joborders&amp;a=show&amp;jobOrderID=\'.$rsData[\'jobOrderID\'].\'" class="\'.$className.\'">\'.htmlspecialchars($rsData[\'regardingJobTitle\']).\'</a>\'; if($rsData[\'regardingCompanyName\'] != \'\') {$ret .= \' <a href="'.CATSUtility::getIndexName().'?m=companies&amp;a=show&amp;companyID=\'.$rsData[\'companyID\'].\'" class="\'.$companyClassName.\'">(\'.htmlspecialchars($rsData[\'regardingCompanyName\']).\')\';}} return $ret;', 
+             'Regarding' =>      array('pagerRender'   => 'if ($rsData[\'jobIsHot\'] == 1) $className =  \'jobLinkHot\'; else $className = \'jobLinkCold\'; if ($rsData[\'companyIsHot\'] == 1) $companyClassName =  \'jobLinkHot\'; else $companyClassName = \'jobLinkCold\';  if ($rsData[\'regardingJobTitle\'] == \'\') {$ret = \'General\'; } else {$ret = \'<a href="'.CATSUtility::getIndexName().'?m=joborders&amp;a=show&amp;jobOrderID=\'.$rsData[\'jobOrderID\'].\'" class="\'.$className.\'">\'.Template::escapeHtml($rsData[\'regardingJobTitle\']).\'</a>\'; if($rsData[\'regardingCompanyName\'] != \'\') {$ret .= \' <a href="'.CATSUtility::getIndexName().'?m=companies&amp;a=show&amp;companyID=\'.$rsData[\'companyID\'].\'" class="\'.$companyClassName.\'">(\'.Template::escapeHtml($rsData[\'regardingCompanyName\']).\')\';}} return $ret;', 
                                      'sortableColumn'  => 'regarding',
                                      'pagerWidth'      => 125,
                                      'pagerOptional'   => true,
@@ -128,7 +145,7 @@ class ActivityDataGrid extends DataGrid
                                      'alphaNavigation' => true,
                                      'filter'          => 'activity_type.short_description'),  
                                      
-             'Notes' =>      array('pagerRender'    => 'return $rsData[\'notes\'];', 
+             'Notes' =>      array('pagerRender'    => 'return nl2br(Template::escapeHtml($rsData[\'notes\']));', 
                                      'sortableColumn'  => 'notes',
                                      'pagerWidth'      => 240,
                                      'pagerOptional'   => true,
@@ -146,6 +163,17 @@ class ActivityDataGrid extends DataGrid
         
         parent::__construct("activity:ActivityDataGrid", $parameters);
     }
+
+    private static function isValidDate($date)
+    {
+        if (!is_string($date) ||
+            !preg_match('/^([0-9]{4})-([0-9]{2})-([0-9]{2})$/D', $date, $matches))
+        {
+            return false;
+        }
+
+        return checkdate((int) $matches[2], (int) $matches[3], (int) $matches[1]);
+    }
         
     /**
      * Returns the sql statment for the pager.
@@ -154,6 +182,12 @@ class ActivityDataGrid extends DataGrid
      */
     public function getSQL($selectSQL, $joinSQL, $whereSQL, $havingSQL, $orderSQL, $limitSQL, $distinct = '')
     {   
+        $orderSQLWithTieBreaker = $orderSQL;
+        if (preg_match('/^ORDER BY\s+dateCreatedSort\s+(ASC|DESC)\s*$/i', $orderSQLWithTieBreaker, $matches))
+        {
+            $orderSQLWithTieBreaker .= ', activityID ' . strtoupper($matches[1]);
+        }
+
         $sql = sprintf(
             "SELECT SQL_CALC_FOUND_ROWS %s
                 activity.activity_id AS activityID,
@@ -171,9 +205,9 @@ class ActivityDataGrid extends DataGrid
                 activity.notes AS notes,
                 activity_type.short_description AS typeDescription,
                 DATE_FORMAT(
-                    activity.date_created, '%%m-%%d-%%y (%%h:%%i %%p)'
+                    activity.date_occurred, '%%m-%%d-%%y (%%h:%%i %%p)'
                 ) AS dateCreated,
-                activity.date_created AS dateCreatedSort,
+                activity.date_occurred AS dateCreatedSort,
                 entered_by_user.first_name AS enteredByFirstName,
                 entered_by_user.last_name AS enteredByLastName,
                 CONCAT(entered_by_user.last_name, entered_by_user.first_name) AS enteredBySort,
@@ -220,9 +254,9 @@ class ActivityDataGrid extends DataGrid
                 activity.notes AS notes,
                 activity_type.short_description AS typeDescription,
                 DATE_FORMAT(
-                    activity.date_created, '%%m-%%d-%%y (%%h:%%i %%p)'
+                    activity.date_occurred, '%%m-%%d-%%y (%%h:%%i %%p)'
                 ) AS dateCreated,
-                activity.date_created AS dateCreatedSort,
+                activity.date_occurred AS dateCreatedSort,
                 entered_by_user.first_name AS enteredByFirstName,
                 entered_by_user.last_name AS enteredByLastName,
                 CONCAT(entered_by_user.last_name, entered_by_user.first_name) AS enteredBySort,
@@ -266,7 +300,7 @@ class ActivityDataGrid extends DataGrid
             $this->dateCriterion,
             (strlen($whereSQL) > 0) ? ' AND ' . $whereSQL : '',
             (strlen($havingSQL) > 0) ? ' HAVING ' . $havingSQL : '',
-            $orderSQL,
+            $orderSQLWithTieBreaker,
             $limitSQL
         );
 

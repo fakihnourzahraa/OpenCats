@@ -3,7 +3,7 @@
  * CATS
  * Careers Page Display Module
  *
- * CATS Version: 0.9.6
+ * CATS Version: 0.10.0
  *
  * Copyright (C) 2005 - 2007 Cognizo Technologies, Inc.
  *

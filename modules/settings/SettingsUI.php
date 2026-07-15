@@ -24,7 +24,7 @@
  * Cognizo Technologies, Inc. All Rights Reserved.
  *
  *
- * $Id: SettingsUI.php 3810 2007-12-05 19:13:25Z brian $
+ * $Id: SettingsUI.php 3810 2007-12-05 19:13:25Z brian $opencats
  */
 
 include_once(LEGACY_ROOT . '/lib/LoginActivity.php');
@@ -38,7 +38,6 @@ include_once(LEGACY_ROOT . '/lib/ListEditor.php');
 include_once(LEGACY_ROOT . '/lib/SystemUtility.php');
 include_once(LEGACY_ROOT . '/lib/Mailer.php');
 include_once(LEGACY_ROOT . '/lib/EmailTemplates.php');
-include_once(LEGACY_ROOT . '/lib/License.php');
 include_once(LEGACY_ROOT . '/lib/History.php');
 include_once(LEGACY_ROOT . '/lib/Pipelines.php');
 include_once(LEGACY_ROOT . '/lib/CareerPortal.php');
@@ -68,7 +67,6 @@ class SettingsUI extends UserInterface
         $this->_moduleName = 'settings';
         $this->_moduleTabText = 'Settings';
 
-        /* Only CATS professional on site gets to make career portal customizer users. */
         if( class_exists('ACL_SETUP') && !empty(ACL_SETUP::$USER_ROLES) )
         {
             $this->_settingsUserCategories = ACL_SETUP::$USER_ROLES;
@@ -189,7 +187,7 @@ class SettingsUI extends UserInterface
         $tags = new Tags($this->_siteID);
         //$tags->update($_POST['tag_id'], $_POST['title'], $_POST['description']);
         $tags->update($_POST['tag_id'], $_POST['tag_title'], "-");
-        echo $_POST['tag_title'];
+        echo htmlspecialchars($_POST['tag_title'], ENT_QUOTES | ENT_SUBSTITUTE, HTML_ENCODING);
         return;
     }
     
@@ -340,14 +338,6 @@ class SettingsUI extends UserInterface
                 $this->manageUsers();
                 break;
 
-            case 'professional':
-                if ($this->getUserAccessLevel('settings.professional') < ACCESS_LEVEL_DEMO)
-                {
-                    CommonErrors::fatal(COMMONERROR_PERMISSION, $this, 'Invalid user level for action.');
-                }
-                $this->manageProfessional();
-                break;
-
             case 'previewPage':
                 if ($this->getUserAccessLevel('settings.previewPage') < ACCESS_LEVEL_READ)
                 {
@@ -427,7 +417,14 @@ class SettingsUI extends UserInterface
                 {
                     CommonErrors::fatal(COMMONERROR_PERMISSION, $this, 'Invalid user level for action.');
                 }
-                $this->deleteBackup();
+                if ($this->isPostBack())
+                {
+                    $this->deleteBackup();
+                }
+                else
+                {
+                    CommonErrors::fatal(COMMONERROR_BADFIELDS, $this, 'Invalid request.');
+                }
                 break;
 
             case 'customizeExtraFields':
@@ -606,7 +603,14 @@ class SettingsUI extends UserInterface
                     CommonErrors::fatal(COMMONERROR_PERMISSION, $this, 'Invalid user level for action.');
                 }
 
-                $this->onCareerPortalTweak();
+                if ($_SERVER['REQUEST_METHOD'] === 'POST')
+                {
+                    $this->onCareerPortalTweak();
+                }
+                else
+                {
+                    CommonErrors::fatal(COMMONERROR_BADFIELDS, $this, 'Invalid request.');
+                }
                 break;
 
             /* This really only exists for automated testing at this point. */
@@ -615,7 +619,14 @@ class SettingsUI extends UserInterface
                 {
                     CommonErrors::fatal(COMMONERROR_PERMISSION, $this, 'Invalid user level for action.');
                 }
-                $this->onDeleteUser();
+                if ($this->isPostBack())
+                {
+                    $this->onDeleteUser();
+                }
+                else
+                {
+                    CommonErrors::fatal(COMMONERROR_BADFIELDS, $this, 'Invalid request.');
+                }
                 break;
 
             case 'emailTemplates':
@@ -668,14 +679,15 @@ class SettingsUI extends UserInterface
                 $this->viewItemHistory();
                 break;
 
-            case 'getFirefoxModal':
-                $this->getFirefoxModal();
-                break;
-
             case 'ajax_tags_add':
                 if (!isset($_SESSION['CATS']) || empty($_SESSION['CATS']))
                 {
                     echo 'CATS has lost your session data!';
+                    return;
+                }
+                if ($_SERVER['REQUEST_METHOD'] !== 'POST')
+                {
+                    echo 'Invalid request.';
                     return;
                 }
                 $this->onAddNewTag();
@@ -687,6 +699,11 @@ class SettingsUI extends UserInterface
                     echo 'CATS has lost your session data!';
                     return;
                 }
+                if ($_SERVER['REQUEST_METHOD'] !== 'POST')
+                {
+                    echo 'Invalid request.';
+                    return;
+                }
                 $this->onRemoveTag();
                 break;
 
@@ -694,6 +711,11 @@ class SettingsUI extends UserInterface
                 if (!isset($_SESSION['CATS']) || empty($_SESSION['CATS']))
                 {
                     echo 'CATS has lost your session data!';
+                    return;
+                }
+                if ($_SERVER['REQUEST_METHOD'] !== 'POST')
+                {
+                    echo 'Invalid request.';
                     return;
                 }
                 $this->onChangeTag();
@@ -719,26 +741,17 @@ class SettingsUI extends UserInterface
                     echo 'CATS has lost your session data!';
                     return;
                 }
+                if (!$this->isPostBack())
+                {
+                    echo 'Invalid request.';
+                    return;
+                }
                 if ($this->getUserAccessLevel('settings.deleteUser') < ACCESS_LEVEL_SA)
                 {
                     echo 'You do not have access to delete a user.';
                     return;
                 }
                 $this->wizard_deleteUser();
-                break;
-
-            case 'ajax_wizardCheckKey':
-                if (!isset($_SESSION['CATS']) || empty($_SESSION['CATS']))
-                {
-                    echo 'CATS has lost your session data!';
-                    return;
-                }
-                if ($this->getUserAccessLevel('settings.checkKey') < ACCESS_LEVEL_SA)
-                {
-                    echo 'You do not have access to set the key.';
-                    return;
-                }
-                $this->wizard_checkKey();
                 break;
 
             case 'ajax_wizardLocalization':
@@ -767,20 +780,6 @@ class SettingsUI extends UserInterface
                     return;
                 }
                 $this->wizard_firstTimeSetup();
-                break;
-
-            case 'ajax_wizardLicense':
-                if (!isset($_SESSION['CATS']) || empty($_SESSION['CATS']))
-                {
-                    echo 'CATS has lost your session data!';
-                    return;
-                }
-                if ($this->getUserAccessLevel('settings.license') < ACCESS_LEVEL_SA)
-                {
-                    echo 'You do not have access to accept the license agreement.';
-                    return;
-                }
-                $this->wizard_license();
                 break;
 
             case 'ajax_wizardPassword':
@@ -873,11 +872,25 @@ class SettingsUI extends UserInterface
                 break;
             
             case 'addEmailTemplate':
-                $this->addEmailTemplate();
+                if ($this->isPostBack())
+                {
+                    $this->addEmailTemplate();
+                }
+                else
+                {
+                    CommonErrors::fatal(COMMONERROR_BADFIELDS, $this, 'Invalid request.');
+                }
                 break;
                 
             case 'deleteEmailTemplate':
-                $this->deleteEmailTemplate();
+                if ($this->isPostBack())
+                {
+                    $this->deleteEmailTemplate();
+                }
+                else
+                {
+                    CommonErrors::fatal(COMMONERROR_BADFIELDS, $this, 'Invalid request.');
+                }
                 break;
 
             /* Main settings page. */
@@ -901,7 +914,12 @@ class SettingsUI extends UserInterface
         }
         
         $emailTemplates = new EmailTemplates($this->_siteID);
-        $templateID = $_GET['id'];
+        if (!$this->isRequiredIDValid('id', $_POST))
+        {
+            CommonErrors::fatal(COMMONERROR_BADINDEX, $this, 'Invalid template ID.');
+        }
+
+        $templateID = $_POST['id'];
         $emailTemplates->delete($templateID);
        
         $this->emailTemplates();
@@ -928,16 +946,6 @@ class SettingsUI extends UserInterface
         }
     }
     
-    /*
-     * Called by handleRequest() to process loading the get firefox modal dialog.
-     */
-    private function getFirefoxModal()
-    {
-        $this->_template->display(
-            './modules/settings/getFirefoxModal.tpl'
-        );
-    }
-
     /*
      * Called by handleRequest() to process loading the my profile page.
      */
@@ -1449,18 +1457,18 @@ class SettingsUI extends UserInterface
     private function onDeleteUser()
     {
         /* Bail out if we don't have a valid user ID. */
-        if (!$this->isRequiredIDValid('userID', $_GET))
+        if (!$this->isRequiredIDValid('userID', $_POST))
         {
             CommonErrors::fatal(COMMONERROR_BADINDEX, $this, 'Invalid user ID.');
         }
 
         /* Keep users other than the automated tester from trying this. */
-        if (!$this->isRequiredIDValid('iAmTheAutomatedTester', $_GET))
+        if (!$this->isRequiredIDValid('iAmTheAutomatedTester', $_POST))
         {
             CommonErrors::fatal(COMMONERROR_PERMISSION, $this, 'You are not the automated tester.');
         }
 
-        $userID = $_GET['userID'];
+        $userID = $_POST['userID'];
 
         $users = new Users($this->_siteID);
         $users->delete($userID);
@@ -1486,18 +1494,12 @@ class SettingsUI extends UserInterface
         $jobOrdersRS = $jobOrders->extraFields->getSettings();
 
         $extraFieldTypes = $candidates->extraFields->getValuesTypes();
-        $this->extraFieldFilters = [
-            'default'  => ['name' => 'Default (Text)'],
-            'date'     => ['name' => 'Date Range'],
-            'range'    => ['name' => 'Range'],
-            'dropdown' => ['name' => 'Dropdown'],
-        ];
+
         $this->_template->assign('extraFieldSettingsCandidatesRS', $candidatesRS);
         $this->_template->assign('extraFieldSettingsContactsRS', $contactsRS);
         $this->_template->assign('extraFieldSettingsCompaniesRS', $companiesRS);
         $this->_template->assign('extraFieldSettingsJobOrdersRS', $jobOrdersRS);
         $this->_template->assign('extraFieldTypes', $extraFieldTypes);
-        $this->_template->assign('extraFieldFilters', $this->extraFieldFilters);
         $this->_template->assign('active', $this);
         $this->_template->display('./modules/settings/CustomizeExtraFields.tpl');
     }
@@ -1513,7 +1515,6 @@ class SettingsUI extends UserInterface
         foreach($extraFieldsMaintScriptArray as $index => $commandEncoded)
         {
             $command = urldecode($commandEncoded);
-            
             $args = explode(' ', $command);
 
             if (!isset($args[0]))
@@ -1524,18 +1525,11 @@ class SettingsUI extends UserInterface
             switch ($args[0])
             {
                 case 'ADDFIELD':
-                    $args = explode(' ', $command, 5);
-                    $extraFields = new ExtraFields($this->_siteID, intval(urldecode($args[1])));
-                    $filterType = isset($args[4]) ? urldecode($args[4]) : 'default';
-                    $validFilters = array('default', 'date', 'range', 'dropdown');
-                    $filterParts = array_values(array_intersect(
-                        array_filter(explode('|', $filterType)),
-                        $validFilters
-                    ));
-                    if (empty($filterParts)) $filterParts = array('default');
-                    $filterType = implode(',', $filterParts);
-                    $extraFields->define(urldecode($args[3]), urldecode($args[2]), $filterType);
+                    $args = explode(' ', $command, 4);
+                    $extraFields = new ExtraFields($this->_siteID, intval($args[1]));
+                    $extraFields->define(urldecode($args[3]), intval($args[2]));
                     break;
+
                 case 'DELETEFIELD':
                     $args = explode(' ', $command, 3);
                     $extraFields = new ExtraFields($this->_siteID, intval($args[1]));
@@ -1573,17 +1567,6 @@ class SettingsUI extends UserInterface
                     $extraFields = new ExtraFields($this->_siteID, intval($args[1]));
                     $extraFields->renameColumn(urldecode($args2[0]), urldecode($args2[1]));
                     break;
-                    
-                case 'CHANGEFILTER':
-                    $args = explode(' ', $command, 3);
-                    $args2 = explode(':', $args[2]);
-
-                    $extraFields = new ExtraFields($this->_siteID, intval($args[1]));
-                    $extraFields->setFilterType(
-                        urldecode($args2[0]),
-                        isset($args2[1]) ? urldecode($args2[1]) : 'default'
-                    );
-                    break;
             }
         }
 
@@ -1595,41 +1578,8 @@ class SettingsUI extends UserInterface
     {
         $emailTemplates = new EmailTemplates($this->_siteID);
         $emailTemplatesRS = $emailTemplates->getAll();
-        $emailTemplatesRS = array_values(array_filter($emailTemplatesRS, function($tpl) {
-    return strpos($tpl['emailTemplateTag'], 'EMAIL_TEMPLATE_STATUSCHANGE_') !== 0;
-}));
-        $pipelines = new Pipelines($this->_siteID);
-        $candidateStatusesRS = $pipelines->getStatusesForPicking();
-        $statusChangeFallbackText = '';
-        $statusChangePossibleVariables = '';
-        foreach ($emailTemplatesRS as $tpl) {
-            if ($tpl['emailTemplateTag'] === 'EMAIL_TEMPLATE_STATUSCHANGE') {
-                $statusChangeFallbackText      = $tpl['text'];
-                $statusChangePossibleVariables = $tpl['possibleVariables'];
-                break;
-            }
-        }
-        $emailTemplates = new EmailTemplates($this->_siteID);
-$allTemplatesRS = $emailTemplates->getAll();
 
-$emailTemplatesRS = array_values(array_filter($allTemplatesRS, function($tpl) {
-    return strpos($tpl['emailTemplateTag'], 'EMAIL_TEMPLATE_STATUSCHANGE_') !== 0;
-}));
-
-$statusChangeTemplatesRS = array();
-foreach ($allTemplatesRS as $tpl) {
-    if (strpos($tpl['emailTemplateTag'], 'EMAIL_TEMPLATE_STATUSCHANGE_') === 0) {
-        $sid = (int) substr($tpl['emailTemplateTag'], strlen('EMAIL_TEMPLATE_STATUSCHANGE_'));
-        $statusChangeTemplatesRS[$sid] = $tpl;
-    }
-}
-        
         if (!eval(Hooks::get('SETTINGS_EMAIL_TEMPLATES'))) return;
-
-        $this->_template->assign('candidateStatusesRS',        $candidateStatusesRS);
-        $this->_template->assign('statusChangeTemplatesRS',     $statusChangeTemplatesRS);
-        $this->_template->assign('statusChangeFallbackText',    $statusChangeFallbackText);
-        $this->_template->assign('statusChangePossibleVariables', $statusChangePossibleVariables);
 
         $this->_template->assign('active', $this);
         $this->_template->assign('subActive', 'Administration');
@@ -1640,12 +1590,8 @@ foreach ($allTemplatesRS as $tpl) {
     //FIXME: Document me.
     private function onEmailTemplates()
     {
-        // if (!$this->isRequiredIDValid('templateID', $_POST))
-        // {
-        //     CommonErrors::fatal(COMMONERROR_BADINDEX, $this, 'Invalid template ID.');
-        // }
-        $isStatusSub = !empty($_POST['isStatusSubTemplate']);
-        if (!$isStatusSub && !$this->isRequiredIDValid('templateID', $_POST)) {
+        if (!$this->isRequiredIDValid('templateID', $_POST))
+        {
             CommonErrors::fatal(COMMONERROR_BADINDEX, $this, 'Invalid template ID.');
         }
 
@@ -1684,17 +1630,8 @@ foreach ($allTemplatesRS as $tpl) {
         }
 
         $emailTemplates = new EmailTemplates($this->_siteID);
-        // $emailTemplates->update($templateID, $templateTitle, $text, $disabled);
-        $genericTpl = $emailTemplates->getByTag('EMAIL_TEMPLATE_STATUSCHANGE');
-        $statusChangePossibleVariables = $genericTpl['possibleVariables'] ?? '';
-       
-        if ($isStatusSub && (int)$templateID === 0) {
-            $statusID = (int) $_POST['statusID'];
-            $tag      = 'EMAIL_TEMPLATE_STATUSCHANGE_' . $statusID;
-            $emailTemplates->add($text, $tag, $tag, $this->_siteID, $statusChangePossibleVariables);
-        } else {
-            $emailTemplates->update($templateID, $templateTitle, $text, $disabled);
-        }
+        $emailTemplates->update($templateID, $templateTitle, $text, $disabled);
+
         CATSUtility::transferRelativeURI('m=settings&a=emailTemplates');
     }
 
@@ -1962,12 +1899,12 @@ foreach ($allTemplatesRS as $tpl) {
 
     private function onCareerPortalTweak()
     {
-        if (!isset($_GET['p']))
+        if (!isset($_POST['p']))
         {
             CommonErrors::fatal(COMMONERROR_BADINDEX, $this, 'Invalid page.');
         }
 
-        $page = $_GET['p'];
+        $page = $_POST['p'];
 
         $careerPortalSettings = new CareerPortalSettings($this->_siteID);
 
@@ -1976,6 +1913,10 @@ foreach ($allTemplatesRS as $tpl) {
             case 'new':
                 $origName = 'Blank Page';
                 $duplicateName = $this->getTrimmedInput('newName', $_POST);
+                if (empty($duplicateName))
+                {
+                    CommonErrors::fatal(COMMONERROR_MISSINGFIELDS, $this, 'Required fields are missing.');
+                }
 
                 /* Copy default templates or existing customized templates from orig to duplicate. */
                 $templateSource1 = $careerPortalSettings->getAllFromDefaultTemplate($origName);
@@ -2019,14 +1960,20 @@ foreach ($allTemplatesRS as $tpl) {
                 break;
 
             case 'delete':
-                //FIXME: Input validation.
-                $delName = $_POST['delName'];
+                $delName = $this->getTrimmedInput('delName', $_POST);
+                if (empty($delName))
+                {
+                    CommonErrors::fatal(COMMONERROR_MISSINGFIELDS, $this, 'Required fields are missing.');
+                }
                 $careerPortalSettings->deleteCustomTemplate($delName);
                 break;
 
             case 'setAsActive':
-                //FIXME: Input validation.
-                $activeName = $_POST['activeName'];
+                $activeName = $this->getTrimmedInput('activeName', $_POST);
+                if (empty($activeName))
+                {
+                    CommonErrors::fatal(COMMONERROR_MISSINGFIELDS, $this, 'Required fields are missing.');
+                }
                 $careerPortalSettings->set('activeBoard', $activeName);
                 break;
         }
@@ -2389,8 +2336,8 @@ foreach ($allTemplatesRS as $tpl) {
 
             $companies = new Companies($this->_siteID);
             $companyIDInternal = $companies->add(
-                'Internal Postings', '', '', '', '', '', '', '', '', '', '',
-                '', '', 'Internal postings.', $this->_userID, $this->_userID
+                'Internal Postings', '', '', '', '', '', '', '', '', '', '', 0,
+                'Internal postings.', $this->_userID, $this->_userID
             );
 
             $companies->setCompanyDefault($companyIDInternal);
@@ -2488,6 +2435,19 @@ foreach ($allTemplatesRS as $tpl) {
 
                     $this->_template->assign('timeZone', $_SESSION['CATS']->getTimeZone());
                     $this->_template->assign('isDateDMY', $_SESSION['CATS']->isDateDMY());
+
+                    // Default phone country calling code for the localization settings page.
+                    $defaultPhoneCountryCode = $_SESSION['CATS']->getDefaultPhoneCountryCode();
+                    $defaultPhoneCountryCodeDigits = preg_replace('/[^0-9]/', '', (string) $defaultPhoneCountryCode);
+
+                    if ($defaultPhoneCountryCodeDigits === '')
+                    {
+                        // Fall back to "1" for display if nothing is configured in the database.
+                        $defaultPhoneCountryCodeDigits = '1';
+                    }
+
+                    $this->_template->assign('defaultPhoneCountryCodeDigits', $defaultPhoneCountryCodeDigits);
+
                     $templateFile = './modules/settings/Localization.tpl';
                     break;
 
@@ -2564,17 +2524,7 @@ foreach ($allTemplatesRS as $tpl) {
 
         if (!eval(Hooks::get('SETTINGS_DISPLAY_ADMINISTRATION'))) return;
 
-        /* Check if careers website is enabled or can be enabled */
-        $careerPortalUnlock = false;
-        $careerPortalSettings = new CareerPortalSettings($this->_siteID);
-        $cpData = $careerPortalSettings->getAll();
-        if (intval($cpData['enabled']) || !$_SESSION['CATS']->isFree() ||
-            LicenseUtility::isProfessional())
-        {
-            $careerPortalUnlock = true;
-        }
-
-        $this->_template->assign('careerPortalUnlock', $careerPortalUnlock);
+        $this->_template->assign('careerPortalUnlock', true);
         $this->_template->assign('subActive', 'Administration');
         $this->_template->assign('systemAdministration', $systemAdministration);
         $this->_template->assign('active', $this);
@@ -2645,6 +2595,27 @@ foreach ($allTemplatesRS as $tpl) {
 
                 $site = new Site($this->_siteID);
                 $site->setLocalization($timeZone, $isDMY);
+
+                // Default phone country calling code (E.164) for the site.
+                if (isset($_POST['defaultPhoneCountryCodeDigits']))
+                {
+                    $defaultPhoneCountryCodeDigits = trim($_POST['defaultPhoneCountryCodeDigits']);
+
+                    // Keep digits only; any other characters are ignored.
+                    $defaultPhoneCountryCodeDigits = preg_replace('/[^0-9]/', '', $defaultPhoneCountryCodeDigits);
+
+                    if ($defaultPhoneCountryCodeDigits !== '')
+                    {
+                        $defaultPhoneCountryCode = '+' . $defaultPhoneCountryCodeDigits;
+
+                        // Persist to the site table.
+                        $site->setDefaultPhoneCountryCode($defaultPhoneCountryCode);
+
+                        // Update the session helper so the new value is available immediately.
+                        $_SESSION['CATS']->setDefaultPhoneCountryCode($defaultPhoneCountryCode);
+                    }
+                    // If no digits are submitted, keep the existing value in the database/session.
+                }
 
                 $_SESSION['CATS']->logout();
                 unset($_SESSION['CATS']);
@@ -2752,76 +2723,6 @@ foreach ($allTemplatesRS as $tpl) {
         $this->_template->display('./modules/settings/Users.tpl');
     }
 
-    private function manageProfessional()
-    {
-        $wf = new WebForm();
-        $wf->addField('licenseKey', 'License Key', WFT_TEXT, true, 60, 30, 190, '', '/[A-Za-z0-9 ]+/',
-            'That is not a valid license key!');
-        $message = '';
-        $license = new License();
-
-        $upgradeStatus = false;
-
-        if (isset($_GET['webFormPostBack']))
-        {
-            list ($fields, $errors) = $wf->getValidatedFields();
-            if (count($errors) > 0) $message = 'Please enter a license key in order to continue.';
-
-            $key = trim($fields['licenseKey']);
-
-            $configWritten = false;
-
-            if ($license->setKey($key) === false)
-            {
-                $message = 'That is not a valid license key<br /><span style="font-size: 16px; color: #000000;">Please verify that you have the correct key and try again.</span>';
-            }
-            else if ($license->isProfessional())
-            {
-                if (!CATSUtility::isSOAPEnabled())
-                {
-                    $message = 'CATS Professional requires the PHP SOAP library which isn\'t currently installed.<br /><br />'
-                        . 'Installation Instructions:<br /><br />'
-                        . 'WAMP/Windows Users:<dl>'
-                        . '<li>Left click on the wamp icon.</li>'
-                        . '<li>Select "PHP Settings" from the drop-down list.</li>'
-                        . '<li>Select "PHP Extensions" from the drop-down list.</li>'
-                        . '<li>Check the "php_soap" option.</li>'
-                        . '<li>Restart WAMP.</li></dl>'
-                        . 'Linux Users:<br /><br />'
-                        . 'Re-install PHP with the --enable-soap configuration option.<br /><br />'
-                        . 'Please visit http://www.catsone.com for more support options.';
-                }
-                if (!LicenseUtility::validateProfessionalKey($key))
-                {
-                    $message = 'That is not a valid Professional membership key<br /><span style="font-size: 16px; color: #000000;">Please verify that you have the correct key and try again.</span>';
-                }
-                else if (!CATSUtility::changeConfigSetting('LICENSE_KEY', "'" . $key . "'"))
-                {
-                    $message = 'Internal Permissions Error<br /><span style="font-size: 12px; color: #000000;">CATS is unable '
-                        . 'to write changes to your <b>config.php</b> file. Please change the file permissions or contact us '
-                        . 'for support. Our support e-mail is <a href="mailto:support@catsone.com">support@catsone.com</a> '
-                        . 'and our office number if (952) 417-0067.</span>';
-                }
-                else
-                {
-                    $upgradeStatus = true;
-                }
-            }
-            else
-            {
-                $message = 'That is not a valid Professional membership key<br /><span style="font-size: 16px; color: #000000;">Please verify that you have the correct key and try again.</span>';
-            }
-        }
-
-        $this->_template->assign('active', $this);
-        $this->_template->assign('subActive', 'Professional Membership');
-        $this->_template->assign('message', $message);
-        $this->_template->assign('upgradeStatus', $upgradeStatus);
-        $this->_template->assign('webForm', $wf);
-        $this->_template->assign('license', $license);
-        $this->_template->display('./modules/settings/Professional.tpl');
-    }
-
     /*
      * Called by handleRequest() to process changing a user's password.
      */
@@ -2917,10 +2818,26 @@ foreach ($allTemplatesRS as $tpl) {
 
         if ($logout)
         {
-            CATSUtility::transferRelativeURI(
-                'm=logout&message=' . urlencode($message) .
-                '&messageSuccess=' . urlencode($messageSuccess)
-            );
+            $indexName = CATSUtility::getIndexName();
+
+            echo '<html><body>';
+            echo '<form id="logoutForm" method="post" action="', $indexName, '?m=logout">';
+            if (isset($_SESSION['CATS']))
+            {
+                echo '<input type="hidden" name="csrfToken" value="',
+                    htmlspecialchars($_SESSION['CATS']->getCSRFToken(), ENT_QUOTES, 'UTF-8'),
+                    '" />';
+            }
+            echo '<input type="hidden" name="message" value="',
+                htmlspecialchars($message, ENT_QUOTES, 'UTF-8'),
+                '" />';
+            echo '<input type="hidden" name="messageSuccess" value="',
+                htmlspecialchars($messageSuccess, ENT_QUOTES, 'UTF-8'),
+                '" />';
+            echo '</form>';
+            echo '<script type="text/javascript">document.getElementById("logoutForm").submit();</script>';
+            echo '</body></html>';
+            die();
         }
         else
         {
@@ -3131,12 +3048,12 @@ foreach ($allTemplatesRS as $tpl) {
 
     private function wizard_deleteUser()
     {
-        if (isset($_GET[$id = 'userID'])) $userID = intval($_GET[$id]);
-        else
+        if (!$this->isRequiredIDValid('userID', $_POST))
         {
             echo 'Unable to find the user you are trying to delete.';
             return;
         }
+        $userID = intval($_POST['userID']);
 
         if ($userID == $_SESSION['CATS']->getUserID())
         {
@@ -3147,84 +3064,6 @@ foreach ($allTemplatesRS as $tpl) {
         $users = new Users($this->_siteID);
         $users->delete($userID);
         echo 'Ok';
-    }
-
-    private function wizard_checkKey()
-    {
-        $fileError = false;
-
-        if (isset($_GET[$id = 'key']) && $_GET[$id] != '')
-        {
-            $license = new License();
-            $key = strtoupper(trim($_GET[$id]));
-
-            $configWritten = false;
-
-            if ($license->setKey($key) !== false)
-            {
-                if ($license->isProfessional())
-                {
-                    if (!CATSUtility::isSOAPEnabled())
-                    {
-                        echo "CATS Professional requires the PHP SOAP library which isn't currently installed.\n\n"
-                            . "Installation Instructions:\n\n"
-                            . "WAMP/Windows Users:\n"
-                            . "1) Left click on the wamp icon.\n"
-                            . "2) Select \"PHP Settings\" from the drop-down list.\n"
-                            . "3) Select \"PHP Extensions\" from the drop-down list.\n"
-                            . "4) Check the \"php_soap\" option.\n"
-                            . "5) Restart WAMP.\n\n"
-                            . "Linux Users:\n"
-                            . "Re-install PHP with the --enable-soap configuration option.\n\n"
-                            . "Please visit http://www.catsone.com for more support options.";
-                        return;
-                    }
-                    else
-                    {
-                        if (!LicenseUtility::validateProfessionalKey($key))
-                        {
-                            echo "That is not a valid CATS Professional license key. Please visit "
-                                . "http://www.catsone.com/professional for more information about CATS Professional.\n\n"
-                                . "For a free open-source key, please visit http://www.catsone.com/ and "
-                                . "click on \"Downloads\".";
-                            return;
-                        }
-                    }
-                }
-
-                if (CATSUtility::changeConfigSetting('LICENSE_KEY', "'" . $key . "'"))
-                {
-                    $configWritten = true;
-                }
-            }
-
-            if ($configWritten)
-            {
-                echo 'Ok';
-                return;
-            }
-        }
-
-        // The key hasn't been written. But they may have manually inserted the key into their config.php, check
-        if (LicenseUtility::isLicenseValid())
-        {
-            echo 'Ok';
-            return;
-        }
-
-        if ($fileError)
-        {
-            echo 'You entered a valid key, but this wizard is unable to write to your config.php file! You have '
-                . 'two choices: ' . "\n\n"
-                . '1) Change the file permissions of your config.php file.'."\n".'If you\'re using unix, try:' . "\n" . 'chmod 777 config.php' . "\n\n"
-                . '2) Edit your config.php file manually and enter your valid key near this line: ' . "\n"
-                . 'define(\'LICENSE_KEY\', \'ENTER YOUR KEY HERE\');' . "\n" . 'Once you\'ve done this, refresh your browser.' . "\n\n"
-                . 'For more help, visit our website at http://www.catsone.com for support options.';
-        }
-
-        echo 'That is not a valid key. You can register for a free open source license key on our website '
-            . 'at http://www.catsone.com or a professional key to unlock all of the available features at '
-            . 'http://www.catsone.com/professional';
     }
 
     private function wizard_localization()
@@ -3249,14 +3088,6 @@ foreach ($allTemplatesRS as $tpl) {
         $site = new Site($this->_siteID);
         $site->setLocalization($timeZone, $isDMY);
         $site->setLocalizationConfigured();
-
-        echo 'Ok';
-    }
-
-    private function wizard_license()
-    {
-        $site = new Site($this->_siteID);
-        $site->setAgreedToLicense();
 
         echo 'Ok';
     }
@@ -3323,8 +3154,8 @@ foreach ($allTemplatesRS as $tpl) {
 
         $companies = new Companies($this->_siteID);
         $companyIDInternal = $companies->add(
-            'Internal Postings', '', '', '', '', '', '', '', '', '', '',
-            '', '', 'Internal postings.', $this->_userID, $this->_userID
+            'Internal Postings', '', '', '', '', '', '', '', '', '', '', 0,
+            'Internal postings.', $this->_userID, $this->_userID
         );
 
         $companies->setCompanyDefault($companyIDInternal);

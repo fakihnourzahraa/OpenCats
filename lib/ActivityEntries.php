@@ -37,6 +37,7 @@ define('ACTIVITY_OTHER',       400);
 define('ACTIVITY_CALL_TALKED', 500);
 define('ACTIVITY_CALL_LVM',    600);
 define('ACTIVITY_CALL_MISSED', 700);
+define('ACTIVITY_STATUS_CHANGE', 800);
 
 /**
  * Candidates library.
@@ -80,12 +81,28 @@ class ActivityEntries
      * @param flag Activity type flag.
      * @param string Activity notes.
      * @param integer Entered-by user ID.
-     * @param integer Job Order ID; -1 for general.
+     * @param integer Job Order ID; -1 for general (stored as NULL).
+     * @param string Date occurred timestamp (YYYY-MM-DD HH:MM:SS); false for NOW().
      * @return integer New Activity ID; -1 on failure.
      */
     public function add($dataItemID, $dataItemType, $activityType,
-        $activityNotes, $enteredBy, $jobOrderID = -1)
+        $activityNotes, $enteredBy, $jobOrderID = -1, $dateOccurred = false)
     {
+        if (!ctype_digit((string) $jobOrderID) || (int) $jobOrderID <= 0)
+        {
+            $jobOrderID = -1;
+        }
+
+        if (is_string($dateOccurred) &&
+            preg_match('/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/', $dateOccurred))
+        {
+            $dateOccurredSQL = $this->_db->makeQueryString($dateOccurred);
+        }
+        else
+        {
+            $dateOccurredSQL = 'NOW()';
+        }
+
         $sql = sprintf(
             "INSERT INTO activity (
                 data_item_id,
@@ -95,10 +112,12 @@ class ActivityEntries
                 type,
                 notes,
                 site_id,
+                date_occurred,
                 date_created,
                 date_modified
             )
             VALUES (
+                %s,
                 %s,
                 %s,
                 %s,
@@ -111,11 +130,12 @@ class ActivityEntries
             )",
             $this->_db->makeQueryInteger($dataItemID),
             $this->_db->makeQueryInteger($dataItemType),
-            $this->_db->makeQueryInteger($jobOrderID),
+            $this->_db->makeQueryIntegerOrNULL($jobOrderID),
             $this->_db->makeQueryInteger($enteredBy),
             $this->_db->makeQueryInteger($activityType),
             $this->_db->makeQueryString($activityNotes),
-            $this->_siteID
+            $this->_siteID,
+            $dateOccurredSQL
         );
 
         $queryResult = $this->_db->query($sql);
@@ -142,7 +162,8 @@ class ActivityEntries
         /* If there is a job order being associated, update it's modified
          * timestamp, too.
          */
-        if ($jobOrderID != -1)
+        if (!empty($jobOrderID) && ctype_digit((string) $jobOrderID) &&
+            (int) $jobOrderID > 0)
         {
             $this->_updateDataItemModified($jobOrderID, DATA_ITEM_JOBORDER);
         }
@@ -156,11 +177,11 @@ class ActivityEntries
      * @param integer Activity ID to update.
      * @param flag New activity type flag.
      * @param string New activity notes.
-     * @param integer New Job Order ID; -1 for general.
+     * @param integer New Job Order ID; -1 for general (stored as NULL).
      * @return boolean True if successful; false otherwise.
      */
     public function update($activityID, $activityType, $activityNotes,
-        $jobOrderID = false, $date = false, $timezoneOffset)
+        $jobOrderID, $date, $timezoneOffset)
     {
         /* Get some extra information about the activity entry that we'll
          * need later on.
@@ -203,6 +224,11 @@ class ActivityEntries
             $newJobOrderID = $jobOrderID;
         }
 
+        if (!ctype_digit((string) $newJobOrderID) || (int) $newJobOrderID <= 0)
+        {
+            $newJobOrderID = -1;
+        }
+
         $sql = sprintf(
             "UPDATE
                 activity
@@ -217,7 +243,7 @@ class ActivityEntries
                 site_id = %s",
             $this->_db->makeQueryInteger($activityType),
             $this->_db->makeQueryString($activityNotes),
-            $this->_db->makeQueryInteger($newJobOrderID),
+            $this->_db->makeQueryIntegerOrNULL($newJobOrderID),
             $this->_db->makeQueryInteger($activityID),
             $this->_siteID
         );
@@ -229,7 +255,7 @@ class ActivityEntries
                 "UPDATE
                     activity
                 SET
-                    date_created  = DATE_SUB(%s, INTERVAL %s HOUR),
+                    date_occurred = DATE_SUB(%s, INTERVAL %s HOUR),
                     date_modified = NOW()
                 WHERE
                     activity_id = %s
@@ -267,7 +293,8 @@ class ActivityEntries
         /* If there is a job order being associated, update it's modified
          * timestamp, too.
          */
-        if (!empty($jobOrderID) && ctype_digit((string) $jobOrderID))
+        if (!empty($jobOrderID) && ctype_digit((string) $jobOrderID) &&
+            (int) $jobOrderID > 0)
         {
             $this->_updateDataItemModified($jobOrderID, DATA_ITEM_JOBORDER);
         }
@@ -276,7 +303,7 @@ class ActivityEntries
          * is valid, update its modified timestamp, too.
          */
         if (!empty($newJobOrderID) && ctype_digit((string) $newJobOrderID) &&
-            $jobOrderID != $newJobOrderID)
+            (int) $newJobOrderID > 0 && $jobOrderID != $newJobOrderID)
         {
             $this->_updateDataItemModified($newJobOrderID, DATA_ITEM_JOBORDER);
         }
@@ -403,7 +430,7 @@ class ActivityEntries
                 activity_type.short_description AS typeDescription,
                 activity.notes AS notes,
                 DATE_FORMAT(
-                    activity.date_created, '%%m-%%d-%%y (%%h:%%i %%p)'
+                    activity.date_occurred, '%%m-%%d-%%y (%%h:%%i %%p)'
                 ) AS dateCreated,
                 entered_by_user.first_name AS enteredByFirstName,
                 entered_by_user.last_name AS enteredByLastName,
@@ -451,12 +478,11 @@ class ActivityEntries
                 activity.joborder_id AS jobOrderID,
                 activity.notes AS notes,
                 DATE_FORMAT(
-                    activity.date_created, '%%m-%%d-%%y (%%h:%%i %%p)'
+                    activity.date_occurred, '%%m-%%d-%%y (%%h:%%i %%p)'
                 ) AS dateCreated,
-                activity.date_created AS dateCreatedSort,
+                activity.date_occurred AS dateCreatedSort,
                 activity.type AS type,
                 activity_type.short_description AS typeDescription,
-                activity.date_created AS dateCreatedSort,
                 entered_by_user.first_name AS enteredByFirstName,
                 entered_by_user.last_name AS enteredByLastName,
                 IF(
@@ -483,10 +509,75 @@ class ActivityEntries
             AND
                 activity.site_id = %s
             ORDER BY
-                dateCreatedSort ASC",
+                dateCreatedSort DESC,
+                activity.activity_id DESC",
             $this->_db->makeQueryInteger($dataItemID),
             $this->_db->makeQueryInteger($dataItemType),
             $this->_siteID
+        );
+
+        return $this->_db->getAllAssoc($sql);
+    }
+
+    /**
+     * Returns all activity entries for contacts belonging to a company.
+     *
+     * @param integer Company ID.
+     * @return resultset Activity entries data.
+     */
+    public function getAllByCompany($companyID)
+    {
+        $sql = sprintf(
+            "SELECT
+                activity.activity_id AS activityID,
+                activity.data_item_id AS dataItemID,
+                activity.joborder_id AS jobOrderID,
+                activity.notes AS notes,
+                DATE_FORMAT(
+                    activity.date_occurred, '%%m-%%d-%%y (%%h:%%i %%p)'
+                ) AS dateCreated,
+                activity.date_occurred AS dateCreatedSort,
+                activity.type AS type,
+                activity_type.short_description AS typeDescription,
+                entered_by_user.first_name AS enteredByFirstName,
+                entered_by_user.last_name AS enteredByLastName,
+                contact.contact_id AS contactID,
+                contact.first_name AS contactFirstName,
+                contact.last_name AS contactLastName,
+                IF(
+                    ISNULL(joborder.title),
+                    'General',
+                    CONCAT(joborder.title, ' (', company.name, ')')
+                ) AS regarding,
+                joborder.title AS regardingJobTitle,
+                company.name AS regardingCompanyName
+            FROM
+                activity
+            LEFT JOIN user AS entered_by_user
+                ON activity.entered_by = entered_by_user.user_id
+            LEFT JOIN activity_type
+                ON activity.type = activity_type.activity_type_id
+            LEFT JOIN joborder
+                ON activity.joborder_id = joborder.joborder_id
+            LEFT JOIN company
+                ON joborder.company_id = company.company_id
+            INNER JOIN contact
+                ON activity.data_item_id = contact.contact_id
+            WHERE
+                contact.company_id = %s
+            AND
+                activity.data_item_type = %s
+            AND
+                activity.site_id = %s
+            AND
+                contact.site_id = %s
+            ORDER BY
+                dateCreatedSort DESC,
+                activity.activity_id DESC",
+            $this->_db->makeQueryInteger($companyID),
+            $this->_db->makeQueryInteger(DATA_ITEM_CONTACT),
+            $this->_db->makeQueryInteger($this->_siteID),
+            $this->_db->makeQueryInteger($this->_siteID)
         );
 
         return $this->_db->getAllAssoc($sql);

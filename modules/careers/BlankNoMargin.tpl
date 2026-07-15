@@ -5,13 +5,13 @@
         <meta http-equiv="Content-Type" content="text/html; charset=<?php echo(HTML_ENCODING); ?>">
         <title><?php $this->_($this->siteName); ?> - Careers</title>
         <?php global $careerPage; if (isset($careerPage) && $careerPage == true): ?>
-            <script type="text/javascript" src="../js/lib.js"></script>
-            <script type="text/javascript" src="../js/sorttable.js"></script>
-            <script type="text/javascript" src="../js/calendarDateInput.js"></script>
+            <script type="text/javascript" src="<?php echo '../' . TemplateUtility::getVersionedAssetURL('js/lib.js'); ?>"></script>
+            <script type="text/javascript" src="<?php echo '../' . TemplateUtility::getVersionedAssetURL('js/sorttable.js'); ?>"></script>
+            <script type="text/javascript" src="<?php echo '../' . TemplateUtility::getVersionedAssetURL('js/calendarDateInput.js'); ?>"></script>
         <?php else: ?>
-            <script type="text/javascript" src="js/lib.js"></script>
-            <script type="text/javascript" src="js/sorttable.js"></script>
-            <script type="text/javascript" src="js/calendarDateInput.js"></script>
+            <script type="text/javascript" src="<?php echo TemplateUtility::getVersionedAssetURL('js/lib.js'); ?>"></script>
+            <script type="text/javascript" src="<?php echo TemplateUtility::getVersionedAssetURL('js/sorttable.js'); ?>"></script>
+            <script type="text/javascript" src="<?php echo TemplateUtility::getVersionedAssetURL('js/calendarDateInput.js'); ?>"></script>
         <?php endif; ?>
         <style type="text/css" media="all">
             <?php echo($this->template['CSS']); ?>

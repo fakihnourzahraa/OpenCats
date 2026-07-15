@@ -72,6 +72,7 @@ class CATSSession
     private $_storedBuild = -1;
     private $_timeZoneOffset = 0;
     private $_timeZone = 0;
+    private $_defaultPhoneCountryCode = '+1';
     private $_dateDMY = false;
     private $_pipelineEntriesPerPage = 15;
     private $_storedData = array();
@@ -83,6 +84,8 @@ class CATSSession
     private $_isAgreedToLicense = false;
     private $_isLocalizationConfigured = false;
     private $_loggedInDirectory = '';
+    private $_canSeeEEOInfo = false;
+    private $_loggedInScript = '';
 
     /**
      * Returns this session's MRU object, and creates one if it doesn't exist.
@@ -531,6 +534,29 @@ class CATSSession
         return $this->_timeZone;
     }
 
+    /**
+     * Returns the default phone country calling code (E.164) for the
+     * current site. The value is stored in the "site" table.
+     *
+     * @return string
+     */
+    public function getDefaultPhoneCountryCode()
+    {
+        return $this->_defaultPhoneCountryCode;
+    }
+
+    /**
+     * Sets the default phone country calling code for the current site
+     * on the session object. This does not write to the database.
+     *
+     * @param string $countryCode
+     * @return void
+     */
+    public function setDefaultPhoneCountryCode($countryCode)
+    {
+        $this->_defaultPhoneCountryCode = $countryCode;
+    }
+
     // FIXME: Document me!
     public function getUserCategories()
     {
@@ -676,6 +702,7 @@ class CATSSession
                 site.account_active AS accountActive,
                 site.account_deleted AS accountDeleted,
                 site.time_zone AS timeZone,
+                site.default_phone_country_code AS defaultPhoneCountryCode,
                 site.date_format_ddmmyy AS dateFormatDMY,
                 site.is_free AS isFree,
                 site.is_hr_mode AS isHrMode,
@@ -808,6 +835,7 @@ class CATSSession
                 $this->_userAgent              = $userAgent;
                 $this->_timeZoneOffset         = $rs['timeZone'] - OFFSET_GMT;
                 $this->_timeZone               = $rs['timeZone'];
+                $this->_defaultPhoneCountryCode = $rs['defaultPhoneCountryCode'];
                 $this->_dateDMY                = ($rs['dateFormatDMY'] == 0 ? false : true);
                 $this->_canSeeEEOInfo          = ($rs['canSeeEEOInfo'] == 0 ? false : true);
                 $this->_pipelineEntriesPerPage = $rs['pipelineEntriesPerPage'];
@@ -845,11 +873,11 @@ class CATSSession
 
                 if (strlen($rs['columnPreferences']) > 0 && $this->_isDemo == false)
                 {
-                    $this->__dataGridColumnPreferences = unserialize($rs['columnPreferences']);
+                    $this->_ = unserialize($rs['columnPreferences']);
                 }
                 else
                 {
-                    $this->__dataGridColumnPreferences = array();
+                    $this->_dataGridColumnPreferences = array();
                 }
 
                 /* Log the login as successful. */
@@ -885,22 +913,54 @@ class CATSSession
                     );
                     $rs = $db->query($sql);
                 }
+                // Start output buffering to prevent "Headers Already Sent" errors
+                ob_start();
 
-                $cookie = $this->getCookie();
+                $cookieValue = $this->getCookie();
+                $expires = time() + 3600;  // Example expiration time, adjust as needed
+                $path = '/';
+                // $domain = 'example.com';   // Adjust as needed
+                $secure = true;            // Adjust based on your environment
+                $httponly = true;
+                $samesite = 'Lax';
+
+                // Fixed setcookie call - define domain variable and remove invalid path format
+                $domain = '';  // Use empty string for current domain
+                // TODO: Drop PHP < 7.3 fallback and always use setcookie() options array once legacy PHP is no longer supported.
+                if (PHP_VERSION_ID >= 70300)
+                {
+                    setcookie('session_cookie', $cookieValue, array(
+                        'expires' => $expires,
+                        'path' => $path,
+                        'domain' => $domain,
+                        'secure' => $secure,
+                        'httponly' => $httponly,
+                        'samesite' => $samesite
+                    ));
+                }
+                else
+                {
+                    setcookie('session_cookie', $cookieValue, $expires, $path, $domain, $secure, $httponly);
+                }
+
+                // Update the user session in the database
                 $sql = sprintf(
                     "UPDATE
-                        user
-                     SET
-                        session_cookie = %s,
-                        force_logout = 0
-                     WHERE
+                    user
+                    SET
+                    force_logout = 0
+                        WHERE
                         user_id = %s
-                     AND
+                        AND
                         site_id = %s",
-                    $db->makeQueryString($cookie),
-                    $this->_userID,
-                    $this->_siteID
+                        $db->makeQueryString($this->_userID),
+                               $this->_siteID
                 );
+
+                // Flush the output buffer and send the output to the browser
+                ob_end_flush();
+
+
                 $rs = $db->query($sql);
 
                 break;
@@ -939,6 +999,7 @@ class CATSSession
                 site.account_active AS accountActive,
                 site.account_deleted AS accountDeleted,
                 site.time_zone AS timeZone,
+                site.default_phone_country_code AS defaultPhoneCountryCode,
                 site.date_format_ddmmyy AS dateFormatDMY,
                 site.is_free AS isFree,
                 site.is_hr_mode AS isHrMode
@@ -973,6 +1034,7 @@ class CATSSession
         $this->_accountDeleted  = ($rs['accountDeleted'] == 0 ? false : true);
         $this->_email           = $rs['email'];
         $this->_timeZone        = $rs['timeZone'];
+        $this->_defaultPhoneCountryCode = $rs['defaultPhoneCountryCode'];
         $this->_dateDMY         = ($rs['dateFormatDMY'] == 0 ? false : true);
         $this->_isFirstTimeSetup = true;
         $this->_isAgreedToLicense = true;
@@ -1069,7 +1131,7 @@ class CATSSession
                 user_id = %s
             AND
                 site_id = %s",
-            $entriesPerPage,
+            $db->makeQueryString($entriesPerPage),
             $this->_userID,
             $this->_siteID
         );
@@ -1156,6 +1218,56 @@ class CATSSession
     }
 
     /**
+     * Returns the current session CSRF token. If no token exists yet,
+     * a new token is generated and stored.
+     *
+     * @return string CSRF token
+     */
+    public function getCSRFToken()
+    {
+        $token = $this->retrieveValueByName('csrfToken');
+
+        if (!is_string($token) || $token === '')
+        {
+            $token = $this->rotateCSRFToken();
+        }
+
+        return $token;
+    }
+
+    /**
+     * Generates a new CSRF token and stores it in the session.
+     *
+     * @return string new CSRF token
+     */
+    public function rotateCSRFToken()
+    {
+        $token = bin2hex(random_bytes(32));
+
+        $this->storeValueByName('csrfToken', $token);
+
+        return $token;
+    }
+
+    /**
+     * Validates a CSRF token against the current session token.
+     *
+     * @param string token
+     * @return boolean valid token
+     */
+    public function isCSRFTokenValid($token)
+    {
+        $storedToken = $this->retrieveValueByName('csrfToken');
+
+        if (!is_string($storedToken) || $storedToken === '' || !is_string($token))
+        {
+            return false;
+        }
+
+        return hash_equals($storedToken, $token);
+    }
+
+    /**
      * Returns a column layout.  Only called by the datagrid class.
      * Column layouts are loaded into the session from the database when the user logs in.
      *
@@ -1163,9 +1275,9 @@ class CATSSession
      */
     public function getColumnPreferences($instance)
     {
-        if (isset($this->__dataGridColumnPreferences[$instance]))
+        if (isset($this->_dataGridColumnPreferences[$instance]))
         {
-            return $this->__dataGridColumnPreferences[$instance];
+            return $this->_dataGridColumnPreferences[$instance];
         }
         else
         {
@@ -1180,9 +1292,9 @@ class CATSSession
      */
     public function setColumnPreferences($instance, $columnPreferences)
     {
-        $this->__dataGridColumnPreferences[$instance] = $columnPreferences;
+        $this->_dataGridColumnPreferences[$instance] = $columnPreferences;
 
-        $columnString = serialize($this->__dataGridColumnPreferences);
+        $columnString = serialize($this->_dataGridColumnPreferences);
 
         $db = DatabaseConnection::getInstance();
 

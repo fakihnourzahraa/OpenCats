@@ -27,9 +27,6 @@
  * $Id: config.php 3826 2007-12-10 06:03:18Z will $
  */
 
-/* License key. */
-define('LICENSE_KEY','3163GQ-54ISGW-14E4SHD-ES9ICL-X02DTG-GYRSQ6');
-
 /* legacy root. */
 if( !defined('LEGACY_ROOT') )
 {
@@ -59,26 +56,26 @@ define('SSL_ENABLED', false);
  * 'C:\\antiword\\antiword.exe'. Windows Antiword will have problems locating
  * mapping files if you install it anywhere but C:\antiword\.
  */
-define('ANTIWORD_PATH', "\\path\\to\\antiword");
+define('ANTIWORD_PATH', '/usr/bin/antiword');
 define('ANTIWORD_MAP', '8859-1.txt');
 
 /* XPDF / pdftotext settings. Remember to use double backslashes (\) to represent
  * one backslash (\).
  * http://www.foolabs.com/xpdf/
  */
-define('PDFTOTEXT_PATH', "\\path\\to\\pdftotext");
+define('PDFTOTEXT_PATH', '/usr/bin/pdftotext');
 
 /* html2text settings. Remember to use double backslashes (\) to represent
  * one backslash (\). 'html2text' can be found at:
  * http://www.mbayer.de/html2text/
  */
-define('HTML2TEXT_PATH', "\\path\\to\\html2text");
+define('HTML2TEXT_PATH', '/usr/bin/html2text');
 
 /* UnRTF settings. Remember to use double backslashes (\) to represent
  * one backslash (\). 'unrtf' can be found at:
  * http://www.gnu.org/software/unrtf/unrtf.html
  */
-define('UNRTF_PATH', "\\path\\to\\unrtf");
+define('UNRTF_PATH', '/usr/bin/unrtf');
 
 /* Temporary directory. Set this to a directory that is writable by the
  * web server. The default should be fine for most systems. Remember to
@@ -95,7 +92,6 @@ define('ENABLE_HOSTNAME_LOOKUP', false);
  * Install Sphinx and set ENABLE_SPHINX (below) to true to enable Sphinx.
  */
 define('ENABLE_SPHINX', false);
-define('SPHINX_API', './lib/sphinx/sphinxapi.php');
 define('SPHINX_HOST', 'localhost');
 define('SPHINX_PORT', 3312);
 define('SPHINX_INDEX', 'cats catsdelta');
@@ -104,9 +100,7 @@ define('SPHINX_INDEX', 'cats catsdelta');
 
 
 /* Pager settings. These are the number of results per page. */
-define('CONTACTS_PER_PAGE',      15);
 define('CANDIDATES_PER_PAGE',    15);
-define('CLIENTS_PER_PAGE',       15);
 define('LOGIN_ENTRIES_PER_PAGE', 15);
 
 /* Maximum number of characters of the owner/recruiter users' last names
@@ -165,14 +159,6 @@ define('CAREERS_OWNERAPPLY_SUBJECT', 'CATS - A Candidate Has Applied to Your Job
  */
 define('CANDIDATE_STATUSCHANGE_SUBJECT', 'Job Application Status Change');
 
-/* Password request settings.
- *
- * In FORGOT_PASSWORD_FROM, %s is the placeholder for the password.
- */
-define('FORGOT_PASSWORD_FROM_NAME', 'CATS');
-define('FORGOT_PASSWORD_SUBJECT',   'CATS - Password Retrieval Request');
-define('FORGOT_PASSWORD_BODY',      'You recently requested that your OpenCATS: Applicant Tracking System password be sent to you. Your current password is %s.');
-
 /* Is this a demo site? */
 define('ENABLE_DEMO_MODE', false);
 
@@ -210,17 +196,17 @@ define('MAIL_MAILER', 3);
 /* Sendmail Settings. You don't need to worry about this unless MAIL_MAILER
  * is set to 2.
  */
-define('MAIL_SENDMAIL_PATH', "/usr/sbin/sendmail");
+define('MAIL_SENDMAIL_PATH', '/usr/sbin/sendmail');
 
 /* SMTP Settings. You don't need to worry about this unless MAIL_MAILER is
  * set to 3. If your server requires authentication, set MAIL_SMTP_AUTH to
  * true and configure MAIL_SMTP_USER and MAIL_SMTP_PASS.
  */
-define('MAIL_SMTP_HOST', "smtp.gmail.com");
+define('MAIL_SMTP_HOST', 'localhost');
 define('MAIL_SMTP_PORT', 587);
 define('MAIL_SMTP_AUTH', true);
-define('MAIL_SMTP_USER', "fakihnour2005@gmail.com");
-define('MAIL_SMTP_PASS', "jtcrpmnnarqgyear");
+define('MAIL_SMTP_USER', 'user');
+define('MAIL_SMTP_PASS', 'password');
 //Options: '', 'ssl' or 'tls'
 define('MAIL_SMTP_SECURE', "tls");
 
@@ -259,7 +245,7 @@ define('CACHE_MODULES', false);
  * by distance from a zipcode.
  */
 
-define('US_ZIPS_ENABLED', true);
+define('US_ZIPS_ENABLED', false);
 
 /* LDAP Configuration
  */
@@ -374,7 +360,8 @@ class ACL_SETUP {
             'pipelines.screening'
             'pipelines.editActivity'
             'pipelines.removeFromPipeline'
-            'pipelines.addActivityChangeStatus'
+            'pipelines.addActivity'
+            'pipelines.changeStatus'
             'pipelines.addToPipeline'
             'settings.tags'
             'settings.changePassword'
@@ -384,7 +371,6 @@ class ACL_SETUP {
             'settings.upgradeSiteName'
             'settings.newSiteName'
             'settings.manageUsers'
-            'settings.professional'
             'settings.previewPage'
             'settings.previewPageTop'
             'settings.showUser'
@@ -472,7 +458,7 @@ class ACL_SETUP {
             'companies.list'
             'companies.email'
             'candidates.deleteAttachment'
-            'candidates.addActivityChangeStatus'
+            'candidates.addActivity'
             'candidates.deleteAttachment'
             'candidates.createAttachment'
             'candidates.addCandidateTags'

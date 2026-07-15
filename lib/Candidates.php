@@ -69,7 +69,8 @@ class Candidates
      * @param string Home phone number.
      * @param string Mobile phone number.
      * @param string Work phone number.
-     * @param string Address (can be multiple lines).
+     * @param string Address line 1.
+     * @param string Address line 2.
      * @param string City.
      * @param string State / province.
      * @param string Postal code.
@@ -88,15 +89,14 @@ class Candidates
      * @param string EEO gender, or '' to not specify.
      * @param string EEO veteran status, or '' to not specify.
      * @param string EEO disability status, or '' to not specify.
-     * @param string gpa
      * @param boolean Skip creating a history entry?
      * @return integer Candidate ID of new candidate, or -1 on failure.
      */
     public function add($firstName, $middleName, $lastName, $email1, $email2,
-        $phoneHome, $phoneCell, $phoneWork, $address, $city, $state, $zip,
+        $phoneHome, $phoneCell, $phoneWork, $address, $address2, $city, $state, $zip,
         $source, $keySkills, $dateAvailable, $currentEmployer, $canRelocate,
         $currentPay, $desiredPay, $notes, $webSite, $bestTimeToCall, $enteredBy, $owner,
-        $gender = '', $race = '', $veteran = '', $disability = '', $gpa = '', $university = 0, $nationality = '', $interviewStage = '',
+        $gender = '', $race = '', $veteran = '', $disability = '',
         $skipHistory = false)
     {
         $sql = sprintf(
@@ -110,6 +110,7 @@ class Candidates
                 phone_cell,
                 phone_work,
                 address,
+                address2,
                 city,
                 state,
                 zip,
@@ -132,13 +133,10 @@ class Candidates
                 eeo_ethnic_type_id,
                 eeo_veteran_type_id,
                 eeo_disability_status,
-                eeo_gender,
-                gpa,
-                university,
-                nationality,
-                interviewStage
+                eeo_gender
             )
             VALUES (
+                %s,
                 %s,
                 %s,
                 %s,
@@ -170,10 +168,6 @@ class Candidates
                 %s,
                 %s,
                 %s,
-                %s,
-                %s,
-                %s,
-                %s,
                 %s
             )",
             $this->_db->makeQueryString($firstName),
@@ -185,6 +179,7 @@ class Candidates
             $this->_db->makeQueryString($phoneCell),
             $this->_db->makeQueryString($phoneWork),
             $this->_db->makeQueryString($address),
+            $this->_db->makeQueryString($address2),
             $this->_db->makeQueryString($city),
             $this->_db->makeQueryString($state),
             $this->_db->makeQueryString($zip),
@@ -204,13 +199,8 @@ class Candidates
             $this->_db->makeQueryInteger($race),
             $this->_db->makeQueryInteger($veteran),
             $this->_db->makeQueryString($disability),
-            $this->_db->makeQueryString($gender),
-            $this->_db->makeQueryDouble($gpa),
-            $this->_db->makeQueryString($university),
-            $this->_db->makeQueryString($nationality),
-            $this->_db->makeQueryString($interviewStage)
+            $this->_db->makeQueryString($gender)
         );
-
         $queryResult = $this->_db->query($sql);
         if (!$queryResult)
         {
@@ -240,7 +230,8 @@ class Candidates
      * @param string Home phone number.
      * @param string Mobile phone number.
      * @param string Work phone number.
-     * @param string Address (can be multiple lines).
+     * @param string Address line 1.
+     * @param string Address line 2.
      * @param string City.
      * @param string State / province.
      * @param string Postal code.
@@ -258,15 +249,14 @@ class Candidates
      * @param string EEO gender, or '' to not specify.
      * @param string EEO veteran status, or '' to not specify.
      * @param string EEO disability status, or '' to not specify.
-     * @param string gpa
      * @return boolean True if successful; false otherwise.
      */
     public function update($candidateID, $isActive, $firstName, $middleName, $lastName,
-        $email1, $email2, $phoneHome, $phoneCell, $phoneWork, $address,
+        $email1, $email2, $phoneHome, $phoneCell, $phoneWork, $address, $address2,
         $city, $state, $zip, $source, $keySkills, $dateAvailable,
         $currentEmployer, $canRelocate, $currentPay, $desiredPay,
         $notes, $webSite, $bestTimeToCall, $owner, $isHot, $email, $emailAddress,
-        $gender = '', $race = '', $veteran = '', $disability = '', $gpa ='', $university = 0, $nationality = '', $interviewStage = '')
+        $gender = '', $race = '', $veteran = '', $disability = '')
     {
         $sql = sprintf(
             "UPDATE
@@ -282,6 +272,7 @@ class Candidates
                 phone_work            = %s,
                 phone_cell            = %s,
                 address               = %s,
+                address2              = %s,
                 city                  = %s,
                 state                 = %s,
                 zip                   = %s,
@@ -301,11 +292,7 @@ class Candidates
                 eeo_ethnic_type_id    = %s,
                 eeo_veteran_type_id   = %s,
                 eeo_disability_status = %s,
-                eeo_gender            = %s,
-                gpa                   = %s,
-                university            = %s,
-                nationality           = %s,
-                interviewStage        = %s
+                eeo_gender            = %s
             WHERE
                 candidate_id = %s
             AND
@@ -320,6 +307,7 @@ class Candidates
             $this->_db->makeQueryString($phoneWork),
             $this->_db->makeQueryString($phoneCell),
             $this->_db->makeQueryString($address),
+            $this->_db->makeQueryString($address2),
             $this->_db->makeQueryString($city),
             $this->_db->makeQueryString($state),
             $this->_db->makeQueryString($zip),
@@ -339,10 +327,6 @@ class Candidates
             $this->_db->makeQueryInteger($veteran),
             $this->_db->makeQueryString($disability),
             $this->_db->makeQueryString($gender),
-            $this->_db->makeQueryDouble($gpa),
-            $this->_db->makeQueryString($university),
-            $this->_db->makeQueryString($nationality),
-            $this->_db->makeQueryString($interviewStage),
             $this->_db->makeQueryInteger($candidateID),
             $this->_siteID
         );
@@ -361,7 +345,7 @@ class Candidates
             return false;
         }
 
-        if (!empty($emailAddress))
+        if (!empty($emailAddress) && !empty($email))
         {
             /* Send e-mail notification. */
             //FIXME: Make subject configurable.
@@ -493,6 +477,7 @@ class Candidates
                 candidate.phone_work AS phoneWork,
                 candidate.phone_cell AS phoneCell,
                 candidate.address AS address,
+                candidate.address2 AS address2,
                 candidate.city AS city,
                 candidate.state AS state,
                 candidate.zip AS zip,
@@ -508,10 +493,6 @@ class Candidates
                 candidate.best_time_to_call AS bestTimeToCall,
                 candidate.is_hot AS isHot,
                 candidate.is_admin_hidden AS isAdminHidden,
-                candidate.gpa AS gpa,
-                candidate.university AS universityShortName,
-                candidate.nationality AS nationality,
-                candidate.interviewStage AS interviewStage,
                 DATE_FORMAT(
                     candidate.date_created, '%%m-%%d-%%y (%%h:%%i %%p)'
                 ) AS dateCreated,
@@ -633,6 +614,7 @@ class Candidates
                 candidate.phone_work AS phoneWork,
                 candidate.phone_cell AS phoneCell,
                 candidate.address AS address,
+                candidate.address2 AS address2,
                 candidate.city AS city,
                 candidate.state AS state,
                 candidate.zip AS zip,
@@ -652,10 +634,6 @@ class Candidates
                 candidate.eeo_disability_status AS eeoDisabilityStatus,
                 candidate.eeo_gender AS eeoGender,
                 candidate.is_admin_hidden AS isAdminHidden,
-                candidate.gpa AS gpa,
-                candidate.university AS universityShortName,
-                candidate.nationality AS nationality,
-                candidate.interviewStage AS interviewStage,
                 DATE_FORMAT(
                     candidate.date_available, '%%m-%%d-%%y'
                 ) AS dateAvailable
@@ -1034,42 +1012,6 @@ class Candidates
 
         return $this->_db->getAllAssoc($sql);
     }
-
-    public function getPossibleDropDownOptions($table, $valueColumn, $labelColumn, $shortColumn = null, $orderBy = null, $where = null)
-    {
-        $shortSelect = $shortColumn ? ", $table.$shortColumn AS shortName" : ", $table.$labelColumn AS shortName";
-
-        if ($orderBy === false) {
-            $orderByClause = '';
-        } elseif ($orderBy !== null && (strpos($orderBy, ' ') !== false || strpos($orderBy, ',') !== false)) {
-            $orderByClause = "ORDER BY $orderBy";
-        } else {
-            $col = $orderBy ? $orderBy : $labelColumn;
-            $orderByClause = "ORDER BY $table.$col ASC";
-        }
-
-        $whereClause = $where ? "WHERE $where" : '';
-
-        $sql = sprintf(
-            "SELECT
-                %s.%s AS optionValue,
-                %s.%s AS optionLabel
-                %s
-            FROM
-                %s
-            %s
-            %s",
-            $table, $valueColumn,
-            $table, $labelColumn,
-            $shortSelect,
-            $table,
-            $whereClause,
-            $orderByClause
-        );
-
-        return $this->_db->getAllAssoc($sql);
-    }
-
 
     /**
      * Updates a sites possible sources with an array generated
@@ -1556,7 +1498,7 @@ class Candidates
             {
                 $update .= ", ";
             }
-            $update .= "address = '" . $rs['address'] . "', city = '" . $rs['city'] . "', zip = '" . $rs['zip'] . "', state = '" . $rs['state'] . "'";
+            $update .= "address = '" . $rs['address'] . "', address2 = '" . $rs['address2'] . "', city = '" . $rs['city'] . "', zip = '" . $rs['zip'] . "', state = '" . $rs['state'] . "'";
             $comma = true;
         }
         if($params['website'] == "1")
@@ -2133,7 +2075,7 @@ class CandidatesDataGrid extends DataGrid
                                      'filter'         => 'candidate.web_site'),
 
             'Key Skills' =>    array('select'  => 'candidate.key_skills AS keySkills',
-                                     'pagerRender' => 'return substr(trim($rsData[\'keySkills\']), 0, 30) . (strlen(trim($rsData[\'keySkills\'])) > 30 ? \'...\' : \'\');',
+                                     'pagerRender' => 'return mb_substr(trim($rsData[\'keySkills\']), 0, 30) . (strlen(trim($rsData[\'keySkills\'])) > 30 ? \'...\' : \'\');',
                                      'sortableColumn'    => 'keySkills',
                                      'pagerWidth'   => 210,
                                      'filter'         => 'candidate.key_skills'),
@@ -2215,8 +2157,7 @@ class CandidatesDataGrid extends DataGrid
                                      'sortableColumn'    => 'source',
                                      'pagerWidth'   => 140,
                                      'alphaNavigation' => true,
-                                     'filter'         => 'candidate.source',
-                                     'filterTypes'    => '=in=='),
+                                     'filter'         => 'candidate.source'),
 
             'Available' =>     array('select'   => 'DATE_FORMAT(candidate.date_available, \'%m-%d-%y\') AS dateAvailable',
                                      'sortableColumn'     => 'dateAvailable',
@@ -2259,24 +2200,17 @@ class CandidatesDataGrid extends DataGrid
                                      'filter'         => 'CONCAT(owner_user.first_name, owner_user.last_name)'),
 
             'Created' =>       array('select'   => 'DATE_FORMAT(candidate.date_created, \'%m-%d-%y\') AS dateCreated',
-                                    'pagerRender'      => 'return $rsData[\'dateCreated\'];',
-                                    'sortableColumn'     => 'dateCreatedSort',
-                                    'pagerWidth'    => 60,
-                                    'filter'      => 'candidate.date_created',
-                                    'filterHaving' => 'DATE_FORMAT(candidate.date_created, \'%m-%d-%y\')',
-                                    'filterTypes'  => '=d>=d<=='),
+                                     'pagerRender'      => 'return $rsData[\'dateCreated\'];',
+                                     'sortableColumn'     => 'dateCreatedSort',
+                                     'pagerWidth'    => 60,
+                                     'filterHaving' => 'DATE_FORMAT(candidate.date_created, \'%m-%d-%y\')'),
 
-            'Modified' => array(
-                                    'select'         => 'DATE_FORMAT(candidate.date_modified, \'%m-%d-%y\') AS dateModified,
-                                                        candidate.date_modified AS dateModifiedSort',
-                                    'sortableColumn' => 'dateModifiedSort',
-                                    'pagerRender'    => 'return $rsData[\'dateModified\'];',
-                                    'pagerWidth'     => 60,
-                                    'pagerOptional'  => true,
-                                    'filter'         => 'candidate.date_modified',
-                                    'filterHaving'   => 'DATE_FORMAT(candidate.date_modified, \'%m-%d-%y\')',
-                                    'filterTypes'    => '=d>=d<==',
-                                ),
+            'Modified' =>      array('select'   => 'DATE_FORMAT(candidate.date_modified, \'%m-%d-%y\') AS dateModified',
+                                     'pagerRender'      => 'return $rsData[\'dateModified\'];',
+                                     'sortableColumn'     => 'dateModifiedSort',
+                                     'pagerWidth'    => 60,
+                                     'pagerOptional' => false,
+                                     'filterHaving' => 'DATE_FORMAT(candidate.date_modified, \'%m-%d-%y\')'),
 
             /* This one only works when called from the saved list view.  Thats why it is not optional, filterable, or exportable.
              * FIXME:  Somehow make this defined in the associated savedListDataGrid class child.
@@ -2288,8 +2222,7 @@ class CandidatesDataGrid extends DataGrid
                                      'pagerWidth'    => 60,
                                      'pagerOptional' => false,
                                      'filterable' => false,
-                                     'exportable' => false,
-                                    'filterTypes'  => '=d>=d<=='),
+                                     'exportable' => false),
 
             'OwnerID' =>       array('select'    => '',
                                      'filter'    => 'candidate.owner',
@@ -2302,63 +2235,6 @@ class CandidatesDataGrid extends DataGrid
                                      'pagerOptional' => false,
                                      'filterable' => false,
                                      'filterDescription' => 'Only Hot Candidates'),
-            'GPA'  =>           array(
-                                    'select'         => 'candidate.gpa AS gpa',
-                                    'sortableColumn' => 'gpa',
-                                    'pagerWidth'     => 60,
-                                    'pagerOptional'  => true,
-                                    'filter'         => 'candidate.gpa',
-                                    'filterTypes'    => '=>=<=><==', 
-                                ),
-            'University' => array(
-                                    'select'         => 'candidate.university AS universityShortName',
-                                    'pagerRender'    => 'return !empty($rsData[\'universityShortName\']) ? htmlspecialchars($rsData[\'universityShortName\']) : \'\';',
-                                    'exportRender'   => 'return !empty($rsData[\'universityShortName\']) ? $rsData[\'universityShortName\'] : \'\';',
-                                    'sortableColumn' => 'universityShortName',
-                                    'pagerWidth'     => 100,
-                                    'pagerOptional'  => true,
-                                    'filter'         => 'candidate.university',
-                                    'filterTypes'    => '==',
-                                ),
-            'Nationality' =>    array(
-                                    'select'         => 'candidate.nationality AS nationality',
-                                    'pagerRender'    => 'return !empty($rsData[\'nationality\']) ? htmlspecialchars($rsData[\'nationality\']) : \'\';',
-                                    'exportRender'   => 'return !empty($rsData[\'nationality\']) ? $rsData[\'nationality\'] : \'\';',
-                                    'sortableColumn' => 'nationality',
-                                    'pagerWidth'     => 100,
-                                    'pagerOptional'  => true,
-                                    'filter'         => 'candidate.nationality',
-                                    'filterTypes'    => '==',
-                                ),
-            'Status' => array(
-                    'select'         => '(
-                        SELECT candidate_joborder_status.short_description
-                        FROM candidate_joborder
-                        LEFT JOIN candidate_joborder_status
-                            ON candidate_joborder_status.candidate_joborder_status_id = candidate_joborder.status
-                        WHERE candidate_joborder.candidate_id = candidate.candidate_id
-                        ORDER BY candidate_joborder.date_modified DESC
-                        LIMIT 1
-                    ) AS statusDescription',
-                    'pagerRender'    => 'return !empty($rsData[\'statusDescription\']) ? htmlspecialchars($rsData[\'statusDescription\']) : \'\';',
-                    'exportRender'   => 'return !empty($rsData[\'statusDescription\']) ? $rsData[\'statusDescription\'] : \'\';',
-                    'sortableColumn' => 'statusDescription',
-                    'pagerWidth'     => 120,
-                    'pagerOptional'  => true,
-                    'filter'         => 'candidate_joborder_status.short_description',
-                    'filterTypes'    => '==',
-                ),
-                'Interview Stage' => array(
-                                    'select'         => 'candidate.interviewStage AS interviewStage',
-                                    'pagerRender'    => 'return !empty($rsData[\'interviewStage\']) ? htmlspecialchars($rsData[\'interviewStage\']) : \'\';',
-                                    'exportRender'   => 'return !empty($rsData[\'interviewStage\']) ? $rsData[\'interviewStage\'] : \'\';',
-                                    'sortableColumn' => 'interviewStage',
-                                    'pagerWidth'     => 100,
-                                    'pagerOptional'  => true,
-                                    'filter'         => 'candidate.interviewStage',
-                                    'filterTypes'    => '=in==',
-                                ),
-
         // Tags filtering
         	'Tags'	=>			array(
                                      'select'	=> '(

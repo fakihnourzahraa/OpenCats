@@ -77,7 +77,14 @@ class CalendarUI extends UserInterface
                 break;
 
             case 'deleteEvent':
-                $this->onDeleteEvent();
+                if ($this->isPostBack())
+                {
+                    $this->onDeleteEvent();
+                }
+                else
+                {
+                    CommonErrors::fatal(COMMONERROR_BADFIELDS, $this, 'Invalid request.');
+                }
                 break;
 
             case 'showCalendar':
@@ -349,8 +356,11 @@ class CalendarUI extends UserInterface
 
         /* Bail out if we received an invalid date. */
         $trimmedDate = $this->getTrimmedInput('dateAdd', $_POST);
+        $dateFormatFlag = $_SESSION['CATS']->isDateDMY()
+            ? DATE_FORMAT_DDMMYY
+            : DATE_FORMAT_MMDDYY;
         if (empty($trimmedDate) ||
-            !DateUtility::validate('-', $trimmedDate, DATE_FORMAT_MMDDYY))
+            !DateUtility::validate('-', $trimmedDate, $dateFormatFlag))
         {
             CommonErrors::fatal(COMMONERROR_BADFIELDS, $this, 'Invalid date.');
         }
@@ -392,7 +402,6 @@ class CalendarUI extends UserInterface
 
         $publicEntry     = $this->isChecked('publicEntry', $_POST);
         $reminderEnabled = $this->isChecked('reminderToggle', $_POST);
-
         $description   = $this->getTrimmedInput('description', $_POST);
         $title         = $this->getTrimmedInput('title', $_POST);
         $reminderEmail = $this->getTrimmedInput('sendEmail', $_POST);
@@ -410,7 +419,7 @@ class CalendarUI extends UserInterface
         if ($allDay)
         {
             $date = DateUtility::convert(
-                '-', $trimmedDate, DATE_FORMAT_MMDDYY, DATE_FORMAT_YYYYMMDD
+                '-', $trimmedDate, $dateFormatFlag, DATE_FORMAT_YYYYMMDD
             );
 
             $hour = 12;
@@ -451,7 +460,7 @@ class CalendarUI extends UserInterface
             $date = sprintf(
                 '%s %s',
                 DateUtility::convert(
-                    '-', $trimmedDate, DATE_FORMAT_MMDDYY, DATE_FORMAT_YYYYMMDD
+                    '-', $trimmedDate, $dateFormatFlag, DATE_FORMAT_YYYYMMDD
                 ),
                 date('H:i:00', $time)
             );
@@ -463,7 +472,7 @@ class CalendarUI extends UserInterface
 
         $calendar = new Calendar($this->_siteID);
         $eventID = $calendar->addEvent(
-            $type, $date, $description, $allDay, $this->_userID, -1, -1, -1,
+            $type, $date, $description, $allDay, $this->_userID, -1, -1, null,
             $title, $duration, $reminderEnabled, $reminderEmail, $reminderTime,
             $publicEntry, $timeZoneOffset
         );
@@ -550,13 +559,16 @@ class CalendarUI extends UserInterface
         }
         else
         {
-            $jobOrderID   = 'NULL';
+            $jobOrderID   = null;
         }
 
         /* Bail out if we received an invalid date. */
         $trimmedDate = $this->getTrimmedInput('dateEdit', $_POST);
+        $dateFormatFlag = $_SESSION['CATS']->isDateDMY()
+            ? DATE_FORMAT_DDMMYY
+            : DATE_FORMAT_MMDDYY;
         if (empty($trimmedDate) ||
-            !DateUtility::validate('-', $trimmedDate, DATE_FORMAT_MMDDYY))
+            !DateUtility::validate('-', $trimmedDate, $dateFormatFlag))
         {
             CommonErrors::fatal(COMMONERROR_BADFIELDS, $this, 'Invalid date.');
         }
@@ -570,6 +582,19 @@ class CalendarUI extends UserInterface
 
         $eventID  = $_POST['eventID'];
         $type     = $_POST['type'];
+        $calendar = new Calendar($this->_siteID);
+        $eventRS = $calendar->get($eventID);
+
+        if (empty($eventRS))
+        {
+            CommonErrors::fatal(COMMONERROR_BADINDEX, $this, 'Invalid event ID.');
+        }
+
+        if ($eventRS['enteredBy'] != $this->_userID &&
+            $this->getUserAccessLevel('calendar.show') < ACCESS_LEVEL_SA)
+        {
+            CommonErrors::fatal(COMMONERROR_PERMISSION, $this, 'Invalid user level for action.');
+        }
 
         if ($_POST['allDay'] == 1)
         {
@@ -600,7 +625,7 @@ class CalendarUI extends UserInterface
         if ($allDay)
         {
             $date = DateUtility::convert(
-                '-', $trimmedDate, DATE_FORMAT_MMDDYY, DATE_FORMAT_YYYYMMDD
+                '-', $trimmedDate, $dateFormatFlag, DATE_FORMAT_YYYYMMDD
             );
 
             $hour = 12;
@@ -641,7 +666,7 @@ class CalendarUI extends UserInterface
             $date = sprintf(
                 '%s %s',
                 DateUtility::convert(
-                    '-', $trimmedDate, DATE_FORMAT_MMDDYY, DATE_FORMAT_YYYYMMDD
+                    '-', $trimmedDate, $dateFormatFlag, DATE_FORMAT_YYYYMMDD
                 ),
                 date('H:i:00', $time)
             );
@@ -650,9 +675,8 @@ class CalendarUI extends UserInterface
         if (!eval(Hooks::get('CALENDAR_EDIT_PRE'))) return;
 
         /* Update the event. */
-        $calendar = new Calendar($this->_siteID);
         if (!$calendar->updateEvent($eventID, $type, $date, $description,
-            $allDay, $dataItemID, $dataItemType, 'NULL', $title, $duration,
+            $allDay, $dataItemID, $dataItemType, $jobOrderID, $title, $duration,
             $reminderEnabled, $reminderEmail, $reminderTime, $publicEntry,
             $_SESSION['CATS']->getTimeZoneOffset()))
         {
@@ -693,16 +717,28 @@ class CalendarUI extends UserInterface
         }
 
         /* Bail out if we don't have a valid event ID. */
-        if (!$this->isRequiredIDValid('eventID', $_GET))
+        if (!$this->isRequiredIDValid('eventID', $_POST))
         {
             CommonErrors::fatal(COMMONERROR_BADINDEX, $this, 'Invalid event ID.');
         }
 
-        $eventID = $_GET['eventID'];
+        $eventID = $_POST['eventID'];
+        $calendar = new Calendar($this->_siteID);
+        $eventRS = $calendar->get($eventID);
+
+        if (empty($eventRS))
+        {
+            CommonErrors::fatal(COMMONERROR_BADINDEX, $this, 'Invalid event ID.');
+        }
+
+        if ($eventRS['enteredBy'] != $this->_userID &&
+            $this->getUserAccessLevel('calendar.show') < ACCESS_LEVEL_SA)
+        {
+            CommonErrors::fatal(COMMONERROR_PERMISSION, $this, 'Invalid user level for action.');
+        }
 
         if (!eval(Hooks::get('CALENDAR_DELETE_PRE'))) return;
 
-        $calendar = new Calendar($this->_siteID);
         $calendar->deleteEvent($eventID);
 
         if (!eval(Hooks::get('CALENDAR_DELETE_POST'))) return;

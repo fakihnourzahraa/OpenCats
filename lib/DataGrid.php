@@ -253,10 +253,32 @@ class DataGrid
                 }
 
                 $parameters[$index] = $_REQUEST['dynamicArgument' . md5($indentifier)];
-                
-                if ($index = 'exportIDs')
+
+                if ($index === 'exportIDs')
                 {
-                   $parameters['exportIDs'] = unserialize(urldecode($parameters['exportIDs']));
+                    $decoded = json_decode($parameters['exportIDs'], true);
+                    if (!is_array($decoded))
+                    {
+                        $decoded = array();
+                    }
+
+                    $parameters['exportIDs'] = array();
+                    foreach ($decoded as $value)
+                    {
+                        if (is_scalar($value))
+                        {
+                            $intValue = (int) $value;
+                            if ($intValue > 0 && !in_array($intValue, $parameters['exportIDs']))
+                            {
+                                $parameters['exportIDs'][] = $intValue;
+                            }
+                        }
+                    }
+
+                    if (empty($parameters['exportIDs']))
+                    {
+                        $parameters['exportIDs'] = array(0);
+                    }
                 }
             }
         }
@@ -269,7 +291,7 @@ class DataGrid
 
         if (isset($indentifierParts[2]))
         {
-            $misc = unserialize($indentifierParts[2]);
+            $misc = json_decode($indentifierParts[2], true);
         }
 
         if (!file_exists(sprintf('modules/%s/dataGrids.php', $module)))
@@ -292,13 +314,24 @@ class DataGrid
      */
     public static function getFromRequest()
     {
-        if (!isset($_REQUEST['i']) || !isset($_REQUEST['p']))
+        if (!isset($_REQUEST['i']) || $_REQUEST['i'] === '')
         {
-            trigger_error('getFromRequest datagrid failed : no request variables i or p set.');
+            trigger_error('getFromRequest datagrid failed : no request variables i set.');
+            return null;
         }
         
         $indentifier = $_REQUEST['i'];
-        $parameters = unserialize($_REQUEST['p']);
+        $parameters = array();
+
+        if (isset($_REQUEST['p']))
+        {
+            $decoded = json_decode($_REQUEST['p'], true);
+
+            if (is_array($decoded))
+            {
+                $parameters = $decoded;
+            }
+        }
 
         return self::get($indentifier, $parameters);
     }
@@ -318,7 +351,7 @@ class DataGrid
     {
         if ($misc != 0)
         {
-            $indentifier .= ':' . serialize($misc);
+            $indentifier .= ':' . json_encode($misc);
         }
         
         return $_SESSION['CATS']->getDataGridParameters($indentifier);
@@ -352,7 +385,7 @@ class DataGrid
 
         if (isset($instanceParts[2]))
         {
-            return unserialize($instanceParts[2]);
+            return json_decode($instanceParts[2], true);
         }
         else
         {
@@ -375,13 +408,13 @@ class DataGrid
          
          if ($misc != 0)
          {
-            $this->_instanceName .= ':'.serialize($misc);
+            $this->_instanceName .= ':'.json_encode($misc);
          }
 
          /* Allow _GET to override the supplied parameters array */
          if (isset($_GET['parameters' . $this->_instanceName]))
          {
-             $this->_parameters = unserialize($_GET['parameters' . $this->_instanceName]);
+             $this->_parameters = json_decode($_GET['parameters' . $this->_instanceName], true);
          }
          else
          {
@@ -424,7 +457,6 @@ class DataGrid
          if (!isset($this->_parameters['sortBy']))
          {
              $this->_parameters['sortBy'] = $this->defaultSortBy;
-             $this->_parameters['sortDirection'] = $this->defaultSortDirection;
          }
 
          $found = false;
@@ -438,6 +470,31 @@ class DataGrid
          if (!$found)
          {
              die ('Parameter sortBy is not a valid sortable column.');
+         }
+
+         /* sortDirection - only ASC or DESC is allowed. */
+         $defaultSortDirection = 'ASC';
+         if (isset($this->defaultSortDirection))
+         {
+             $candidateSortDirection = strtoupper(trim((string) $this->defaultSortDirection));
+             if ($candidateSortDirection === 'ASC' || $candidateSortDirection === 'DESC')
+             {
+                 $defaultSortDirection = $candidateSortDirection;
+             }
+         }
+
+         if (!isset($this->_parameters['sortDirection']))
+         {
+             $this->_parameters['sortDirection'] = $defaultSortDirection;
+         }
+         else
+         {
+             $candidateSortDirection = strtoupper(trim((string) $this->_parameters['sortDirection']));
+             if ($candidateSortDirection !== 'ASC' && $candidateSortDirection !== 'DESC')
+             {
+                 $candidateSortDirection = $defaultSortDirection;
+             }
+             $this->_parameters['sortDirection'] = $candidateSortDirection;
          }
 
          //rangeStart - should be an integer or a character between A and Z.  If not set, set to 0.
@@ -644,40 +701,27 @@ class DataGrid
      * @param string column name
      * @return string filter value
      */
-public function getFilterValue($columnName)
+    public function getFilterValue($columnName)
     {
         if (isset($this->_parameters['filter']))
         {
             $filterStrings = explode(',', $this->_parameters['filter']);
-            $operators = array('=d>', '=d<', '=in', '=bt', '=~', '==', '=>', '=<', '=#', '=@', '=e');
 
             foreach ($filterStrings as $index => $data)
             {
-                $eqPos = strpos($data, '=');
-
-                if ($eqPos === false)
+                if (strpos($data, '=') === false)
                 {
                     continue;
                 }
 
-                $dataColumnName = urldecode(substr($data, 0, $eqPos));
+                $dataColumnName = urldecode(substr($data, 0, strpos($data, '=')));
 
-                if ($columnName != $dataColumnName)
+                if ($columnName == $dataColumnName)
                 {
-                    continue;
+                    return urldecode(substr($data, strpos($data, '=') + 2));
                 }
-
-                foreach ($operators as $op)
-                {
-                    if (substr($data, $eqPos, strlen($op)) === $op)
-                    {
-                        return urldecode(substr($data, $eqPos + strlen($op)));
-                    }
-                }
-                return urldecode(substr($data, $eqPos + 2));
             }
         }
-
         return '';
     }
 
@@ -739,7 +783,7 @@ public function getFilterValue($columnName)
         $newParameterArray['maxResults'] = '<dynamic>';
 
         $requestString = $this->_getUnrelatedRequestString();
-        $requestString .= '&' . urlencode('parameters' . $this->_instanceName) . '=' . urlencode(serialize($newParameterArray));
+        $requestString .= '&' . urlencode('parameters' . $this->_instanceName) . '=' . urlencode(json_encode($newParameterArray));
 
         echo sprintf(
             '<select id="rowsPerPageSelector%s" onchange="document.location.href=\'%s?%s&dynamicArgument%s=\' + this.value;" class="selectBox">%s',
@@ -806,15 +850,14 @@ public function getFilterValue($columnName)
             $currentFilterString = '';
         }
 
-$filtersApplied = false;
-       foreach ($this->_classColumns as $index => $data)
+        $filtersApplied = false;
+        foreach ($this->_classColumns as $index => $data)
         {
-            $filterValue = $this->getFilterValue($index);
-    if (!$filtersApplied && ($this->getFilterValue($index) || $this->getFilterOperator($index) === '=e'))
-    {
-        $filtersApplied = true;
-    }
-}
+            if (!$filtersApplied && $this->getFilterValue($index))
+            {
+                $filtersApplied = true;
+            }
+        }
 
         echo '<fieldset class="filterAreaFieldSet" id="filterResultsArea', $md5InstanceName, '" ';
         if (!$filtersApplied || (isset($this->_parameters['filterVisible']) && $this->_parameters['filterVisible'] == false))
@@ -827,14 +870,13 @@ $filtersApplied = false;
 
         $counterFilters = 0;
 
-foreach ($this->_classColumns as $index => $data)
-{
-    $filterValue = $this->getFilterValue($index);
-    $filterOperator = $this->getFilterOperator($index);
+        foreach ($this->_classColumns as $index => $data)
+        {
+            $filterValue = $this->getFilterValue($index);
 
-    if ($filterValue != '' || $filterOperator === '=e')
-    {
-        $counterFilters++;
+            if ($filterValue != '')
+            {
+                $counterFilters++;
 
                 /* You can not apply another filter to a column already being filtered. */
                 if (array_search($index, $filterableColumns) !== false)
@@ -842,6 +884,7 @@ foreach ($this->_classColumns as $index => $data)
                     unset ($filterableColumns[array_search($index, $filterableColumns)]);
                 }
 
+                $filterOperator = $this->getFilterOperator($index);
                 $filterOperatorHuman = '';
                 switch ($filterOperator)
                 {
@@ -864,19 +907,7 @@ foreach ($this->_classColumns as $index => $data)
                     case '=#':
                         $filterOperatorHuman = ' has element';
                         break;
-                        
-                    case '=d>':
-                        $filterOperatorHuman = ' from';
-                        break;
-
-                    case '=d<':
-                        $filterOperatorHuman = ' to';
-                        break;
-                    case '=e': 
-                        $filterOperatorHuman = ' is empty';
-                        break;
                 }
-                //note: =d> and =d< operator descriptions get overriden
 
                 echo '<span class="filterArea">';
                 echo '<a href="javascript:void(0);" onclick="this.parentNode.style.display=\'none\'; ', $this->getJSRemoveFilter($index), '">';
@@ -909,54 +940,19 @@ foreach ($this->_classColumns as $index => $data)
             {
                 if (isset($this->_classColumns[$value]['filterTypes']))
                 {
-                    $types = $this->_classColumns[$value]['filterTypes'];
-                    if (strpos($types, '=e') === false) {
-                        $types .= '=e';
-                    }
-                    $filterableColumns[$index] .= '!@!' . $types;
+                    $filterableColumns[$index] .= '!@!' . $this->_classColumns[$value]['filterTypes'];
                 }
                 else
                 {
-                    $filterableColumns[$index] .= '!@!' . '===~=e';
+                    $filterableColumns[$index] .= '!@!' . '===~';
                 }
             }
         }
-       
         $template = new Template();
         $template->assign('md5InstanceName', $md5InstanceName);
         $template->assign('arrayKeysString', json_encode(array_values($filterableColumns)));
         $template->assign('counterFilters', $counterFilters);
-
-      
-echo '<script type="text/javascript">';
-        foreach ($this->_classColumns as $columnName => $data) {
-            if (!isset($data['filterTypes'])) continue;
-
-            $types = $data['filterTypes'];
-
-            $isDate = (strpos($types, '=d>') !== false || strpos($types, '=d<') !== false);
-
-            if ($isDate) {
-                echo 'if (!filterDateRangeRegistry[' . json_encode($columnName) . ']) {
-                    filterDateRangeRegistry[' . json_encode($columnName) . '] = true; }';
-            }
-
-            if (!$isDate && (strpos($types, '=>') !== false || strpos($types, '=<') !== false)) {
-                echo 'if (!filterRangeRegistry[' . json_encode($columnName) . ']) {
-                    filterRangeRegistry[' . json_encode($columnName) . '] = true; }';
-            }
-
-            if (isset($data['filterDropDownOptions'])) {
-                echo 'if (!filterDropDownRegistry[' . json_encode($columnName) . '] ||
-                      !filterDropDownRegistry[' . json_encode($columnName) . '].length) {
-                    filterDropDownRegistry[' . json_encode($columnName) . '] = ' .
-                    json_encode($data['filterDropDownOptions']) . '; }';
-            }
-        }
-        echo '</script>';
-
         $template->display('./lib/datagrid/FilterArea.tpl');
-    
     }
 
     /**
@@ -1141,27 +1137,23 @@ echo '<script type="text/javascript">';
                 {
                     continue;
                 }
+
                 $columnName = urldecode(substr($data, 0, strpos($data, '=')));
+                $argument = urldecode(substr($data, strpos($data, '=') + 2));
 
-                $eqPos = strpos($data, '=');
-
-                $operatorLength = 2;
-                $threeCharOps = array('=d>', '=d<', '=in', '=bt');
-                if (in_array(substr($data, $eqPos, 3), $threeCharOps))
-                {
-                    $operatorLength = 3;
-                }
-                
-                $argument = urldecode(substr($data, $eqPos + $operatorLength));
                 /* Is this a valid column? */
-              $op = substr($data, $eqPos, $operatorLength);
-
                 if (!isset($this->_classColumns[$columnName]))
                 {
                     continue;
                 }
-                
-                if ($argument == '' && $op !=='=e')
+
+                /* Do not process server-side filters for non-filterable columns. */
+                if (isset($this->_classColumns[$columnName]['filterable']) && $this->_classColumns[$columnName]['filterable'] == false)
+                {
+                    continue;
+                }
+
+                if ($argument == '')
                 {
                     continue;
                 }
@@ -1196,14 +1188,6 @@ echo '<script type="text/javascript">';
                 foreach ($arguments as $argument)
                 {
                     $argument = trim($argument);
-
-                    if (strpos($data, '=in') !== false)
-                    {
-                        if (isset($this->_classColumns[$columnName]['filter']))
-                        {
-                            $whereSQL_or[] = $this->_classColumns[$columnName]['filter'] . ' = ' . $db->makeQueryString($argument);
-                        }
-                    }
 
                     /* Is equal to (==) */
                     if (strpos($data, '==') !== false)
@@ -1253,12 +1237,12 @@ echo '<script type="text/javascript">';
                     {
                         if (isset($this->_classColumns[$columnName]['filter']))
                         {
-                            $whereSQL_or[] = $this->_classColumns[$columnName]['filter'] . ' <= ' . $db->makeQueryDouble($argument) .' ';
+                            $whereSQL_or[] = $this->_classColumns[$columnName]['filter'] . ' <= ' . $db->makeQueryInteger($argument) .' ';
                         }
 
                         if (isset($this->_classColumns[$columnName]['filterHaving']))
                         {
-                            $havingSQL_or[] = $this->_classColumns[$columnName]['filterHaving'] . ' <= ' . $db->makeQueryDouble($argument)  .' ';
+                            $havingSQL_or[] = $this->_classColumns[$columnName]['filterHaving'] . ' <= ' . $db->makeQueryInteger($argument)  .' ';
                         }
                     }
 
@@ -1267,12 +1251,12 @@ echo '<script type="text/javascript">';
                     {
                         if (isset($this->_classColumns[$columnName]['filter']))
                         {
-                            $whereSQL_or[] = $this->_classColumns[$columnName]['filter'] . ' >= ' . $db->makeQueryDouble($argument) .' ';
+                            $whereSQL_or[] = $this->_classColumns[$columnName]['filter'] . ' >= ' . $db->makeQueryInteger($argument) .' ';
                         }
 
                         if (isset($this->_classColumns[$columnName]['filterHaving']))
                         {
-                            $havingSQL_or[] = $this->_classColumns[$columnName]['filterHaving'] . ' >= ' . $db->makeQueryDouble($argument)  .' ';
+                            $havingSQL_or[] = $this->_classColumns[$columnName]['filterHaving'] . ' >= ' . $db->makeQueryInteger($argument)  .' ';
                         }
                     }
 
@@ -1339,32 +1323,6 @@ echo '<script type="text/javascript">';
                         
                         // TODO:  Actual geographic search?
                     }
-                   
-                    if (strpos($data, '=d<') !== false)
-                    {
-                        if (isset($this->_classColumns[$columnName]['filter']))
-                        {
-                            $whereSQL_or[] = $this->_classColumns[$columnName]['filter'] . ' <= STR_TO_DATE(' . $db->makeQueryString($argument) . ', \'%m-%d-%y\') ';
-                        }
-                    }
-
-
-                    if (strpos($data, '=d>') !== false)
-                    {
-                        if (isset($this->_classColumns[$columnName]['filter']))
-                        {
-                            $whereSQL_or[] = $this->_classColumns[$columnName]['filter'] . ' >= STR_TO_DATE(' . $db->makeQueryString($argument) . ', \'%m-%d-%y\') ';
-                        }
-                    }
-                    if (strpos($data, '=e') !== false)
-                    {
-                        if (isset($this->_classColumns[$columnName]['filter']))
-                        {
-                            $whereSQL_or[] = '(' . $this->_classColumns[$columnName]['filter'] . ' IS NULL OR '
-                                . $this->_classColumns[$columnName]['filter'] . " = '')";
-                        }
-                    }
-                 
 
                 }
                 if (count($whereSQL_or) > 0)
@@ -1394,14 +1352,14 @@ echo '<script type="text/javascript">';
 
         if (count($selectSQL) > 0)
         {
-            $selectSQL = '' . implode($selectSQL, ','."\n");
+            $selectSQL = '' . implode(','."\n", $selectSQL);
         }
         else
         {
             $selectSQL = '0 as __nothing';
         }
 
-        $joinSQL = implode($joinSQL, "\n");
+        $joinSQL = implode("\n", $joinSQL);
         if ($this->_parameters['maxResults'] != -1)
         {
             if ($this->_parameters['rangeStart'] < 0)
@@ -1430,8 +1388,8 @@ echo '<script type="text/javascript">';
             $limitSQL = '';
         }
 
-        $whereSQL = implode($whereSQL, ' AND '."\n");
-        $havingSQL = implode($havingSQL, ' AND '."\n");
+        $whereSQL = implode(' AND '."\n", $whereSQL);
+        $havingSQL = implode(' AND '."\n", $havingSQL);
         $orderSQL = 'ORDER BY ' . $this->_parameters['sortBy'] . ' ' . $this->_parameters['sortDirection'];
 
         $sql = $this->getSQL($selectSQL, $joinSQL, $whereSQL, $havingSQL, $orderSQL, $limitSQL);
@@ -1488,13 +1446,14 @@ echo '<script type="text/javascript">';
         /* Get data. */
         $this->_getData();
 
+        /* Figure out what columns we can export. */
+        $exportableColumns = array();
+        foreach ($this->_classColumns as $index => $data)
+        {
+            $exportableColumns[] = array('name' => $index, 'data' => $data);
+        }
+        $this->_currentColumns = $exportableColumns;
 
-    $exportableColumns = array();
-    foreach ($this->_currentColumns as $index => $colData)
-    {
-        $exportableColumns[] = array('name' => $colData['name'], 'data' => $colData['data']);
-    }
-    $this->_currentColumns = $exportableColumns;
         /* Reload data. */
         $this->_rs = false;
         $this->_getData();
@@ -1835,7 +1794,7 @@ echo '<script type="text/javascript">';
                     $data['name'],
                     $md5InstanceName,
                     $md5InstanceName,
-                    urlencode(serialize($newParameterArray)),
+                    urlencode(json_encode($newParameterArray)),
                     urlencode($this->_getUnrelatedRequestString())
                 );
             }
@@ -2084,33 +2043,107 @@ echo ('<script type="text/javascript">setTableWidth("table'.$md5InstanceName.'",
         if ($allowAll)
         {
             $html = sprintf(
-                '<div><div style="float:left; width:170px;">%s</div><div style="float:right; width:95px;"><a href="javascript:void(0);" onclick="if (exportArray%s.length>0) window.location.href=\'%s&i=%s&p=%s&dynamicArgument%s=\' + urlEncode(serializeArray(exportArray%s)); else dataGridNoSelected();">Selected</a>&nbsp;|&nbsp;<a href="%s&i=%s&p=%s">All</a></div></div>',
+                '<div><div style="float:left; width:170px;">%s</div><div style="float:right; width:95px;"><a href="javascript:void(0);" onclick="if (exportArray%s.length>0) window.location.href=\'%s&i=%s&p=%s&dynamicArgument%s=\' + serializeArray(exportArray%s); else dataGridNoSelected();">Selected</a>&nbsp;|&nbsp;<a href="%s&i=%s&p=%s">All</a></div></div>',
                 htmlspecialchars($actionTitle),
                 md5($this->_instanceName),
                 $actionURL,
                 urlencode($this->_instanceName),
-                urlencode(serialize($newParameterArraySelected)),
+                urlencode(json_encode($newParameterArraySelected)),
                 md5($this->_instanceName),
                 md5($this->_instanceName),
                 $actionURL,
                 urlencode($this->_instanceName),
-                urlencode(serialize($newParameterArrayAll))
+                urlencode(json_encode($newParameterArrayAll))
             );        
         }
         else
         {
             $html = sprintf(
-                '<div><div style="float:left; width:170px;">%s</div><div style="float:right; width:95px;"><a href="javascript:void(0);" onclick="if (exportArray%s.length>0) window.location.href=\'%s&i=%s&p=%s&dynamicArgument%s=\' + urlEncode(serializeArray(exportArray%s)); else dataGridNoSelected();">Selected</a></div></div>',
+                '<div><div style="float:left; width:170px;">%s</div><div style="float:right; width:95px;"><a href="javascript:void(0);" onclick="if (exportArray%s.length>0) window.location.href=\'%s&i=%s&p=%s&dynamicArgument%s=\' + serializeArray(exportArray%s); else dataGridNoSelected();">Selected</a></div></div>',
                 htmlspecialchars($actionTitle),
                 md5($this->_instanceName),
                 $actionURL,
                 urlencode($this->_instanceName),
-                urlencode(serialize($newParameterArraySelected)),
+                urlencode(json_encode($newParameterArraySelected)),
                 md5($this->_instanceName),
                 md5($this->_instanceName)
             );        
         }
         
+        return $html;
+    }
+
+    /**
+     * Returns HTML to render a POST action under the action menu.
+     *
+     * @param string action title
+     * @param string action URL
+     * @param boolean (true) action can be applied to all items across every page
+     * @return string generated HTML
+     */
+    public function getInnerActionAreaItemPost($actionTitle, $actionURL, $allowAll = true)
+    {
+        //TODO:  If nothing is selected, display an error popup.
+
+        $newParameterArraySelected = $this->_parameters;
+        $newParameterArraySelected['rangeStart'] = 0;
+        $newParameterArraySelected['maxResults'] = 100000000;
+        $newParameterArraySelected['exportIDs'] = '<dynamic>';
+        $newParameterArraySelected['noSaveParameters'] = true;
+
+        $newParameterArrayAll = $this->_parameters;
+        $newParameterArrayAll['rangeStart'] = 0;
+        $newParameterArrayAll['maxResults'] = 100000000;
+        $newParameterArrayAll['noSaveParameters'] = true;
+
+        $instanceHash = md5($this->_instanceName);
+        $selectedParams = json_encode($newParameterArraySelected);
+        $allParams = json_encode($newParameterArrayAll);
+
+        $actionSeparator = (strpos($actionURL, '?') !== false) ? '&amp;' : '?';
+        $selectedURL = $actionURL
+            . $actionSeparator . 'i=' . urlencode($this->_instanceName)
+            . '&amp;p=' . urlencode($selectedParams)
+            . '&amp;dynamicArgument' . $instanceHash . '=';
+        $allURL = $actionURL
+            . $actionSeparator . 'i=' . urlencode($this->_instanceName)
+            . '&amp;p=' . urlencode($allParams);
+
+        $selectedURL = str_replace(array('\\', '\''), array('\\\\', '\\\''), $selectedURL);
+        $allURL = str_replace(array('\\', '\''), array('\\\\', '\\\''), $allURL);
+
+        $selectedPostJS = sprintf(
+            "var url='%s' + serializeArray(exportArray%s);"
+            . "return quickActionPostFromUrl(url);",
+            $selectedURL,
+            $instanceHash
+        );
+
+        $allPostJS = sprintf(
+            "return quickActionPostFromUrl('%s');",
+            $allURL
+        );
+
+        if ($allowAll)
+        {
+            $html = sprintf(
+                '<div><div style="float:left; width:170px;">%s</div><div style="float:right; width:95px;"><a href="javascript:void(0);" onclick="if (exportArray%s.length>0) {%s} else { dataGridNoSelected(); } return false;">Selected</a>&nbsp;|&nbsp;<a href="javascript:void(0);" onclick="%s">All</a></div></div>',
+                htmlspecialchars($actionTitle),
+                $instanceHash,
+                $selectedPostJS,
+                $allPostJS
+            );
+        }
+        else
+        {
+            $html = sprintf(
+                '<div><div style="float:left; width:170px;">%s</div><div style="float:right; width:95px;"><a href="javascript:void(0);" onclick="if (exportArray%s.length>0) {%s} else { dataGridNoSelected(); } return false;">Selected</a></div></div>',
+                htmlspecialchars($actionTitle),
+                $instanceHash,
+                $selectedPostJS
+            );
+        }
+
         return $html;
     }
     
@@ -2143,19 +2176,19 @@ echo ('<script type="text/javascript">setTableWidth("table'.$md5InstanceName.'",
         if ($allowAll)
         {
             $html = sprintf(
-                '<div><div style="float:left; width:170px;">%s</div><div style="float:right; width:95px;"><a href="javascript:void(0);" onclick="if (exportArray%s.length>0) showPopWin(\'%s&i=%s&p=%s&dynamicArgument%s=\' + urlEncode(serializeArray(exportArray%s)), %s, %s); else dataGridNoSelected();">Selected</a>&nbsp;|&nbsp;<a href="javascript:void(0);" onclick="showPopWin(\'%s&i=%s&p=%s\', %s, %s);">All</a></div></div>',
+                '<div><div style="float:left; width:170px;">%s</div><div style="float:right; width:95px;"><a href="javascript:void(0);" onclick="if (exportArray%s.length>0) showPopWin(\'%s&i=%s&p=%s&dynamicArgument%s=\' + serializeArray(exportArray%s), %s, %s); else dataGridNoSelected();">Selected</a>&nbsp;|&nbsp;<a href="javascript:void(0);" onclick="showPopWin(\'%s&i=%s&p=%s\', %s, %s);">All</a></div></div>',
                 htmlspecialchars($actionTitle),
                 md5($this->_instanceName),
                 $actionURL,
                 urlencode($this->_instanceName),
-                urlencode(serialize($newParameterArraySelected)),
+                urlencode(json_encode($newParameterArraySelected)),
                 md5($this->_instanceName),
                 md5($this->_instanceName),
                 $width,
                 $height,
                 $actionURL,
                 urlencode($this->_instanceName),
-                urlencode(serialize($newParameterArrayAll)),
+                urlencode(json_encode($newParameterArrayAll)),
                 $width,
                 $height
             );        
@@ -2163,12 +2196,12 @@ echo ('<script type="text/javascript">setTableWidth("table'.$md5InstanceName.'",
         else
         {
             $html = sprintf(
-                '<div><div style="float:left; width:170px;">%s</div><div style="float:right; width:95px;"><a href="javascript:void(0);" onclick="if (exportArray%s.length>0) showPopWin(\'%s&i=%s&p=%s&dynamicArgument%s=\' + urlEncode(serializeArray(exportArray%s)), %s, %s); else dataGridNoSelected();">Selected</a></div></div>',
+                '<div><div style="float:left; width:170px;">%s</div><div style="float:right; width:95px;"><a href="javascript:void(0);" onclick="if (exportArray%s.length>0) showPopWin(\'%s&i=%s&p=%s&dynamicArgument%s=\' + serializeArray(exportArray%s), %s, %s); else dataGridNoSelected();">Selected</a></div></div>',
                 htmlspecialchars($actionTitle),
                 md5($this->_instanceName),
                 $actionURL,
                 urlencode($this->_instanceName),
-                urlencode(serialize($newParameterArraySelected)),
+                urlencode(json_encode($newParameterArraySelected)),
                 md5($this->_instanceName),
                 md5($this->_instanceName),
                 $width,
@@ -2282,7 +2315,7 @@ echo ('<script type="text/javascript">setTableWidth("table'.$md5InstanceName.'",
                     $ID, $md5InstanceName,
                     $ID, $md5InstanceName,      //Select Box ID
                     urlencode($this->_instanceName),           //Instance name for ajax function itself
-                    urlencode(serialize($newParameterArray)),  //New parameter array
+                    urlencode(json_encode($newParameterArray)),  //New parameter array
                     $_SESSION['CATS']->getCookie(),            //Cookie
                     $newParameterArray['maxResults'],          //Used to help determine how many rows per page when changing pages
                     $this->_currentPage,
@@ -2293,7 +2326,7 @@ echo ('<script type="text/javascript">setTableWidth("table'.$md5InstanceName.'",
             else
             {
                 $requestString = $this->_getUnrelatedRequestString();
-                $requestString .= '&' . urlencode('parameters' . $this->_instanceName) . '=' . urlencode(serialize($newParameterArray));
+                $requestString .= '&' . urlencode('parameters' . $this->_instanceName) . '=' . urlencode(json_encode($newParameterArray));
 
                 echo sprintf(
                     '<span style="%s">Page <input id="pageSelection%s%s" style="width: 32px;" value="%s" onkeypress="document.getElementById(\'pageSelectionButton%s%s\').style.display=\'\';"/> of %s&nbsp;<input id="pageSelectionButton%s%s" type="button"  class="button" style="display:none;" value="Go" onclick="document.location.href=\'%s?%s&dynamicArgument%s=\' + ((document.getElementById(\'pageSelection%s%s\').value -1 ) * %s);">%s</span>',
@@ -2502,7 +2535,7 @@ echo ('<script type="text/javascript">setTableWidth("table'.$md5InstanceName.'",
                 $style,
                 $javascript,
                 urlencode($this->_instanceName),
-                urlencode(serialize($newParameterArray)),
+                urlencode(json_encode($newParameterArray)),
                 $_SESSION['CATS']->getCookie(),
                 ($className != '' ? 'class="'.$className.'"' : ''),
                 ($id != '' ? 'id="'.$id.'"' : '')
@@ -2511,7 +2544,7 @@ echo ('<script type="text/javascript">setTableWidth("table'.$md5InstanceName.'",
         else
         {
             $requestString = $this->_getUnrelatedRequestString();
-            $requestString .= '&' . urlencode('parameters' . $this->_instanceName) . '=' . urlencode(serialize($newParameterArray));
+            $requestString .= '&' . urlencode('parameters' . $this->_instanceName) . '=' . urlencode(json_encode($newParameterArray));
 
             return sprintf(
                 '<a href="%s?%s" style="%s%s" onclick="%s" %s %s>',
@@ -2649,7 +2682,7 @@ echo ('<script type="text/javascript">setTableWidth("table'.$md5InstanceName.'",
            echo sprintf(
                 'populateAjaxPager(\'%s\', \'%s\', \'%s\', document.getElementById(\'filterArea%s\').value);',
                 urlencode($this->_instanceName),
-                urlencode(serialize($newParameterArray)),  //New parameter array
+                urlencode(json_encode($newParameterArray)),  //New parameter array
                 $_SESSION['CATS']->getCookie(),            //Cookie
                 $md5InstanceName
             );
@@ -2657,7 +2690,7 @@ echo ('<script type="text/javascript">setTableWidth("table'.$md5InstanceName.'",
         else
         {
             $requestString = $this->_getUnrelatedRequestString();
-            $requestString .= '&' . urlencode('parameters' . $this->_instanceName) . '=' . urlencode(serialize($newParameterArray));
+            $requestString .= '&' . urlencode('parameters' . $this->_instanceName) . '=' . urlencode(json_encode($newParameterArray));
             echo 'if (typeof(retainFilterVisible) == \'undefined\') {';
 
                 echo sprintf(
@@ -2676,7 +2709,7 @@ echo ('<script type="text/javascript">setTableWidth("table'.$md5InstanceName.'",
                 $newParameterArray['filterVisible'] = false;
 
                 $requestString = $this->_getUnrelatedRequestString();
-                $requestString .= '&' . urlencode('parameters' . $this->_instanceName) . '=' . urlencode(serialize($newParameterArray));
+                $requestString .= '&' . urlencode('parameters' . $this->_instanceName) . '=' . urlencode(json_encode($newParameterArray));
 
                 echo sprintf(
                     'document.location.href=\'%s?%s&dynamicArgument%s=\' + urlEncode(document.getElementById(\'filterArea%s\').value);',
@@ -2693,7 +2726,7 @@ echo ('<script type="text/javascript">setTableWidth("table'.$md5InstanceName.'",
                 $newParameterArray['filter'] = '<dynamic>';
 
                 $requestString = $this->_getUnrelatedRequestString();
-                $requestString .= '&' . urlencode('parameters' . $this->_instanceName) . '=' . urlencode(serialize($newParameterArray));
+                $requestString .= '&' . urlencode('parameters' . $this->_instanceName) . '=' . urlencode(json_encode($newParameterArray));
 
                 echo sprintf(
                     'document.location.href=\'%s?%s&dynamicArgument%s=\' + urlEncode(document.getElementById(\'filterArea%s\').value);',

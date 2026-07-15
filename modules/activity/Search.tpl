@@ -18,7 +18,7 @@
             </table>
 
             <?php if (!empty($this->rs)): ?>
-                <p class="note">Activities on <?php echo($this->startDate['month'].'/'.$this->startDate['day'].'/'.$this->startDate['year'])?></p>
+                <p class="note">Activities on <?php echo Template::escapeHtml($this->startDate['month'] . '/' . $this->startDate['day'] . '/' . $this->startDate['year']); ?></p>
 
                  <table id="activityTable" class="sortable" width="100%" onmouseover="javascript:trackTableHighlight(event)">
                     <tr>
@@ -49,35 +49,35 @@
                     <?php foreach ($this->rs as $rowNumber => $activityData): ?>
                         <tr class="<?php TemplateUtility::printAlternatingRowClass($rowNumber); ?>">
                             <td align="left" valign="top" nowrap="nowrap">
-                                <?php echo($activityData['dateCreated']); ?>
+                                <?php echo Template::escapeHtml($activityData['dateCreated']); ?>
                             </td>
 
                             <td align="left" valign="top">
-                               <img width="16" height="16" src="images/<?php echo($activityData['icon']); ?>" alt="" />
+                               <img width="16" height="16" src="<?php echo Template::escapeUrl('images/' . $activityData['icon']); ?>" alt="" />
                             </td>
 
                             <td align="left" valign="top" >
-                                <a href="<?php $this->_($activityData['activityURL']); ?>" title="<?php $this->_($activityData['itemInfo']); ?>">
+                                <a href="<?php echo Template::escapeUrl($activityData['activityURL']); ?>" title="<?php echo Template::escapeAttr($activityData['itemInfo']); ?>">
                                     <?php $this->_($activityData['firstName']); ?>
                                 </a>
                             </td>
 
                             <td align="left" valign="top" >
-                                <a href="<?php $this->_($activityData['activityURL']); ?>" title="<?php $this->_($activityData['itemInfo']); ?>">
+                                <a href="<?php echo Template::escapeUrl($activityData['activityURL']); ?>" title="<?php echo Template::escapeAttr($activityData['itemInfo']); ?>">
                                     <?php $this->_($activityData['lastName']); ?>
                                 </a>
                             </td>
 
-                            <td align="left" valign="top" id="activityRegarding<?php echo($activityData['activityID']); ?>">
-                                <?php echo($activityData['regarding']); ?>
+                            <td align="left" valign="top" id="activityRegarding<?php echo Template::escapeAttr($activityData['activityID']); ?>">
+                                <?php echo Template::escapeHtml($activityData['regarding']); ?>
                             </td>
 
-                            <td align="left" valign="top" id="activityType<?php echo($activityData['activityID']); ?>">
+                            <td align="left" valign="top" id="activityType<?php echo Template::escapeAttr($activityData['activityID']); ?>">
                                 <?php $this->_($activityData['typeDescription']); ?>
                             </td>
 
                             <td align="left" valign="top" >
-                                <?php echo($activityData['notes']); ?>
+                                <?php echo nl2br(TemplateUtility::highlightStatusChangeActivityNote($activityData['notes'])); ?>
                             </td>
 
                             <td align="left" valign="top">
@@ -88,7 +88,7 @@
                 </table>
                 <?php $this->pager->printNavigation(); ?>
             <?php elseif ($this->isResultsMode): ?>
-                <p class="note">No activities found on <?php echo($this->startDate['month'] . '/' . $this->startDate['day'] . '/' . $this->startDate['year']); ?></p>
+                <p class="note">No activities found on <?php echo Template::escapeHtml($this->startDate['month'] . '/' . $this->startDate['day'] . '/' . $this->startDate['year']); ?></p>
             <?php endif; ?>
         </div>
     </div>

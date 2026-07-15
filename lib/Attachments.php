@@ -938,20 +938,32 @@ class AttachmentCreator
         $fileSize         = $_FILES[$fileField]['size'];
         $uploadError      = $_FILES[$fileField]['error'];
 
-        /* Recover from magic quotes. Note that tmp_name doesn't appear to
-         * get escaped, and stripslashes() on it breaks on Windows. - Will
-         */
-        if (get_magic_quotes_gpc())
-        {
-            $originalFilename = stripslashes($originalFilename);
-            $contentType      = stripslashes($contentType);
-        }
-
         /* Did a file upload error occur? */
         if ($uploadError != UPLOAD_ERR_OK)
         {
             $this->_isError = true;
             $this->_error = FileUtility::getErrorMessage($uploadError);
+            return false;
+        }
+
+        /* Restrict uploads to a whitelist of allowed file extensions.
+         * This is a server-side validation which cannot be bypassed by
+         * manipulating client-side restrictions.
+         */
+        $allowedExtensions = array(
+            'bmp', 'csv', 'doc', 'docx', 'heic',
+            'jpeg', 'jpg', 'msg', 'odg', 'odt',
+            'pages', 'pdf', 'png', 'ppt', 'pptx',
+            'rtf', 'tiff', 'wpd', 'wps', 'xls',
+            'xlsx', 'xps'
+        );
+
+        $extension = FileUtility::getFileExtension($originalFilename);
+
+        if (!in_array($extension, $allowedExtensions, true))
+        {
+            $this->_isError = true;
+            $this->_error = 'This file type is not allowed for upload.';
             return false;
         }
 

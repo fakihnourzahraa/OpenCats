@@ -66,7 +66,7 @@
                                         <label id="titleLabel" for="title">Title:</label>
                                     </td>
                                     <td class="tdData">
-                                        <input type="text" name="title" id="title" value="<?php $this->_($this->data['title']); ?>" class="inputbox" style="width: 150px" />&nbsp;*
+                                        <input type="text" name="title" id="title" value="<?php $this->_($this->data['title']); ?>" class="inputbox" style="width: 150px" />
                                     </td>
                                 </tr>
 
@@ -188,7 +188,16 @@
                                         <label id="addressLabel" for="address">Address:</label>
                                     </td>
                                     <td class="tdData">
-                                        <textarea name="address" id="address" class="inputbox" style="width: 150px"><?php $this->_($this->data['address']); ?></textarea>
+                                        <input type="text" name="address" id="address" class="inputbox" style="width: 150px" value="<?php $this->_($this->data['address']); ?>" />
+                                    </td>
+                                </tr>
+
+                                <tr>
+                                    <td class="tdVertical">
+                                        <label id="address2Label" for="address2">Address 2:</label>
+                                    </td>
+                                    <td class="tdData">
+                                        <input type="text" name="address2" id="address2" class="inputbox" style="width: 150px" value="<?php $this->_($this->data['address2']); ?>" />
                                     </td>
                                 </tr>
 

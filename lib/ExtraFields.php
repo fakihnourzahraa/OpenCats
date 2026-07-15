@@ -28,6 +28,7 @@
  */
  
 include_once(LEGACY_ROOT . '/lib/Site.php');
+include_once(LEGACY_ROOT . '/lib/DateUtility.php');
  
 /**
  *	Extra Fields Library
@@ -61,7 +62,6 @@ class ExtraFields
                 extra_field_settings.extra_field_settings_id AS extraFieldSettingsID,
                 extra_field_settings.extra_field_type as extraFieldType,
                 extra_field_settings.extra_field_options as extraFieldOptions,
-                extra_field_settings.filter_type AS filterType,
                 extra_field_settings.site_id AS siteID
             FROM
                 extra_field_settings
@@ -85,33 +85,46 @@ class ExtraFields
      * @param integer field type (check constants.php)
      * @return boolean query response
      */
-    public function define($fieldName, $fieldType, $filterType = 'default')
-{
-    $sql = sprintf(
-        "INSERT INTO extra_field_settings (
-            field_name, site_id, date_created,
-            data_item_type, extra_field_type, filter_type
-         ) VALUES (%s, %s, NOW(), %s, %s, %s)",
-         $this->_db->makeQueryString($fieldName),
-         $this->_siteID,
-         $this->_dataItemType,
-         $this->_db->makeQueryInteger($fieldType),
-         $this->_db->makeQueryString($filterType)
-    );
-    $this->_db->query($sql);
-
-    /* Force this new extra field to have a position. */
-    $sql = sprintf(
-        "UPDATE extra_field_settings
-         SET position = %s
-         WHERE extra_field_settings_id = %s
-         AND site_id = %s",
-         $this->_db->getLastInsertID(),
-         $this->_db->getLastInsertID(),
-         $this->_siteID
-    );
-    $this->_db->query($sql);
-}
+    public function define($fieldName, $fieldType)
+    {
+        $sql = sprintf(
+            "INSERT INTO extra_field_settings (
+                field_name,
+                site_id,
+                date_created,
+                data_item_type,
+                extra_field_type
+             )
+             VALUES (
+                %s,
+                %s,
+                NOW(),
+                %s,
+                %s
+             )",
+             $this->_db->makeQueryString($fieldName),
+             $this->_siteID,
+             $this->_dataItemType,
+             $this->_db->makeQueryInteger($fieldType)
+        );
+        $this->_db->query($sql);
+        
+        /* Force this new extra field to have a position. */
+        $sql = sprintf(
+            "UPDATE 
+                extra_field_settings
+             SET
+                position = %s
+             WHERE
+                extra_field_settings_id = %s
+             AND
+                site_id = %s",
+             $this->_db->getLastInsertID(),
+             $this->_db->getLastInsertID(),
+             $this->_siteID
+        );
+        $this->_db->query($sql);
+    }
     
     /**
      * Deletes an extra field for a record type in a site.
@@ -121,6 +134,21 @@ class ExtraFields
      */
     public function remove($fieldName)
     {
+        $sql = sprintf(
+            "DELETE FROM
+                extra_field
+             WHERE
+                field_name = %s
+             AND
+                site_id = %s
+             AND
+                data_item_type = %s",
+             $this->_db->makeQueryString($fieldName),
+             $this->_siteID,
+             $this->_dataItemType
+        );
+        $this->_db->query($sql);
+
         $sql = sprintf(
             "DELETE FROM
                 extra_field_settings
@@ -395,47 +423,6 @@ class ExtraFields
     }
 
     /**
-     * Changes the filter type(s) of an existing extra field.
-     *
-     * @param string field name
-     * @param string filter type(s), pipe-separated
-     * @return void
-     */
-    public function setFilterType($fieldName, $filterType)
-    {
-        $validFilters = array('default', 'date', 'range', 'dropdown');
-
-        $filterParts = array_values(array_intersect(
-            array_filter(explode('|', $filterType)),
-            $validFilters
-        ));
-
-        if (empty($filterParts))
-        {
-            $filterParts = array('default');
-        }
-
-        $sql = sprintf(
-            "UPDATE
-                extra_field_settings
-            SET
-                extra_field_settings.filter_type = %s
-            WHERE
-                extra_field_settings.site_id = %s
-            AND
-                extra_field_settings.data_item_type = %s
-            AND
-                extra_field_settings.field_name = %s",
-            $this->_db->makeQueryString(implode(',', $filterParts)),
-            $this->_siteID,
-            $this->_dataItemType,
-            $this->_db->makeQueryString($fieldName)
-        );
-
-        $this->_db->query($sql);
-    }
-
-    /**
      * Returns all extra fields fields for a company.
      *
      * @param integer candidate ID
@@ -584,26 +571,7 @@ class ExtraFields
                 break;
                 
                 case EXTRA_FIELD_DATE:
-                    $dmy = false;
-                    
-                    if (isset($_SESSION['CATS']) && $_SESSION['CATS']->isLoggedIn())
-                    {
-                        if ($_SESSION['CATS']->isDateDMY())
-                        {
-                            $dmy = true;
-                        }
-                    } 
-                    else 
-                    {
-                        // Look up the sites preference. (This would happen on careersUI)
-                        $site = new Site($this->_siteID);
-                        $siteRS = $site->getSiteBySiteID($this->_siteID);
-                        
-                        if ($siteRS['dateFormatDDMMYY'] == 1)
-                        {
-                            $dmy = true; 
-                        }
-                    }
+                    $dmy = $this->_isDateDMY();
                     
                     if ($dmy)
                     {
@@ -706,7 +674,8 @@ class ExtraFields
                 break;
                 
                 case EXTRA_FIELD_DATE:
-                    $extraFields[$index]['addHTML'] = '<script type="text/javascript">DateInput(\'extraField'.$index.'\', false, \'MM-DD-YY\', \'\');</script>';
+                    $dateFormat = $this->_isDateDMY() ? 'DD-MM-YY' : 'MM-DD-YY';
+                    $extraFields[$index]['addHTML'] = '<script type="text/javascript">DateInput(\'extraField'.$index.'\', false, \''.$dateFormat.'\', \'\');</script>';
                 break;
                 
                 case EXTRA_FIELD_TEXT:
@@ -741,128 +710,93 @@ class ExtraFields
             case DATA_ITEM_JOBORDER:
                 $column = 'joborder.joborder_id';
                 break;
+                
             case DATA_ITEM_CANDIDATE:
                 $column = 'candidate.candidate_id';
                 break;
+
             case DATA_ITEM_CONTACT:
                 $column = 'contact.contact_id';
                 break;
+
             case DATA_ITEM_COMPANY:
             default:
                 $column = 'company.company_id';
                 break;
         }
-
-        $join = 'LEFT JOIN extra_field AS extra_field' . $uniqueIndex . ' '
-            . 'ON ' . $column . ' = extra_field' . $uniqueIndex . '.data_item_id '
-            . 'AND extra_field' . $uniqueIndex . '.field_name = ' . $db->makeQueryString($data['fieldName']) . ' '
-            . 'AND extra_field' . $uniqueIndex . '.data_item_type = ' . $this->_dataItemType;
-
+        
         switch ($data['extraFieldType'])
         {
             case EXTRA_FIELD_CHECKBOX:
-                $definition = array(
-                    'select'         => 'extra_field'.$uniqueIndex.'.value AS extra_field_value'.$uniqueIndex,
-                    'join'           => $join,
-                    'pagerRender'    => 'return ($rsData[\'extra_field_value'.$uniqueIndex.'\'] == \'Yes\' ? \'Yes\' : \'No\');',
-                    'exportRender'   => 'return ($rsData[\'extra_field_value'.$uniqueIndex.'\'] == \'Yes\' ? \'Yes\' : \'No\');',
-                    'sortableColumn' => 'extra_field_value'.$uniqueIndex,
-                    'pagerWidth'     => 45,
-                    'filter'         => 'IF (extra_field'.$uniqueIndex.'.value = "Yes", "Yes", "No")',
-                );
-                break;
-
+               return array('select'       => 'extra_field'.$uniqueIndex.'.value AS extra_field_value'.$uniqueIndex,
+                          'join'         => 'LEFT JOIN extra_field AS extra_field' . $uniqueIndex . ' '.
+                                            'ON '.$column.' = extra_field' . $uniqueIndex . '.data_item_id '.
+                                            'AND extra_field' . $uniqueIndex . '.field_name = ' . $db->makeQueryString($data['fieldName']) . ' '.
+                                            'AND extra_field' . $uniqueIndex . '.data_item_type = ' . $this->_dataItemType,
+                          'pagerRender'          => 'return ($rsData[\'extra_field_value' . $uniqueIndex . '\'] == \'Yes\' ? \'Yes\' : \'No\');',
+                          'exportRender'          => 'return ($rsData[\'extra_field_value' . $uniqueIndex . '\'] == \'Yes\' ? \'Yes\' : \'No\');',
+                          'sortableColumn'         => 'extra_field_value' . $uniqueIndex,
+                          'pagerWidth'  => 45,
+                          'filter' => 'IF (extra_field'.$uniqueIndex.'.value = "Yes", "Yes", "No")');
+            break;
+            
             case EXTRA_FIELD_DATE:
-                $pagerRender = 'if (isset($_SESSION[\'CATS\']) && $_SESSION[\'CATS\']->isLoggedIn() && $_SESSION[\'CATS\']->isDateDMY()) { $dateParts = explode(\'-\', $rsData[\'extra_field_value'.$uniqueIndex.'\']); if (count($dateParts) > 2) { $t = $dateParts[0]; $dateParts[0] = $dateParts[1]; $dateParts[1] = $t; } return implode(\'-\', $dateParts); } else { return $rsData[\'extra_field_value'.$uniqueIndex.'\']; }';
-                $definition = array(
-                    'select'         => 'extra_field'.$uniqueIndex.'.value AS extra_field_value'.$uniqueIndex,
-                    'join'           => $join,
-                    'pagerRender'    => $pagerRender,
-                    'exportRender'   => $pagerRender,
-                    'sortableColumn' => 'extra_field_value'.$uniqueIndex,
-                    'pagerWidth'     => 110,
-                    'filter'         => 'extra_field'.$uniqueIndex.'.value',
-                );
-                break;
-
+                return array('select'  => 'extra_field'.$uniqueIndex.'.value AS extra_field_value'.$uniqueIndex,
+                          'join'    => 'LEFT JOIN extra_field AS extra_field' . $uniqueIndex . ' '.
+                                       'ON '.$column.' = extra_field' . $uniqueIndex . '.data_item_id '.
+                                       'AND extra_field' . $uniqueIndex . '.field_name = ' . $db->makeQueryString($data['fieldName']) . ' '.
+                                       'AND extra_field' . $uniqueIndex . '.data_item_type = ' . $this->_dataItemType,
+                          'pagerRender'     => 'if (isset($_SESSION[\'CATS\']) && $_SESSION[\'CATS\']->isLoggedIn() && $_SESSION[\'CATS\']->isDateDMY())
+                                        {
+                                              $dateParts = explode(\'-\',  $rsData[\'extra_field_value' . $uniqueIndex . '\']);
+                                              if (count($dateParts) > 2)
+                                              {
+                                                    $t = $dateParts[0];
+                                                    $dateParts[0] = $dateParts[1];
+                                                    $dateParts[1] = $t;
+                                              }
+                                              $date = implode(\'-\', $dateParts);
+                                              return $date;
+                                        }
+                                        else
+                                        {
+                                             return $rsData[\'extra_field_value' . $uniqueIndex . '\'];
+                                        }',
+                          'exportRender'     => 'if (isset($_SESSION[\'CATS\']) && $_SESSION[\'CATS\']->isLoggedIn() && $_SESSION[\'CATS\']->isDateDMY())
+                                        {
+                                              $dateParts = explode(\'-\',  $rsData[\'extra_field_value' . $uniqueIndex . '\']);
+                                              if (count($dateParts) > 2)
+                                              {
+                                                    $t = $dateParts[0];
+                                                    $dateParts[0] = $dateParts[1];
+                                                    $dateParts[1] = $t;
+                                              }
+                                              $date = implode(\'-\', $dateParts);
+                                              return $date;
+                                        }
+                                        else
+                                        {
+                                             return $rsData[\'extra_field_value' . $uniqueIndex . '\'];
+                                        }',
+                          'sortableColumn'       => 'extra_field_value' . $uniqueIndex,
+                          'pagerWidth' => 110,
+                          'filter' => 'extra_field'.$uniqueIndex.'.value');
+            
             case EXTRA_FIELD_TEXT:
             default:
-                $definition = array(
-                    'select'         => 'extra_field'.$uniqueIndex.'.value AS extra_field_value'.$uniqueIndex,
-                    'join'           => $join,
-                    'pagerRender'    => 'return htmlspecialchars($rsData[\'extra_field_value'.$uniqueIndex.'\']);',
-                    'sortableColumn' => 'extra_field_value'.$uniqueIndex,
-                    'pagerWidth'     => 110,
-                    'filter'         => 'extra_field'.$uniqueIndex.'.value',
-                );
-                break;
-        }
-
-    $filterTypeRaw = isset($data['filterType']) ? (string)$data['filterType'] : 'default';
-
-    $filterTypes   = array_values(array_filter(array_map('trim', explode(',', $filterTypeRaw))));
-    if (empty($filterTypes))
-    {
-        $filterTypes = array('default');
-    }
-
-
-    $tokens = array();
-
-    foreach ($filterTypes as $filterType)
-    {
-        switch ($filterType)
-        {
-            case 'date':
-                $tokens[] = '=bt';
-                $tokens[] = '=d>';
-                $tokens[] = '=d<';
-                $definition['filter'] = 'STR_TO_DATE(extra_field' . $uniqueIndex . '.value, \'%m-%d-%y\')';
-                break;
-
-            case 'range':
-                $tokens[] = '=bt';
-                $tokens[] = '==';
-                $tokens[] = '=>';
-                $tokens[] = '=<';
-                break;
-
-            case 'dropdown':
-                $tokens[] = '=in';
-                if (!empty($data['extraFieldOptions'])) {
-                    $rawOptions = explode(',', $data['extraFieldOptions']);
-                } else {
-                    $distinctSQL = sprintf(
-                        "SELECT DISTINCT value FROM extra_field 
-                        WHERE field_name = %s 
-                        AND site_id = %s 
-                        AND data_item_type = %s 
-                        AND value != ''",
-                        $db->makeQueryString($data['fieldName']),
-                        $this->_siteID,
-                        $this->_dataItemType
-                    );
-                    $distinctRS = $db->getAllAssoc($distinctSQL);
-                    $rawOptions = array_column($distinctRS, 'value');
-                }
-                $definition['filterDropDownOptions'] = array_values(array_filter(array_map(function($opt) {
-                    $opt = urldecode(trim($opt));
-                    return $opt !== '' ? ['value' => $opt, 'label' => $opt] : null;
-                }, $rawOptions)));
-                break;
-
-            case 'default':
-            default:
-                $tokens[] = '==';
-                $tokens[] = '=~';
-                break;
+                return array('select'  => 'extra_field'.$uniqueIndex.'.value AS extra_field_value'.$uniqueIndex,
+                          'join'    => 'LEFT JOIN extra_field AS extra_field' . $uniqueIndex . ' '.
+                                       'ON '.$column.' = extra_field' . $uniqueIndex . '.data_item_id '.
+                                       'AND extra_field' . $uniqueIndex . '.field_name = ' . $db->makeQueryString($data['fieldName']) . ' '.
+                                       'AND extra_field' . $uniqueIndex . '.data_item_type = ' . $this->_dataItemType,
+                          'pagerRender'     => 'return htmlspecialchars($rsData[\'extra_field_value' . $uniqueIndex . '\']);',
+                          'sortableColumn'    => 'extra_field_value' . $uniqueIndex,
+                          'pagerWidth'   => 110,
+                          'filter' => 'extra_field'.$uniqueIndex.'.value',
+                          'filterTypes'   => '===>=<=~');
+            break;
         }
     }
-
-    $definition['filterTypes'] = implode('', array_unique($tokens));
-
-    return $definition;
-}
     
     /**
      * Returns an array of extra fields which are HTML formatted to be displayed
@@ -931,7 +865,15 @@ class ExtraFields
                 break;
                 
                 case EXTRA_FIELD_DATE:
-                    $extraFields[$index]['editHTML'] = '<script type="text/javascript">DateInput(\'extraField'.$index.'\', false, \'MM-DD-YY\', \''.$data['value'].'\');</script>';
+                    $userDateFormat = $this->_isDateDMY() ? 'DD-MM-YY' : 'MM-DD-YY';
+                    $userDateValue = $data['value'];
+                    if (!empty($userDateValue) && $userDateFormat == 'DD-MM-YY')
+                    {
+                        $userDateValue = DateUtility::convert(
+                            '-', $userDateValue, DATE_FORMAT_MMDDYY, DATE_FORMAT_DDMMYY
+                        );
+                    }
+                    $extraFields[$index]['editHTML'] = '<script type="text/javascript">DateInput(\'extraField'.$index.'\', false, \''.$userDateFormat.'\', \''.htmlspecialchars($userDateValue, ENT_QUOTES).'\');</script>';
                 break;
                                     
                 case EXTRA_FIELD_TEXT:
@@ -957,11 +899,40 @@ class ExtraFields
     {
         $extraFields = $this->_getValuesWithSettings($dataItemID);
 
+        $dateFormatFlag = $this->_isDateDMY()
+            ? DATE_FORMAT_DDMMYY
+            : DATE_FORMAT_MMDDYY;
+
         for ($i = 0; $i < count($extraFields); $i++)
         {
-            if (isset($_POST['extraField' . $i]) && $extraFields[$i]['value'] != $_POST['extraField' . $i])
+            if (!isset($_POST['extraField' . $i]))
             {
-               $this->setValue($extraFields[$i]['fieldName'], $_POST['extraField' . $i], $dataItemID);
+                continue;
+            }
+
+            $newValue = $_POST['extraField' . $i];
+
+            if ($extraFields[$i]['extraFieldType'] == EXTRA_FIELD_DATE)
+            {
+                $newValue = trim($newValue);
+
+                if (!empty($newValue) &&
+                    !DateUtility::validate('-', $newValue, $dateFormatFlag))
+                {
+                    continue;
+                }
+
+                if (!empty($newValue))
+                {
+                    $newValue = DateUtility::convert(
+                        '-', $newValue, $dateFormatFlag, DATE_FORMAT_MMDDYY
+                    );
+                }
+            }
+
+            if ($extraFields[$i]['value'] != $newValue)
+            {
+               $this->setValue($extraFields[$i]['fieldName'], $newValue, $dataItemID);
             }
         }
     }
@@ -972,6 +943,20 @@ class ExtraFields
      *
      * @return array extra fields
      */
+    private function _isDateDMY()
+    {
+        if (isset($_SESSION['CATS']) && $_SESSION['CATS']->isLoggedIn())
+        {
+            return $_SESSION['CATS']->isDateDMY();
+        }
+
+        /* Careers portal / unauthenticated: fall back to site preference. */
+        $site = new Site($this->_siteID);
+        $siteRS = $site->getSiteBySiteID($this->_siteID);
+
+        return ($siteRS['dateFormatDDMMYY'] == 1);
+    }
+
     public static function getValuesTypes()
     {
         return array (

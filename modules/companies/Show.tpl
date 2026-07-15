@@ -2,7 +2,7 @@
 include_once('./vendor/autoload.php');
 use OpenCATS\UI\QuickActionMenu;
 ?>
-<?php TemplateUtility::printHeader('Company - '.$this->data['name'], array( 'js/sorttable.js', 'js/attachment.js')); ?>
+<?php TemplateUtility::printHeader('Company - ' . $this->data['name'], array( 'js/activity.js', 'js/sorttable.js', 'js/attachment.js')); ?>
 <?php TemplateUtility::printHeaderBlock(); ?>
 <?php TemplateUtility::printTabs($this->active); ?>
     <div id="main">
@@ -27,7 +27,7 @@ use OpenCATS\UI\QuickActionMenu;
                             <tr>
                                 <td class="vertical">Name:</td>
                                 <td class="data">
-                                    <span class="<?php echo($this->data['titleClass']); ?>"><?php $this->_($this->data['name']); ?></span>
+                                    <span class="<?php echo Template::escapeAttr($this->data['titleClass']); ?>"><?php $this->_($this->data['name']); ?></span>
                                     <?php TemplateUtility::printSingleQuickActionMenu(new QuickActionMenu(DATA_ITEM_COMPANY, $this->companyID, $_SESSION['CATS']->getAccessLevel('companies.edit'))); ?>
                                 </td>
                             </tr>
@@ -51,8 +51,13 @@ use OpenCATS\UI\QuickActionMenu;
 
                             <tr>
                                 <td class="vertical">Address:</td>
-                                <td class="data"><?php echo(nl2br(htmlspecialchars($this->data['address']))); ?>&nbsp;
-                                <?php echo($this->data['googleMaps']); ?></td>
+                                <td class="data">
+                                    <?php echo nl2br(Template::escapeHtml($this->data['address'])); ?>
+                                    <?php if (!empty($this->data['address2'])): ?>
+                                        <br /><?php $this->_($this->data['address2']); ?>
+                                    <?php endif; ?>
+                                    &nbsp;<?php echo($this->data['googleMaps']); ?>
+                                </td>
                             </tr>
 
                             <tr>
@@ -81,7 +86,7 @@ use OpenCATS\UI\QuickActionMenu;
                             <tr>
                                 <td class="vertical">Billing Contact:</td>
                                 <td class="data">
-                                    <a href="<?php echo(CATSUtility::getIndexName()); ?>?m=contacts&amp;a=show&amp;contactID=<?php echo($this->data['billingContact']); ?>">
+                                    <a href="<?php echo Template::escapeUrl(CATSUtility::getIndexName() . '?m=contacts&a=show&contactID=' . $this->data['billingContact']); ?>">
                                         <?php $this->_($this->data['billingContactFullName']); ?>
                                     </a>
                                 </td>
@@ -90,7 +95,7 @@ use OpenCATS\UI\QuickActionMenu;
                             <tr>
                                 <td class="vertical">Web Site:</td>
                                 <td class="data">
-                                    <a href="<?php $this->_($this->data['url']); ?>" target="_blank">
+                                    <a href="<?php echo Template::escapeUrl($this->data['url']); ?>" target="_blank">
                                         <?php $this->_($this->data['url']); ?>
                                     </a>
                                 </td>
@@ -167,7 +172,7 @@ use OpenCATS\UI\QuickActionMenu;
                                             <tr>
                                                 <td>
                                                     <?php echo $attachmentsData['retrievalLink']; ?>
-                                                        <img src="<?php $this->_($attachmentsData['attachmentIcon']) ?>" alt="" width="16" height="16" border="0" />
+                                                        <img src="<?php echo Template::escapeUrl($attachmentsData['attachmentIcon']); ?>" alt="" width="16" height="16" border="0" />
                                                         &nbsp;
                                                         <?php $this->_($attachmentsData['originalFilename']) ?>
                                                     </a>
@@ -175,9 +180,12 @@ use OpenCATS\UI\QuickActionMenu;
                                                 <td><?php $this->_($attachmentsData['dateCreated']) ?></td>
                                                 <td>
                                                     <?php if ($this->getUserAccessLevel('companies.deleteAttachment') >= ACCESS_LEVEL_DELETE): ?>
-                                                        <a href="<?php echo(CATSUtility::getIndexName()); ?>?m=companies&amp;a=deleteAttachment&amp;companyID=<?php echo($this->companyID); ?>&amp;attachmentID=<?php $this->_($attachmentsData['attachmentID']) ?>"  title="Delete" onclick="javascript:return confirm('Delete this attachment?');">
-                                                            <img src="images/actions/delete.gif" alt="" width="16" height="16" border="0" />
-                                                        </a>
+                                                        <form method="post" action="<?php echo(CATSUtility::getIndexName()); ?>?m=companies&amp;a=deleteAttachment" style="display:inline;" onsubmit="return confirm('Delete this attachment?');">
+                                                            <input type="hidden" name="postback" value="postback" />
+                                                            <input type="hidden" name="companyID" value="<?php echo Template::escapeAttr($this->companyID); ?>" />
+                                                            <input type="hidden" name="attachmentID" value="<?php echo Template::escapeAttr($attachmentsData['attachmentID']); ?>" />
+                                                            <input type="image" src="images/actions/delete.gif" alt="" width="16" height="16" border="0" />
+                                                        </form>
                                                     <?php endif; ?>
                                                 </td>
                                             </tr>
@@ -187,7 +195,7 @@ use OpenCATS\UI\QuickActionMenu;
                                             <?php if (isset($this->attachmentLinkHTML)): ?>
                                                 <?php echo($this->attachmentLinkHTML); ?>
                                             <?php else: ?>
-                                                <a href="#" onclick="showPopWin('<?php echo(CATSUtility::getIndexName()); ?>?m=companies&amp;a=createAttachment&amp;companyID=<?php echo($this->companyID); ?>', 400, 125, null); return false;">
+                                                <a href="#" onclick="showPopWin(<?php echo Template::escapeJsAttr(CATSUtility::getIndexName() . '?m=companies&a=createAttachment&companyID=' . $this->companyID); ?>, 400, 125, null); return false;">
                                             <?php endif; ?>
                                             <img src="images/paperclip_add.gif" width="16" height="16" border="0" alt="add attachment" class="absmiddle" />&nbsp;Add Attachment
                                         </a>
@@ -218,19 +226,23 @@ use OpenCATS\UI\QuickActionMenu;
             <!-- /CONTACT INFO -->
 
             <?php if ($this->getUserAccessLevel('companies.edit') >= ACCESS_LEVEL_EDIT): ?>
-                <a id="edit_link" href="<?php echo(CATSUtility::getIndexName()); ?>?m=companies&amp;a=edit&amp;companyID=<?php echo($this->companyID); ?>">
+                <a id="edit_link" href="<?php echo Template::escapeUrl(CATSUtility::getIndexName() . '?m=companies&a=edit&companyID=' . $this->companyID); ?>">
                     <img src="images/actions/edit.gif" width="16" height="16" class="absmiddle" alt="edit" border="0" />&nbsp;Edit
                 </a>
                 &nbsp;&nbsp;&nbsp;&nbsp;
             <?php endif; ?>
             <?php if ($this->getUserAccessLevel('companies.delete') >= ACCESS_LEVEL_DELETE && $this->data['defaultCompany'] != 1): ?>
-                <a id="delete_link" href="<?php echo(CATSUtility::getIndexName()); ?>?m=companies&amp;a=delete&amp;companyID=<?php echo($this->companyID); ?>" onclick="javascript:return confirm('Delete this company?');">
-                    <img src="images/actions/delete.gif" width="16" height="16" class="absmiddle" alt="delete" border="0" />&nbsp;Delete
-                </a>
+                <form id="delete_link" method="post" action="<?php echo(CATSUtility::getIndexName()); ?>?m=companies&amp;a=delete" style="display:inline;" onsubmit="return confirm('Delete this company?');">
+                    <input type="hidden" name="postback" value="postback" />
+                    <input type="hidden" name="companyID" value="<?php echo Template::escapeAttr($this->companyID); ?>" />
+                    <button type="submit" class="linkButton">
+                        <img src="images/actions/delete.gif" width="16" height="16" class="absmiddle" alt="delete" border="0" />&nbsp;Delete
+                    </button>
+                </form>
                 &nbsp;&nbsp;&nbsp;&nbsp;
             <?php endif; ?>
             <?php if ($this->privledgedUser): ?>
-                <a id="history_link" href="<?php echo(CATSUtility::getIndexName()); ?>?m=settings&amp;a=viewItemHistory&amp;dataItemType=200&amp;dataItemID=<?php echo($this->companyID); ?>">
+                <a id="history_link" href="<?php echo Template::escapeUrl(CATSUtility::getIndexName() . '?m=settings&a=viewItemHistory&dataItemType=200&dataItemID=' . $this->companyID); ?>">
                     <img src="images/icon_clock.gif" width="16" height="16" class="absmiddle"  border="0" />&nbsp;View History
                 </a>
                 &nbsp;&nbsp;&nbsp;&nbsp;
@@ -260,7 +272,7 @@ use OpenCATS\UI\QuickActionMenu;
                     <tr class="<?php TemplateUtility::printAlternatingRowClass($rowNumber); ?>">
                         <td valign="top" align="left"><?php $this->_($jobOrdersData['jobOrderID']) ?></td>
                         <td valign="top">
-                            <a href="<?php echo(CATSUtility::getIndexName()); ?>?m=joborders&amp;a=show&amp;jobOrderID=<?php $this->_($jobOrdersData['jobOrderID']) ?>">
+                            <a href="<?php echo Template::escapeUrl(CATSUtility::getIndexName() . '?m=joborders&a=show&jobOrderID=' . $jobOrdersData['jobOrderID']); ?>">
                                 <?php $this->_($jobOrdersData['title']) ?>
                             </a>
                         </td>
@@ -276,7 +288,7 @@ use OpenCATS\UI\QuickActionMenu;
                         <td valign="top" align="left"><?php $this->_($jobOrdersData['ownerAbbrName']); ?></td>
                         <td valign="top" align="center">
                             <?php if ($this->getUserAccessLevel('joborders.edit') >= ACCESS_LEVEL_EDIT): ?>
-                                <a href="<?php echo(CATSUtility::getIndexName()); ?>?m=joborders&amp;a=edit&amp;jobOrderID=<?php $this->_($jobOrdersData['jobOrderID']) ?>">
+                                <a href="<?php echo Template::escapeUrl(CATSUtility::getIndexName() . '?m=joborders&a=edit&jobOrderID=' . $jobOrdersData['jobOrderID']); ?>">
                                     <img src="images/actions/edit.gif" width="16" height="16" class="absmiddle" alt="edit" border="0" />
                                 </a>
                             <?php endif; ?>
@@ -286,7 +298,7 @@ use OpenCATS\UI\QuickActionMenu;
             </table>
 
             <?php if ($this->getUserAccessLevel('joborders.add') >= ACCESS_LEVEL_EDIT): ?>
-                <a href="<?php echo(CATSUtility::getIndexName()); ?>?m=joborders&amp;a=add&amp;selected_company_id=<?php echo($this->companyID); ?>" title="Add Job Order">
+                <a href="<?php echo Template::escapeUrl(CATSUtility::getIndexName() . '?m=joborders&a=add&selected_company_id=' . $this->companyID); ?>" title="Add Job Order">
                     <img src="images/actions/job_order.gif" width="16" height="16" class="absmiddle" alt="New Job Order" border="0" />&nbsp;Add Job Order
                 </a>
             <?php endif; ?>
@@ -310,14 +322,14 @@ use OpenCATS\UI\QuickActionMenu;
 
                 <?php if (count($this->contactsRSWC) != 0): ?>
                  <?php foreach ($this->contactsRSWC as $rowNumber => $contactsData): ?>
-                    <tr id="ContactsDefault<?php echo($rowNumber) ?>" class="<?php TemplateUtility::printAlternatingRowClass($rowNumber); ?>">
+                    <tr id="ContactsDefault<?php echo Template::escapeAttr($rowNumber); ?>" class="<?php TemplateUtility::printAlternatingRowClass($rowNumber); ?>">
                         <td valign="top" align="left">
-                            <a href="<?php echo(CATSUtility::getIndexName()); ?>?m=contacts&amp;a=show&amp;contactID=<?php $this->_($contactsData['contactID']) ?>" class="<?php $this->_($contactsData['linkClass']); ?>">
+                            <a href="<?php echo Template::escapeUrl(CATSUtility::getIndexName() . '?m=contacts&a=show&contactID=' . $contactsData['contactID']); ?>" class="<?php echo Template::escapeAttr($contactsData['linkClass']); ?>">
                                 <?php $this->_($contactsData['firstName']) ?>
                             </a>
                         </td>
                         <td valign="top" align="left">
-                            <a href="<?php echo(CATSUtility::getIndexName()); ?>?m=contacts&amp;a=show&amp;contactID=<?php $this->_($contactsData['contactID']) ?>" class="<?php $this->_($contactsData['linkClass']); ?>">
+                            <a href="<?php echo Template::escapeUrl(CATSUtility::getIndexName() . '?m=contacts&a=show&contactID=' . $contactsData['contactID']); ?>" class="<?php echo Template::escapeAttr($contactsData['linkClass']); ?>">
                                 <?php $this->_($contactsData['lastName']) ?>
                             </a>
                         </td>
@@ -329,14 +341,14 @@ use OpenCATS\UI\QuickActionMenu;
                         <td valign="top" align="left"><?php $this->_($contactsData['ownerAbbrName']); ?></td>
                         <td valign="top" align="center">
                             <?php if (!empty($contactsData['email1'])): ?>
-                                <a href="mailto:<?php $this->_($contactsData['email1']); ?>" title="Send E-Mail (<?php $this->_($contactsData['email1']); ?>)">
+                                <a href="<?php echo Template::escapeUrl('mailto:' . $contactsData['email1']); ?>" title="<?php echo Template::escapeAttr('Send E-Mail (' . $contactsData['email1'] . ')'); ?>">
                                     <img src="images/actions/email.gif" width="16" height="16" alt="" class="absmiddle" border="0" />
                                 </a>
                             <?php else: ?>
                                 <img src="images/actions/email_no.gif" title="No E-Mail Address" width="16" height="16" alt="" class="absmiddle" border="0" />
                             <?php endif; ?>
                             <?php if ($this->getUserAccessLevel('contacts.edit') >= ACCESS_LEVEL_EDIT): ?>
-                                <a href="<?php echo(CATSUtility::getIndexName()); ?>?m=contacts&amp;a=edit&amp;contactID=<?php $this->_($contactsData['contactID']) ?>">
+                                <a href="<?php echo Template::escapeUrl(CATSUtility::getIndexName() . '?m=contacts&a=edit&contactID=' . $contactsData['contactID']); ?>">
                                     <img src="images/actions/edit.gif" width="16" height="16" class="absmiddle" alt="edit" border="0" />
                                 </a>
                             <?php endif; ?>
@@ -348,14 +360,14 @@ use OpenCATS\UI\QuickActionMenu;
                 <?php /* The following are hidden by default */ ?>
                 <?php if (count($this->contactsRSWC) != count($this->contactsRS) && count($this->contactsRS) != 0) : ?>
                  <?php foreach ($this->contactsRS as $rowNumber => $contactsData): ?>
-                    <tr id="ContactsFull<?php echo($rowNumber) ?>" class="<?php TemplateUtility::printAlternatingRowClass($rowNumber); ?>" style="display:none;">
+                    <tr id="ContactsFull<?php echo Template::escapeAttr($rowNumber); ?>" class="<?php TemplateUtility::printAlternatingRowClass($rowNumber); ?>" style="display:none;">
                         <td valign="top" align="left">
-                            <a href="<?php echo(CATSUtility::getIndexName()); ?>?m=contacts&amp;a=show&amp;contactID=<?php $this->_($contactsData['contactID']) ?>" class="<?php $this->_($contactsData['linkClass']); ?>">
+                            <a href="<?php echo Template::escapeUrl(CATSUtility::getIndexName() . '?m=contacts&a=show&contactID=' . $contactsData['contactID']); ?>" class="<?php echo Template::escapeAttr($contactsData['linkClass']); ?>">
                                 <?php $this->_($contactsData['firstName']) ?>
                             </a>
                         </td>
                         <td valign="top" align="left">
-                            <a href="<?php echo(CATSUtility::getIndexName()); ?>?m=contacts&amp;a=show&amp;contactID=<?php $this->_($contactsData['contactID']) ?>" class="<?php $this->_($contactsData['linkClass']); ?>">
+                            <a href="<?php echo Template::escapeUrl(CATSUtility::getIndexName() . '?m=contacts&a=show&contactID=' . $contactsData['contactID']); ?>" class="<?php echo Template::escapeAttr($contactsData['linkClass']); ?>">
                                 <?php $this->_($contactsData['lastName']) ?>
                             </a>
                         </td>
@@ -367,14 +379,14 @@ use OpenCATS\UI\QuickActionMenu;
                         <td valign="top" align="left"><?php $this->_($contactsData['ownerAbbrName']); ?></td>
                         <td valign="top" align="center">
                             <?php if (!empty($contactsData['email1'])): ?>
-                                <a href="mailto:<?php $this->_($contactsData['email1']); ?>">
-                                    <img src="images/actions/email.gif" width="16" height="16" alt="" class="absmiddle" border="0" title="Send E-Mail (<?php $this->_($contactsData['email1']); ?>)"/>
+                                <a href="<?php echo Template::escapeUrl('mailto:' . $contactsData['email1']); ?>">
+                                    <img src="images/actions/email.gif" width="16" height="16" alt="" class="absmiddle" border="0" title="<?php echo Template::escapeAttr('Send E-Mail (' . $contactsData['email1'] . ')'); ?>"/>
                                 </a>
                             <?php else: ?>
                                 <img src="images/actions/email_no.gif" title="No E-Mail Address" width="16" height="16" alt="" class="absmiddle" border="0" />
                             <?php endif; ?>
                             <?php if ($this->getUserAccessLevel('contacts.edit') >= ACCESS_LEVEL_EDIT): ?>
-                                <a href="<?php echo(CATSUtility::getIndexName()); ?>?m=contacts&amp;a=edit&amp;contactID=<?php $this->_($contactsData['contactID']) ?>">
+                                <a href="<?php echo Template::escapeUrl(CATSUtility::getIndexName() . '?m=contacts&a=edit&contactID=' . $contactsData['contactID']); ?>">
                                     <img src="images/actions/edit.gif" width="16" height="16" class="absmiddle" alt="edit" border="0" />
                                 </a>
                             <?php endif; ?>
@@ -386,22 +398,69 @@ use OpenCATS\UI\QuickActionMenu;
             </table>
 
             <?php if ($this->getUserAccessLevel('contacts.add') >= ACCESS_LEVEL_EDIT): ?>
-                <a href="<?php echo(CATSUtility::getIndexName()); ?>?m=contacts&amp;a=add&amp;selected_company_id=<?php echo($this->companyID); ?>" title="Add Contact">
+                <a href="<?php echo Template::escapeUrl(CATSUtility::getIndexName() . '?m=contacts&a=add&selected_company_id=' . $this->companyID); ?>" title="Add Contact">
                     <img src="images/actions/add_contact.gif" width="16" height="16" class="absmiddle" alt="add contact" border="0" title="Add Contact"/>&nbsp;Add Contact
                 </a>
             <?php endif; ?>
             <?php if (count($this->contactsRSWC) != count($this->contactsRS)) : ?>
                 &nbsp;
-                <a href="javascript:void(0)" id="linkShowAll" onclick="javascript:for (i = 0; i< <?php echo(count($this->contactsRSWC)); ?>; i++) document.getElementById('ContactsDefault'+i).style.display='none'; for (i = 0; i< <?php echo(count($this->contactsRS)); ?>; i++) document.getElementById('ContactsFull'+i).style.display=''; document.getElementById('linkShowAll').style.display='none'; document.getElementById('linkHideSome').style.display='';">
+                <a href="javascript:void(0)" id="linkShowAll" onclick="<?php echo Template::escapeAttr('javascript:for (i = 0; i< ' . count($this->contactsRSWC) . '; i++) document.getElementById(\'ContactsDefault\'+i).style.display=\'none\'; for (i = 0; i< ' . count($this->contactsRS) . '; i++) document.getElementById(\'ContactsFull\'+i).style.display=\'\'; document.getElementById(\'linkShowAll\').style.display=\'none\'; document.getElementById(\'linkHideSome\').style.display=\'\';'); ?>">
                     <img src="images/actions/add_contact.gif" width="16" height="16" class="absmiddle" alt="add contact" border="0" title="Show All"/>
                     &nbsp;Show contacts who have left (<?php echo(count($this->contactsRS) - count($this->contactsRSWC)); ?>)
                 </a>
-                <a href="javascript:void(0)" id="linkHideSome" style="display:none;" onclick="javascript:for (i = 0; i< <?php echo(count($this->contactsRSWC)); ?>; i++) document.getElementById('ContactsDefault'+i).style.display=''; for (i = 0; i< <?php echo(count($this->contactsRS)); ?>; i++) document.getElementById('ContactsFull'+i).style.display='none'; document.getElementById('linkShowAll').style.display=''; document.getElementById('linkHideSome').style.display='none';">
+                <a href="javascript:void(0)" id="linkHideSome" style="display:none;" onclick="<?php echo Template::escapeAttr('javascript:for (i = 0; i< ' . count($this->contactsRSWC) . '; i++) document.getElementById(\'ContactsDefault\'+i).style.display=\'\'; for (i = 0; i< ' . count($this->contactsRS) . '; i++) document.getElementById(\'ContactsFull\'+i).style.display=\'none\'; document.getElementById(\'linkShowAll\').style.display=\'\'; document.getElementById(\'linkHideSome\').style.display=\'none\';'); ?>">
                     <img src="images/actions/add_contact.gif" width="16" height="16" class="absmiddle" alt="add contact" border="0" title="Hide Some"/>
                     &nbsp;Hide contacts who have left (<?php echo(count($this->contactsRS) - count($this->contactsRSWC)); ?>)
                 </a>
             <?php endif; ?>
             <!-- /CONTACT INFO -->
+
+            <br clear="all" />
+            <br />
+
+            <p class="note">Activity</p>
+            <table id="activityTable" class="sortable">
+                <tr>
+                    <th align="left" width="125">Date</th>
+                    <th align="left" width="90">Type</th>
+                    <th align="left" width="250">Regarding</th>
+                    <th align="left" width="140">Contact</th>
+                    <th align="left">Notes</th>
+                    <th align="left" width="90">Entered By</th>
+                    <th align="left" width="40">Action</th>
+                </tr>
+
+                <?php foreach ($this->activityRS as $rowNumber => $activityData): ?>
+                    <tr class="<?php TemplateUtility::printAlternatingRowClass($rowNumber); ?>">
+                        <td align="left" valign="top" id="activityDate<?php echo Template::escapeAttr($activityData['activityID']); ?>"><?php $this->_($activityData['dateCreated']); ?></td>
+                        <td align="left" valign="top" id="activityType<?php echo Template::escapeAttr($activityData['activityID']); ?>"><?php $this->_($activityData['typeDescription']); ?></td>
+                        <td align="left" valign="top" id="activityRegarding<?php echo Template::escapeAttr($activityData['activityID']); ?>" data-joborder-id="<?php echo Template::escapeAttr(isset($activityData['jobOrderID']) ? $activityData['jobOrderID'] : ''); ?>"><?php $this->_($activityData['regarding']); ?></td>
+                        <td align="left" valign="top">
+                            <?php if (!empty($activityData['contactID'])): ?>
+                                <a href="<?php echo Template::escapeUrl(CATSUtility::getIndexName() . '?m=contacts&a=show&contactID=' . $activityData['contactID']); ?>">
+                                    <?php $this->_($activityData['contactFullName']); ?>
+                                </a>
+                            <?php else: ?>
+                                <?php $this->_($activityData['contactFullName']); ?>
+                            <?php endif; ?>
+                        </td>
+                        <td align="left" valign="top" id="activityNotes<?php echo Template::escapeAttr($activityData['activityID']); ?>"><?php echo nl2br(Template::escapeHtml($activityData['notes'])); ?></td>
+                        <td align="left" valign="top"><?php $this->_($activityData['enteredByAbbrName']); ?></td>
+                        <td align="center">
+                            <?php if ($this->getUserAccessLevel('contacts.editActivity') >= ACCESS_LEVEL_EDIT): ?>
+                                <a href="#" id="editActivity<?php echo Template::escapeAttr($activityData['activityID']); ?>" onclick="Activity_editEntry(<?php echo (int) $activityData['activityID']; ?>, <?php echo (int) $activityData['contactID']; ?>, <?php echo (int) DATA_ITEM_CONTACT; ?>, <?php echo Template::escapeJsAttr($this->sessionCookie); ?>); return false;">
+                                    <img src="images/actions/edit.gif" width="16" height="16" alt="" class="absmiddle" border="0" title="Edit"/>
+                                </a>
+                            <?php endif; ?>
+                            <?php if ($this->getUserAccessLevel('contacts.deleteActivity') >= ACCESS_LEVEL_EDIT): ?>
+                                <a href="#" id="deleteActivity<?php echo Template::escapeAttr($activityData['activityID']); ?>" onclick="Activity_deleteEntry(<?php echo (int) $activityData['activityID']; ?>, <?php echo Template::escapeJsAttr($this->sessionCookie); ?>); return false;">
+                                    <img src="images/actions/delete.gif" width="16" height="16" alt="" class="absmiddle" border="0" title="Delete"/>
+                                </a>
+                            <?php endif; ?>
+                        </td>
+                    </tr>
+                <?php endforeach; ?>
+            </table>
         </div>
     </div>
 

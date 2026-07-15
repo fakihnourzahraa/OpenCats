@@ -127,7 +127,14 @@ class ContactsUI extends UserInterface
                 {
                     CommonErrors::fatal(COMMONERROR_PERMISSION, $this, 'Invalid user level for action.');
                 }
-                $this->onDelete();
+                if ($this->isPostBack())
+                {
+                    $this->onDelete();
+                }
+                else
+                {
+                    CommonErrors::fatal(COMMONERROR_BADFIELDS, $this, 'Invalid request.');
+                }
                 break;
 
             case 'search':
@@ -526,6 +533,7 @@ class ContactsUI extends UserInterface
         $email1     = $this->getTrimmedInput('email1', $_POST);
         $email2     = $this->getTrimmedInput('email2', $_POST);
         $address    = $this->getTrimmedInput('address', $_POST);
+        $address2   = $this->getTrimmedInput('address2', $_POST);
         $city       = $this->getTrimmedInput('city', $_POST);
         $state      = $this->getTrimmedInput('state', $_POST);
         $zip        = $this->getTrimmedInput('zip', $_POST);
@@ -538,7 +546,7 @@ class ContactsUI extends UserInterface
         $departmentsCSV = $this->getTrimmedInput('departmentsCSV', $_POST);
 
         /* Bail out if any of the required fields are empty. */
-        if (empty($firstName) || empty($lastName) || empty($title))
+        if (empty($firstName) || empty($lastName))
         {
             CommonErrors::fatal(COMMONERROR_MISSINGFIELDS, $this, 'Required fields are missing.');
         }
@@ -556,7 +564,7 @@ class ContactsUI extends UserInterface
         $contacts = new Contacts($this->_siteID);
         $contactID = $contacts->add(
             $companyID, $firstName, $lastName, $title, $department, $reportsTo,
-            $email1, $email2, $phoneWork, $phoneCell, $phoneOther, $address,
+            $email1, $email2, $phoneWork, $phoneCell, $phoneOther, $address, $address2,
             $city, $state, $zip, $isHot, $notes, $this->_userID, $this->_userID
         );
 
@@ -814,6 +822,7 @@ class ContactsUI extends UserInterface
         $email1     = $this->getTrimmedInput('email1', $_POST);
         $email2     = $this->getTrimmedInput('email2', $_POST);
         $address    = $this->getTrimmedInput('address', $_POST);
+        $address2   = $this->getTrimmedInput('address2', $_POST);
         $city       = $this->getTrimmedInput('city', $_POST);
         $state      = $this->getTrimmedInput('state', $_POST);
         $zip        = $this->getTrimmedInput('zip', $_POST);
@@ -826,7 +835,7 @@ class ContactsUI extends UserInterface
         $departmentsCSV = $this->getTrimmedInput('departmentsCSV', $_POST);
 
         /* Bail out if any of the required fields are empty. */
-        if (empty($firstName) || empty($lastName) || empty($title))
+        if (empty($firstName) || empty($lastName))
         {
             CommonErrors::fatal(COMMONERROR_MISSINGFIELDS, $this, 'Required fields are missing.');
         }
@@ -843,7 +852,7 @@ class ContactsUI extends UserInterface
 
         if (!$contacts->update($contactID, $companyID, $firstName, $lastName,
             $title, $department, $reportsTo, $email1, $email2, $phoneWork, $phoneCell,
-            $phoneOther, $address, $city, $state, $zip, $isHot,
+            $phoneOther, $address, $address2, $city, $state, $zip, $isHot,
             $leftCompany, $notes, $owner, $email, $emailAddress))
         {
             CommonErrors::fatal(COMMONERROR_RECORDERROR, $this, 'Failed to update contact.');
@@ -866,12 +875,12 @@ class ContactsUI extends UserInterface
     {
 
         /* Bail out if we don't have a valid contact ID. */
-        if (!$this->isRequiredIDValid('contactID', $_GET))
+        if (!$this->isRequiredIDValid('contactID', $_POST))
         {
             CommonErrors::fatal(COMMONERROR_BADINDEX, $this, 'Invalid contact ID.');
         }
 
-        $contactID = $_GET['contactID'];
+        $contactID = $_POST['contactID'];
 
         if (!eval(Hooks::get('CONTACTS_DELETE_PRE'))) return;
 
@@ -967,7 +976,7 @@ class ContactsUI extends UserInterface
         $searchPager->setSortByParameters($baseURL, $sortBy, $sortDirection);
 
         /* Get our current searching mode. */
-        $mode = $this->getTrimmedInput('mode', $_GET);
+        $mode = $this->getSanitisedInput('mode', $_GET);
 
         /* Execute the search. */
         $search = new ContactsSearch($this->_siteID);
@@ -1097,7 +1106,7 @@ class ContactsUI extends UserInterface
         $contacts = new Contacts($this->_siteID);
         $contactData = $contacts->get($contactID);
 
-        $regardingRS = $contacts->getJobOrdersArray($contactID);
+        $regardingRS = $contacts->getNonClosedJobOrdersArray($contactID);
 
         $calendar = new Calendar($this->_siteID);
         $calendarEventTypes = $calendar->getAllEventTypes();
@@ -1186,16 +1195,17 @@ class ContactsUI extends UserInterface
 
         /* FIXME: Add fax to contacts and use setPhoneNumber('WORK;FAX') here */
 
-        $addressLines = explode("\n", $contact['address']);
+        $address1 = trim($contact['address']);
+        $address2 = trim($contact['address2']);
 
-        $address1 = trim($addressLines[0]);
-        if (isset($addressLines[1]))
+        if (empty($address2) && strpos($address1, "\n") !== false)
         {
-            $address2 = trim($addressLines[1]);
-        }
-        else
-        {
-            $address2 = '';
+            $addressLines = explode("\n", $address1);
+            $address1 = trim($addressLines[0]);
+            if (isset($addressLines[1]))
+            {
+                $address2 = trim($addressLines[1]);
+            }
         }
 
         $vCard->setAddress(
@@ -1336,29 +1346,72 @@ class ContactsUI extends UserInterface
 
         if ($this->isChecked('addActivity', $_POST))
         {
-            /* Bail out if we don't have a valid job order ID. */
-            if (!$this->isOptionalIDValid('activityTypeID', $_POST))
+            if (!$this->isRequiredIDValid('activityTypeID', $_POST))
+            {
+                $this->fatalModal('You must select an activity type.');
+            }
+
+            $activityTypeID = (int) $_POST['activityTypeID'];
+            $activityEntries = new ActivityEntries($this->_siteID);
+            $activityTypes = $activityEntries->getTypes();
+            if (ResultSetUtility::findRowByColumnValue(
+                $activityTypes, 'typeID', $activityTypeID
+            ) === false)
             {
                 CommonErrors::fatalModal(COMMONERROR_BADINDEX, $this, 'Invalid activity type ID.');
             }
 
-            $activityTypeID = $_POST['activityTypeID'];
-
             $activityNote = $this->getTrimmedInput('activityNote', $_POST);
 
-            $activityNote = htmlspecialchars($activityNote);
+            $activityDateOccurred = false;
+            $dateFormatFlag = $_SESSION['CATS']->isDateDMY()
+                ? DATE_FORMAT_DDMMYY
+                : DATE_FORMAT_MMDDYY;
+            $activityDate = $this->getTrimmedInput('activityDate', $_POST);
+            if (!empty($activityDate) &&
+                DateUtility::validate('-', $activityDate, $dateFormatFlag) &&
+                isset($_POST['activityHour']) && isset($_POST['activityMinute']) &&
+                isset($_POST['activityMeridiem']) &&
+                ctype_digit((string) $_POST['activityHour']) &&
+                ctype_digit((string) $_POST['activityMinute']) &&
+                ($_POST['activityMeridiem'] == 'AM' || $_POST['activityMeridiem'] == 'PM'))
+            {
+                $activityHour = (int) $_POST['activityHour'];
+                $activityMinute = (int) $_POST['activityMinute'];
+
+                if ($activityHour >= 1 && $activityHour <= 12 &&
+                    $activityMinute >= 0 && $activityMinute <= 59)
+                {
+                    $activityHour = $activityHour % 12;
+                    if ($_POST['activityMeridiem'] == 'PM')
+                    {
+                        $activityHour += 12;
+                    }
+
+                    $activityDateOccurred = sprintf(
+                        '%s %02d:%02d:00',
+                        DateUtility::convert(
+                            '-',
+                            $activityDate,
+                            $dateFormatFlag,
+                            DATE_FORMAT_YYYYMMDD
+                        ),
+                        $activityHour,
+                        $activityMinute
+                    );
+                }
+            }
 
             /* Add the activity entry. */
-            $activityEntries = new ActivityEntries($this->_siteID);
             $activityID = $activityEntries->add(
                 $contactID,
                 DATA_ITEM_CONTACT,
                 $activityTypeID,
                 $activityNote,
                 $this->_userID,
-                $regardingID
+                $regardingID,
+                $activityDateOccurred
             );
-            $activityTypes = $activityEntries->getTypes();
             $activityTypeDescription = ResultSetUtility::getColumnValueByIDValue(
                 $activityTypes, 'typeID', $activityTypeID, 'type'
             );
@@ -1376,8 +1429,11 @@ class ContactsUI extends UserInterface
         {
             /* Bail out if we received an invalid date. */
             $trimmedDate = $this->getTrimmedInput('dateAdd', $_POST);
+            $dateFormatFlag = $_SESSION['CATS']->isDateDMY()
+                ? DATE_FORMAT_DDMMYY
+                : DATE_FORMAT_MMDDYY;
             if (empty($trimmedDate) ||
-                !DateUtility::validate('-', $trimmedDate, DATE_FORMAT_MMDDYY))
+                !DateUtility::validate('-', $trimmedDate, $dateFormatFlag))
             {
                 CommonErrors::fatalModal(COMMONERROR_MISSINGFIELDS, $this, 'Invalid date.');
             }
@@ -1418,7 +1474,7 @@ class ContactsUI extends UserInterface
             if ($allDay)
             {
                 $date = DateUtility::convert(
-                    '-', $trimmedDate, DATE_FORMAT_MMDDYY, DATE_FORMAT_YYYYMMDD
+                    '-', $trimmedDate, $dateFormatFlag, DATE_FORMAT_YYYYMMDD
                 );
 
                 $hour = 12;
@@ -1461,7 +1517,7 @@ class ContactsUI extends UserInterface
                     DateUtility::convert(
                         '-',
                         $trimmedDate,
-                        DATE_FORMAT_MMDDYY,
+                        $dateFormatFlag,
                         DATE_FORMAT_YYYYMMDD
                     ),
                     date('H:i:00', $time)
@@ -1483,7 +1539,7 @@ class ContactsUI extends UserInterface
             }
             else
             {
-                $eventJobOrderID = -1;
+                $eventJobOrderID = null;
             }
 
             $calendar = new Calendar($this->_siteID);

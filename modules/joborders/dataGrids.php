@@ -3,7 +3,7 @@
  * CATS
  * Joborder Datagrid
  *
- * CATS Version: 0.9.6
+ * CATS Version: 0.10.0
  *
  * Copyright (C) 2005 - 2007 Cognizo Technologies, Inc.
  *
@@ -34,7 +34,6 @@
 include_once(LEGACY_ROOT . '/lib/JobOrders.php');
 include_once(LEGACY_ROOT . '/lib/Hooks.php');
 include_once(LEGACY_ROOT . '/lib/Width.php');
-include_once(LEGACY_ROOT . '/lib/Candidates.php');
 
 class JobOrdersListByViewDataGrid extends JobOrdersDataGrid
 {
@@ -65,7 +64,6 @@ class JobOrdersListByViewDataGrid extends JobOrdersDataGrid
             array('name' => 'Pipeline', 'width' => 18),
             array('name' => 'Recruiter', 'width' => 65),
             array('name' => 'Owner', 'width' => 55),
-            array('name' => 'gpa', 'width' => 55),
         );
    
         if (!eval(Hooks::get('JOBORDERS_DATAGRID_DEFAULTS'))) return;
@@ -145,7 +143,7 @@ class joborderSavedListByViewDataGrid extends JobOrdersDataGrid
     {
         $html = '';
 
-        $html .= $this->getInnerActionAreaItem('Remove From This List', CATSUtility::getIndexName().'?m=lists&amp;a=removeFromListDatagrid&amp;dataItemType='.DATA_ITEM_JOBORDER.'&amp;savedListID='.$this->getMiscArgument(), false);
+        $html .= $this->getInnerActionAreaItemPost('Remove From This List', CATSUtility::getIndexName().'?m=lists&amp;a=removeFromListDatagrid&amp;dataItemType='.DATA_ITEM_JOBORDER.'&amp;savedListID='.$this->getMiscArgument(), false);
         $html .= $this->getInnerActionAreaItem('Export', CATSUtility::getIndexName().'?m=export&amp;a=exportByDataGrid');
 
         $html .= parent::getInnerActionArea();
@@ -155,107 +153,5 @@ class joborderSavedListByViewDataGrid extends JobOrdersDataGrid
     }
 }
 
-class PipelineCandidatesDataGrid extends CandidatesDataGrid
-{
-    public function __construct($siteID, $parameters, $misc)
-    {
-        /* Pager configuration. */
-        $this->_tableWidth = new Width(100, '%');
-        $this->_defaultAlphabeticalSortBy = 'lastName';
-        $this->ajaxMode = false;
-        $this->showExportCheckboxes = true; //BOXES WILL NOT APPEAR UNLESS SQL ROW exportID IS RETURNED!
-        $this->showActionArea = true;
-        $this->showChooseColumnsBox = true;
-        $this->allowResizing = true;
-
-        $this->defaultSortBy = 'dateModifiedSort';
-        $this->defaultSortDirection = 'DESC';
-
-        $this->_defaultColumns = array(
-            array('name' => 'Attachments', 'width' => 31),
-            array('name' => 'First Name', 'width' => 75),
-            array('name' => 'Last Name', 'width' => 85),
-            array('name' => 'City', 'width' => 75),
-            array('name' => 'State', 'width' => 50),
-            array('name' => 'Key Skills', 'width' => 215),
-            array('name' => 'Owner', 'width' => 65),
-            array('name' => 'Created', 'width' => 60),
-            array('name' => 'Modified', 'width' => 60),
-        );
-
-        parent::__construct(
-            'joborders:PipelineCandidatesDataGrid',
-            $siteID, $parameters, $misc
-        );
-        $this->_classColumns['Added'] = array(
-    'pagerWidth'  => 60,
-    'filterTypes' => '=d>=d<==',
-);
-    }
-}
-
-class PipelineExportDataGrid extends PipelineCandidatesDataGrid
-{
-    private static $_pipelineColMap = array(
-        'firstName'           => 'First Name',
-        'lastName'            => 'Last Name',
-        'state'               => 'State',
-        'city'                => 'City',
-        'zip'                 => 'Zip',
-        'address'             => 'Address',
-        'dateCreatedInt'      => 'Created',
-        'status'              => 'Status',
-        'candidateEmail'      => 'E-Mail',
-        'candidateEmail2'     => '2nd E-Mail',
-        'phoneHome'           => 'Home Phone',
-        'phoneCell'           => 'Cell Phone',
-        'phoneWork'           => 'Work Phone',
-        'keySkills'           => 'Key Skills',
-        'currentEmployer'     => 'Current Employer',
-        'currentPay'          => 'Current Pay',
-        'desiredPay'          => 'Desired Pay',
-        'canRelocate'         => 'Can Relocate',
-        'source'              => 'Source',
-        'webSite'             => 'Web Site',
-        'notes'               => 'Misc Notes',
-        'dateAvailable'       => 'Available',
-        'dateModified'        => 'Modified',
-        'gpa'                 => 'GPA',
-        'nationality'         => 'Nationality',
-        'universityShortName' => 'University',
-    );
-
-    protected function buildColumns()
-    {
-        parent::buildColumns();
-
-        $siteID = $_SESSION['CATS']->getSiteID();
-        $visibleCols = isset($_SESSION['pipelineCols'][$siteID])
-            ? $_SESSION['pipelineCols'][$siteID]
-            : array('firstName', 'lastName', 'state', 'dateCreatedInt', 'status');
-
-        $newCurrentColumns = array();
-        foreach ($visibleCols as $pipelineKey)
-        {
-            if (!isset(self::$_pipelineColMap[$pipelineKey]))
-                continue; // match, addedByAbbrName, lastActivity, action have no DataGrid equivalent
-
-            $dgColName = self::$_pipelineColMap[$pipelineKey];
-
-            if (!isset($this->_classColumns[$dgColName]))
-                continue;
-
-            $newCurrentColumns[] = array(
-                'name'  => $dgColName,
-                'width' => isset($this->_classColumns[$dgColName]['pagerWidth'])
-                               ? $this->_classColumns[$dgColName]['pagerWidth'] : 80,
-                'data'  => $this->_classColumns[$dgColName],
-            );
-        }
-
-        if (!empty($newCurrentColumns))
-            $this->_currentColumns = $newCurrentColumns;
-    }
-}
 
 ?>

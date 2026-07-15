@@ -1,6 +1,6 @@
 #!/bin/bash
 
-REPO_DIR="/home/nour/Desktop/myFiles/IBC/official"
+REPO_DIR="/home/nour/Desktop/myFiles/IBC/new-version"
 SOURCE_DIR="/var/www/html/opencats"
 
 echo "Syncing from $SOURCE_DIR to $REPO_DIR..."

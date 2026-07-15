@@ -2,6 +2,9 @@
 <?php TemplateUtility::printHeader('Candidates', array('modules/candidates/validator.js', 'js/sweetTitles.js', 'js/listEditor.js', 'js/doubleListEditor.js')); ?>
 <?php TemplateUtility::printHeaderBlock(); ?>
 <?php TemplateUtility::printTabs($this->active); ?>
+    <script type="text/javascript">
+        window.CATSUserDateFormat = '<?php echo($_SESSION['CATS']->isDateDMY() ? 'DD-MM-YY' : 'MM-DD-YY'); ?>';
+    </script>
     <div id="main">
         <?php TemplateUtility::printQuickSearch(); ?>
 
@@ -37,7 +40,7 @@
                             <label id="firstNameLabel" for="firstName">First Name:</label>
                         </td>
                         <td class="tdData">
-                            <input type="text" class="inputbox" id="firstName" name="firstName" value="<?php $this->_($this->data['firstName']); ?>" style="width: 150px;" />
+                            <input type="text" class="inputbox" id="firstName" name="firstName" value="<?php $this->_($this->data['firstName']); ?>" style="width: 150px;" />&nbsp;*
                         </td>
                     </tr>
 
@@ -55,7 +58,7 @@
                             <label id="lastNameLabel" for="lastName">Last Name:</label>
                         </td>
                         <td class="tdData">
-                            <input type="text" class="inputbox" id="lastName" name="lastName" value="<?php $this->_($this->data['lastName']); ?>" style="width: 150px;" />
+                            <input type="text" class="inputbox" id="lastName" name="lastName" value="<?php $this->_($this->data['lastName']); ?>" style="width: 150px;" />&nbsp;*
                         </td>
                     </tr>
 
@@ -117,7 +120,16 @@
                             <label id="addressLabel" for="address1">Address:</label>
                         </td>
                         <td class="tdData">
-                            <textarea class="inputbox" id="address" name="address" style="width: 150px;"><?php $this->_($this->data['address']); ?></textarea>
+                            <input type="text" class="inputbox" id="address" name="address" style="width: 150px;" value="<?php $this->_($this->data['address']); ?>" />
+                        </td>
+                    </tr>
+
+                    <tr>
+                        <td class="tdVertical">
+                            <label id="address2Label" for="address2">Address 2:</label>
+                        </td>
+                        <td class="tdData">
+                            <input type="text" class="inputbox" id="address2" name="address2" style="width: 150px;" value="<?php $this->_($this->data['address2']); ?>" />
                         </td>
                     </tr>
 
@@ -334,10 +346,10 @@
                             <label id="dateAvailableLabel" for="dateAvailable">Date Available:</label>
                         </td>
                         <td class="tdData">
-                            <?php if (!empty($this->data['dateAvailable'])): ?>
-                                <script type="text/javascript">DateInput('dateAvailable', false, 'MM-DD-YY', '<?php echo($this->data['dateAvailableMDY']); ?>', -1);</script>
+<?php if (!empty($this->data['dateAvailable'])): ?>
+                                <script type="text/javascript">DateInput('dateAvailable', false, (typeof window.CATSUserDateFormat !== 'undefined' ? window.CATSUserDateFormat : 'MM-DD-YY'), <?php echo json_encode((string) $this->data['dateAvailableUser'], JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>, -1);</script>
                             <?php else: ?>
-                                <script type="text/javascript">DateInput('dateAvailable', false, 'MM-DD-YY', '', -1);</script>
+                                <script type="text/javascript">DateInput('dateAvailable', false, (typeof window.CATSUserDateFormat !== 'undefined' ? window.CATSUserDateFormat : 'MM-DD-YY'), '', -1);</script>
                             <?php endif; ?>
                         </td>
                     </tr>
@@ -386,60 +398,6 @@
                             <textarea class="inputbox" id="notes" name="notes" rows="5" style="width: 400px;"><?php $this->_($this->data['notes']); ?></textarea>
                         </td>
                     </tr>
-
-                    <tr>
-                        <td class="tdVertical">
-                            <label id="gpaLabel" for="gpa">GPA:</label>
-                        </td>
-                        <td class="tdData">
-                            <input type="number" class="inputbox" tabindex="<?php echo($tabIndex++); ?>" name="gpa" id="gpa" min="0" max="4" step="0.01" style="width: 60px;" value="<?php $this->_($this->data['gpa']); ?>" />
-                        </td>
-                    </tr>
-
-                   <tr>
-                        <td class="tdVertical">
-                            <label id="universityIDLabel" for="university">University:</label>
-                        </td>
-                        <td class="tdData">
-                            <input type="text" id="university" name="university" class="inputbox" style="width: 250px;" value="<?php $this->_($this->data['universityShortName']); ?>" />
-                        </td>
-                    </tr>
-
-                    <tr>
-                        <td class="tdVertical">
-                            <label id="nationalityLabel" for="nationality">Nationality:</label>
-                        </td>
-                        <td class="tdData">
-                            <input type="text" id="nationality" name="nationality" class="inputbox" style="width: 250px;" value="<?php $this->_($this->data['nationality']); ?>" />
-                        </td>
-                    </tr>
-                    <tr>
-                        <td class="tdVertical">
-                            <label for="interviewStage">Interview Stage:</label>
-                        </td>
-                        <td class="tdData">
-                            <select id="interviewStage" name="interviewStage" class="inputbox" style="width: 250px;">
-                                <option value="">-- Select Stage --</option>
-                                <?php foreach (array(
-                                    'Applied',
-                                    '1st Screening',
-                                    'Interview 1',
-                                    'Interview 2',
-                                    'Job offered',
-                                    'Job offer refused',
-                                    'Job offer accepted'
-                                ) as $stage): ?>
-                                    <option value="<?php $this->_($stage); ?>"
-                                        <?php if (isset($this->data['interviewStage']) && $this->data['interviewStage'] == $stage) echo('selected'); ?>>
-                                        <?php $this->_($stage); ?>
-                                    </option>
-                                <?php endforeach; ?>
-                            </select>
-                        </td>
-                    </tr>
-                    
-
-
                 </table>
                 <input type="submit" class="button" name="submit" id="submit" value="Save" />&nbsp;
                 <input type="reset"  class="button" name="reset"  id="reset"  value="Reset" onclick="resetFormForeign();" />&nbsp;

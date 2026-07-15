@@ -44,7 +44,6 @@ include_once(LEGACY_ROOT . '/lib/EmailTemplates.php');
 include_once(LEGACY_ROOT . '/lib/DocumentToText.php');
 include_once(LEGACY_ROOT . '/lib/DatabaseSearch.php');
 include_once(LEGACY_ROOT . '/lib/CommonErrors.php');
-include_once(LEGACY_ROOT . '/lib/License.php');
 include_once(LEGACY_ROOT . '/lib/ParseUtility.php');
 include_once(LEGACY_ROOT . '/lib/Questionnaire.php');
 include_once(LEGACY_ROOT . '/lib/Tags.php');
@@ -130,7 +129,14 @@ class CandidatesUI extends UserInterface
                 {
                     CommonErrors::fatal(COMMONERROR_PERMISSION, $this, 'Invalid user level for action.');
                 }
-                $this->onDelete();
+                if ($this->isPostBack())
+                {
+                    $this->onDelete();
+                }
+                else
+                {
+                    CommonErrors::fatal(COMMONERROR_BADFIELDS, $this, 'Invalid request.');
+                }
                 break;
 
             case 'search':
@@ -185,7 +191,14 @@ class CandidatesUI extends UserInterface
                 {
                     CommonErrors::fatal(COMMONERROR_PERMISSION, $this, 'Invalid user level for action.');
                 }
-                $this->onAddToPipeline();
+                if ($this->isPostBack())
+                {
+                    $this->onAddToPipeline();
+                }
+                else
+                {
+                    CommonErrors::fatalModal(COMMONERROR_BADFIELDS, $this, 'Invalid request.');
+                }
                 break;
 
             case 'addCandidateTags':
@@ -203,19 +216,36 @@ class CandidatesUI extends UserInterface
                 }
             	break;
                 
-            /* Change candidate-joborder status. */
-            case 'addActivityChangeStatus':
-                if ($this->getUserAccessLevel('pipelines.addActivityChangeStatus') < ACCESS_LEVEL_EDIT)
+            /* Add candidate activity / schedule event. */
+            case 'addActivity':
+                if ($this->getUserAccessLevel('pipelines.addActivity') < ACCESS_LEVEL_EDIT)
                 {
                     CommonErrors::fatal(COMMONERROR_PERMISSION, $this, 'Invalid user level for action.');
                 }
                 if ($this->isPostBack())
                 {
-                    $this->onAddActivityChangeStatus();
+                    $this->onAddActivity();
                 }
                 else
                 {
-                    $this->addActivityChangeStatus();
+                    $this->addActivity();
+                }
+
+                break;
+
+            /* Change candidate-joborder status (dedicated modal). */
+            case 'changeStatus':
+                if ($this->getUserAccessLevel('pipelines.changeStatus') < ACCESS_LEVEL_EDIT)
+                {
+                    CommonErrors::fatal(COMMONERROR_PERMISSION, $this, 'Invalid user level for action.');
+                }
+                if ($this->isPostBack())
+                {
+                    $this->onChangeStatus();
+                }
+                else
+                {
+                    $this->changeStatus();
                 }
 
                 break;
@@ -226,7 +256,14 @@ class CandidatesUI extends UserInterface
                 {
                     CommonErrors::fatal(COMMONERROR_PERMISSION, $this, 'Invalid user level for action.');
                 }
-                $this->onRemoveFromPipeline();
+                if ($this->isPostBack())
+                {
+                    $this->onRemoveFromPipeline();
+                }
+                else
+                {
+                    CommonErrors::fatal(COMMONERROR_BADFIELDS, $this, 'Invalid request.');
+                }
                 break;
 
             case 'addEditImage':
@@ -267,11 +304,18 @@ class CandidatesUI extends UserInterface
 
             /* Administrators can hide a candidate from a site with this action. */
             case 'administrativeHideShow':
-                if ($this->getUserAccessLevel('candidates.hidden') < ACCESS_LEVEL_MULTI_SA)
+                if ($this->getUserAccessLevel('candidates.hidden') < ACCESS_LEVEL_SA)
                 {
                     CommonErrors::fatal(COMMONERROR_PERMISSION, $this, 'Invalid user level for action.');
                 }
-                $this->administrativeHideShow();
+                if ($this->isPostBack())
+                {
+                    $this->administrativeHideShow();
+                }
+                else
+                {
+                    CommonErrors::fatal(COMMONERROR_BADFIELDS, $this, 'Invalid request.');
+                }
                 break;
 
             /* Delete a candidate attachment */
@@ -280,7 +324,14 @@ class CandidatesUI extends UserInterface
                 {
                     CommonErrors::fatal(COMMONERROR_PERMISSION, $this, 'Invalid user level for action.');
                 }
-                $this->onDeleteAttachment();
+                if ($this->isPostBack())
+                {
+                    $this->onDeleteAttachment();
+                }
+                else
+                {
+                    CommonErrors::fatal(COMMONERROR_BADFIELDS, $this, 'Invalid request.');
+                }
                 break;
 
             /* Hot List Page */
@@ -336,7 +387,14 @@ class CandidatesUI extends UserInterface
                 {
                     CommonErrors::fatal(COMMONERROR_PERMISSION, $this, 'Invalid user level for action.');
                 }
-                $this->mergeDuplicatesInfo();
+                if ($this->isPostBack())
+                {
+                    $this->mergeDuplicatesInfo();
+                }
+                else
+                {
+                    CommonErrors::fatal(COMMONERROR_BADFIELDS, $this, 'Invalid request.');
+                }
                 break;
             
             /* Remove duplicity warning from a new candidate */
@@ -345,7 +403,14 @@ class CandidatesUI extends UserInterface
                 {
                     CommonErrors::fatal(COMMONERROR_PERMISSION, $this, 'Invalid user level for action.');
                 }
-                $this->removeDuplicity();
+                if ($this->isPostBack())
+                {
+                    $this->removeDuplicity();
+                }
+                else
+                {
+                    CommonErrors::fatalModal(COMMONERROR_BADFIELDS, $this, 'Invalid request.');
+                }
                 break;
             
             case 'addDuplicates':
@@ -353,7 +418,14 @@ class CandidatesUI extends UserInterface
                 {
                     CommonErrors::fatal(COMMONERROR_PERMISSION, $this, 'Invalid user level for action.');
                 }
-                $this->addDuplicates();
+                if ($this->isPostBack())
+                {
+                    $this->addDuplicates();
+                }
+                else
+                {
+                    CommonErrors::fatalModal(COMMONERROR_BADFIELDS, $this, 'Invalid request.');
+                }
                 break;
 
             /* Main candidates page. */
@@ -391,22 +463,67 @@ class CandidatesUI extends UserInterface
         $transferURI = str_replace(
             '__CANDIDATE_ID__', $candidateID, $transferURI
         );
+
+        if (strpos($transferURI, 'a=addToPipeline') !== false)
+        {
+            parse_str($transferURI, $params);
+            $action = CATSUtility::getIndexName();
+            if (isset($params['m']) && isset($params['a']))
+            {
+                $action .= '?m=' . urlencode($params['m']) . '&a=' . urlencode($params['a']);
+                unset($params['m']);
+                unset($params['a']);
+            }
+
+            echo '<html><body>';
+            echo '<form id="postRedirect" method="post" action="', $action, '">';
+            echo '<input type="hidden" name="postback" value="postback" />';
+            if (isset($_SESSION['CATS']))
+            {
+                echo '<input type="hidden" name="csrfToken" value="',
+                    htmlspecialchars($_SESSION['CATS']->getCSRFToken(), ENT_QUOTES, 'UTF-8'),
+                    '" />';
+            }
+            foreach ($params as $key => $value)
+            {
+                echo '<input type="hidden" name="', htmlspecialchars($key, ENT_QUOTES, 'UTF-8'), '" value="', htmlspecialchars($value, ENT_QUOTES, 'UTF-8'), '" />';
+            }
+            echo '</form>';
+            echo '<script type="text/javascript">document.getElementById(\'postRedirect\').submit();</script>';
+            echo '</body></html>';
+            return;
+        }
+
         CATSUtility::transferRelativeURI($transferURI);
     }
 
 
     /*
-     * Called by external modules for processing the log activity / change
-     * status dialog.
+     * Called by external modules for processing the log activity dialog.
      */
-    public function publicAddActivityChangeStatus($isJobOrdersMode, $regardingID, $moduleDirectory)
+    public function publicAddActivity($isJobOrdersMode, $regardingID, $moduleDirectory)
     {
-        if ($this->getUserAccessLevel('pipelines.addActivityChangeStatus') < ACCESS_LEVEL_EDIT)
+        if ($this->getUserAccessLevel('pipelines.addActivity') < ACCESS_LEVEL_EDIT)
         {
             CommonErrors::fatal(COMMONERROR_PERMISSION, $this, 'Invalid user level for action.');
         }
 
-        $this->_AddActivityChangeStatus(
+        $this->_addActivity(
+            $isJobOrdersMode, $regardingID, $moduleDirectory
+        );
+    }
+
+    /*
+     * Called by external modules for processing the change status dialog.
+     */
+    public function publicChangeStatus($isJobOrdersMode, $regardingID, $moduleDirectory)
+    {
+        if ($this->getUserAccessLevel('pipelines.changeStatus') < ACCESS_LEVEL_EDIT)
+        {
+            CommonErrors::fatal(COMMONERROR_PERMISSION, $this, 'Invalid user level for action.');
+        }
+
+        $this->_changeStatus(
             $isJobOrdersMode, $regardingID, $moduleDirectory
         );
     }
@@ -446,15 +563,7 @@ class CandidatesUI extends UserInterface
         $this->_template->assign('errMessage', $errMessage);
         $this->_template->assign('topLog', $topLog);
         $this->_template->assign('tagsRS', $tagsRS);
-        
-        $universitiesRS = $candidates->getPossibleDropDownOptions('candidate', 'university', 'university', null, 'university ASC', 'university IS NOT NULL AND university != "" AND site_id = ' . $this->_siteID);
-        $this->_template->assign('universitiesRS', $universitiesRS);
-        $nationalitiesRS = $candidates->getPossibleDropDownOptions('nationality', 'name', 'name', null, 'sort_order ASC, name ASC');
-        $this->_template->assign('nationalitiesRS', $nationalitiesRS);
-     
-        $sourcesRS = $candidates->getPossibleSources();
-        $this->_template->assign('sourcesRS', $sourcesRS);
-        
+
         if (!eval(Hooks::get('CANDIDATE_LIST_BY_VIEW'))) return;
 
         $this->_template->display('./modules/candidates/Candidates.tpl');
@@ -501,9 +610,9 @@ class CandidatesUI extends UserInterface
             return;
         }
 
-        if ($data['isAdminHidden'] == 1 && $this->getUserAccessLevel('candidates.hidden') < ACCESS_LEVEL_MULTI_SA)
+        if ($data['isAdminHidden'] == 1 && $this->getUserAccessLevel('candidates.hidden') < ACCESS_LEVEL_SA)
         {
-            $this->listByView('This candidate is hidden - only a CATS Administrator can unlock the candidate.');
+            $this->listByView('This candidate is hidden - only a Site Administrator can unlock the candidate.');
             return;
         }
 
@@ -554,9 +663,7 @@ class CandidatesUI extends UserInterface
         {
             $data['titleClass'] = 'jobTitleCold';
         }
-        
-$data['university'] = !empty($data['universityShortName']) ? $data['universityShortName'] : '';
-        
+
         $attachments = new Attachments($this->_siteID);
         $attachmentsRS = $attachments->getAll(
             DATA_ITEM_CANDIDATE, $candidateID
@@ -767,9 +874,6 @@ $data['university'] = !empty($data['universityShortName']) ? $data['universitySh
         /* Get possible sources. */
         $sourcesRS = $candidates->getPossibleSources();
         $sourcesString = ListEditor::getStringFromList($sourcesRS, 'name');
-        
-        $universitiesRS = $candidates->getPossibleDropDownOptions('candidate', 'university', 'university', null, 'university ASC', 'university IS NOT NULL AND university != "" AND site_id = ' . $this->_siteID);
-        $nationalitiesRS = $candidates->getPossibleDropDownOptions('nationality', 'name', 'name', null, 'sort_order ASC, name ASC');
 
         /* Get extra fields. */
         $extraFieldRS = $candidates->extraFields->getValuesForAdd();
@@ -850,15 +954,10 @@ $data['university'] = !empty($data['universityShortName']) ? $data['universitySh
 
         if (!eval(Hooks::get('CANDIDATE_ADD'))) return;
 
-        /* If parsing is not enabled server-wide, say so. */
-        if (!LicenseUtility::isParsingEnabled())
-        {
-            $isParsingEnabled = false;
-        }
-        /* For CATS Toolbar, if e-mail has been sent and it wasn't set by
-         * parser, it's toolbar and it needs the old format.
+        /* If e-mail has been sent and it wasn't set by the parser, it needs
+         * the old format.
          */
-        else if (!isset($preassignedFields['email']))
+        if (!isset($preassignedFields['email']))
         {
             $isParsingEnabled = true;
         }
@@ -875,11 +974,7 @@ $data['university'] = !empty($data['universityShortName']) ? $data['universitySh
             $isParsingEnabled = false;
         }
 
-        if (is_array($parsingStatus = LicenseUtility::getParsingStatus()) &&
-            isset($parsingStatus['parseLimit']))
-        {
-            $parsingStatus['parseLimit'] = $parsingStatus['parseLimit'] - 1;
-        }
+        $parsingStatus = array();
 
         $this->_template->assign('parsingStatus', $parsingStatus);
         $this->_template->assign('isParsingEnabled', $isParsingEnabled);
@@ -896,10 +991,6 @@ $data['university'] = !empty($data['universityShortName']) ? $data['universitySh
         $this->_template->assign('associatedFileResume', $associatedFileResume);
         $this->_template->assign('EEOSettingsRS', $EEOSettingsRS);
         $this->_template->assign('isModal', false);
-        $this->_template->assign('universitiesRS', $universitiesRS);
-        $this->_template->assign('nationalitiesRS', $nationalitiesRS);
-        
-
 
         /* REMEMBER TO ALSO UPDATE JobOrdersUI::addCandidateModal() IF
          * APPLICABLE.
@@ -909,138 +1000,135 @@ $data['university'] = !empty($data['universityShortName']) ? $data['universitySh
 
     public function checkParsingFunctions()
     {
-        if (LicenseUtility::isParsingEnabled())
-        {
-            if (isset($_POST['documentText'])) $contents = $_POST['documentText'];
-            else $contents = '';
+        if (isset($_POST['documentText'])) $contents = $_POST['documentText'];
+        else $contents = '';
 
-            // Retain all field data since this isn't done over AJAX (yet)
-            $fields = array(
-                'firstName'       => $this->getTrimmedInput('firstName', $_POST),
-                'middleName'      => $this->getTrimmedInput('middleName', $_POST),
-                'lastName'        => $this->getTrimmedInput('lastName', $_POST),
-                'email1'          => $this->getTrimmedInput('email1', $_POST),
-                'email2'          => $this->getTrimmedInput('email2', $_POST),
-                'phoneHome'       => $this->getTrimmedInput('phoneHome', $_POST),
-                'phoneCell'       => $this->getTrimmedInput('phoneCell', $_POST),
-                'phoneWork'       => $this->getTrimmedInput('phoneWork', $_POST),
-                'address'         => $this->getTrimmedInput('address', $_POST),
-                'city'            => $this->getTrimmedInput('city', $_POST),
-                'state'           => $this->getTrimmedInput('state', $_POST),
-                'zip'             => $this->getTrimmedInput('zip', $_POST),
-                'source'          => $this->getTrimmedInput('source', $_POST),
-                'keySkills'       => $this->getTrimmedInput('keySkills', $_POST),
-                'currentEmployer' => $this->getTrimmedInput('currentEmployer', $_POST),
-                'currentPay'      => $this->getTrimmedInput('currentPay', $_POST),
-                'desiredPay'      => $this->getTrimmedInput('desiredPay', $_POST),
-                'notes'           => $this->getTrimmedInput('notes', $_POST),
-                'canRelocate'     => $this->getTrimmedInput('canRelocate', $_POST),
-                'webSite'         => $this->getTrimmedInput('webSite', $_POST),
-                'bestTimeToCall'  => $this->getTrimmedInput('bestTimeToCall', $_POST),
-                'gender'          => $this->getTrimmedInput('gender', $_POST),
-                'race'            => $this->getTrimmedInput('race', $_POST),
-                'veteran'         => $this->getTrimmedInput('veteran', $_POST),
-                'disability'      => $this->getTrimmedInput('disability', $_POST),
-                'documentTempFile'=> $this->getTrimmedInput('documentTempFile', $_POST),
-                'isFromParser'    => true,
-                'gpa'             => $this->getTrimmedInput('gpa', $_POST),
+        // Retain all field data since this isn't done over AJAX (yet)
+        $fields = array(
+            'firstName'       => $this->getTrimmedInput('firstName', $_POST),
+            'middleName'      => $this->getTrimmedInput('middleName', $_POST),
+            'lastName'        => $this->getTrimmedInput('lastName', $_POST),
+            'email1'          => $this->getTrimmedInput('email1', $_POST),
+            'email2'          => $this->getTrimmedInput('email2', $_POST),
+            'phoneHome'       => $this->getTrimmedInput('phoneHome', $_POST),
+            'phoneCell'       => $this->getTrimmedInput('phoneCell', $_POST),
+            'phoneWork'       => $this->getTrimmedInput('phoneWork', $_POST),
+            'address'         => $this->getTrimmedInput('address', $_POST),
+            'address2'        => $this->getTrimmedInput('address2', $_POST),
+            'city'            => $this->getTrimmedInput('city', $_POST),
+            'state'           => $this->getTrimmedInput('state', $_POST),
+            'zip'             => $this->getTrimmedInput('zip', $_POST),
+            'source'          => $this->getTrimmedInput('source', $_POST),
+            'keySkills'       => $this->getTrimmedInput('keySkills', $_POST),
+            'currentEmployer' => $this->getTrimmedInput('currentEmployer', $_POST),
+            'currentPay'      => $this->getTrimmedInput('currentPay', $_POST),
+            'desiredPay'      => $this->getTrimmedInput('desiredPay', $_POST),
+            'notes'           => $this->getTrimmedInput('notes', $_POST),
+            'canRelocate'     => $this->getTrimmedInput('canRelocate', $_POST),
+            'webSite'         => $this->getTrimmedInput('webSite', $_POST),
+            'bestTimeToCall'  => $this->getTrimmedInput('bestTimeToCall', $_POST),
+            'gender'          => $this->getTrimmedInput('gender', $_POST),
+            'race'            => $this->getTrimmedInput('race', $_POST),
+            'veteran'         => $this->getTrimmedInput('veteran', $_POST),
+            'disability'      => $this->getTrimmedInput('disability', $_POST),
+            'documentTempFile'=> $this->getTrimmedInput('documentTempFile', $_POST),
+            'isFromParser'    => true
+        );
+
+        /**
+         * User is loading a resume from a document. Convert it to a string and paste the contents
+         * into the textarea field on the add candidate page after validating the form.
+         */
+        if (isset($_POST['loadDocument']) && $_POST['loadDocument'] == 'true')
+        {
+            // Get the upload file from the post data
+            $newFileName = FileUtility::getUploadFileFromPost(
+                $this->_siteID, // The site ID
+                'addcandidate', // Sub-directory of the site's upload folder
+                'documentFile'  // The DOM "name" from the <input> element
             );
 
-            /**
-             * User is loading a resume from a document. Convert it to a string and paste the contents
-             * into the textarea field on the add candidate page after validating the form.
-             */
-            if (isset($_POST['loadDocument']) && $_POST['loadDocument'] == 'true')
+            if ($newFileName !== false)
             {
-                // Get the upload file from the post data
-                $newFileName = FileUtility::getUploadFileFromPost(
+                // Get the relative path to the file (to perform operations on)
+                $newFilePath = FileUtility::getUploadFilePath(
                     $this->_siteID, // The site ID
-                    'addcandidate', // Sub-directory of the site's upload folder
-                    'documentFile'  // The DOM "name" from the <input> element
+                    'addcandidate', // The sub-directory
+                    $newFileName
                 );
 
-                if ($newFileName !== false)
+                $documentToText = new DocumentToText();
+                $doctype = $documentToText->getDocumentType($newFilePath);
+
+                if ($documentToText->convert($newFilePath, $doctype))
                 {
-                    // Get the relative path to the file (to perform operations on)
-                    $newFilePath = FileUtility::getUploadFilePath(
-                        $this->_siteID, // The site ID
-                        'addcandidate', // The sub-directory
-                        $newFileName
-                    );
-
-                    $documentToText = new DocumentToText();
-                    $doctype = $documentToText->getDocumentType($newFilePath);
-
-                    if ($documentToText->convert($newFilePath, $doctype))
+                    $contents = $documentToText->getString();
+                    if ($doctype == DOCUMENT_TYPE_DOC)
                     {
-                        $contents = $documentToText->getString();
-                        if ($doctype == DOCUMENT_TYPE_DOC)
-                        {
-                            $contents = str_replace('|', "\n", $contents);
-                        }
-
-                        // Remove things like _rDOTr for ., etc.
-                        $contents = DatabaseSearch::fulltextDecode($contents);
-                    }
-                    else
-                    {
-                        $contents = @file_get_contents($newFilePath);
-                        $fields['binaryData'] = true;
+                        $contents = str_replace('|', "\n", $contents);
                     }
 
-                    // Save the short (un-pathed) name
-                    $fields['documentTempFile'] = $newFileName;
-
-                    if (isset($_COOKIE['CATS_SP_TEMP_FILE']) && ($oldFile = $_COOKIE['CATS_SP_TEMP_FILE']) != '' &&
-                        strcasecmp($oldFile, $newFileName))
-                    {
-                        // Get the safe, old file they uploaded and didn't use (if exists) and delete
-                        $oldFilePath = FileUtility::getUploadFilePath($this->_siteID, 'addcandidate', $oldFile);
-
-                        if ($oldFilePath !== false)
-                        {
-                            @unlink($oldFilePath);
-                        }
-                    }
-
-                    // Prevent users from creating more than 1 temp file for single parsing (sp)
-                    setcookie('CATS_SP_TEMP_FILE', $newFileName, time() + (60*60*24*7));
-                }
-
-                if (isset($_POST['parseDocument']) && $_POST['parseDocument'] == 'true' && $contents != '')
-                {
-                    // ...
+                    // Remove things like _rDOTr for ., etc.
+                    $contents = DatabaseSearch::fulltextDecode($contents);
                 }
                 else
                 {
-                    return array($contents, $fields);
+                    $contents = @file_get_contents($newFilePath);
+                    $fields['binaryData'] = true;
                 }
+
+                // Save the short (un-pathed) name
+                $fields['documentTempFile'] = $newFileName;
+
+                if (isset($_COOKIE['CATS_SP_TEMP_FILE']) && ($oldFile = $_COOKIE['CATS_SP_TEMP_FILE']) != '' &&
+                    strcasecmp($oldFile, $newFileName))
+                {
+                    // Get the safe, old file they uploaded and didn't use (if exists) and delete
+                    $oldFilePath = FileUtility::getUploadFilePath($this->_siteID, 'addcandidate', $oldFile);
+
+                    if ($oldFilePath !== false)
+                    {
+                        @unlink($oldFilePath);
+                    }
+                }
+
+                // Prevent users from creating more than 1 temp file for single parsing (sp)
+                setcookie('CATS_SP_TEMP_FILE', $newFileName, time() + (60*60*24*7));
             }
 
-            /**
-             * User is parsing the contents of the textarea field on the add candidate page.
-             */
             if (isset($_POST['parseDocument']) && $_POST['parseDocument'] == 'true' && $contents != '')
             {
-                $pu = new ParseUtility();
-                if ($res = $pu->documentParse('untitled', strlen($contents), '', $contents))
-                {
-                    if (isset($res['first_name'])) $fields['firstName'] = $res['first_name']; else $fields['firstName'] = '';
-                    if (isset($res['last_name'])) $fields['lastName'] = $res['last_name']; else $fields['lastName'] = '';
-                    $fields['middleName'] = '';
-                    if (isset($res['email_address'])) $fields['email1'] = $res['email_address']; else $fields['email1'] = '';
-                    $fields['email2'] = '';
-                    if (isset($res['us_address'])) $fields['address'] = $res['us_address']; else $fields['address'] = '';
-                    if (isset($res['city'])) $fields['city'] = $res['city']; else $fields['city'] = '';
-                    if (isset($res['state'])) $fields['state'] = $res['state']; else $fields['state'] = '';
-                    if (isset($res['zip_code'])) $fields['zip'] = $res['zip_code']; else $fields['zip'] = '';
-                    if (isset($res['phone_number'])) $fields['phoneHome'] = $res['phone_number']; else $fields['phoneHome'] = '';
-                    $fields['phoneWork'] = $fields['phoneCell'] = '';
-                    if (isset($res['skills'])) $fields['keySkills'] = str_replace("\n", ' ', str_replace('"', '\'\'', $res['skills']));
-                }
-
+                // ...
+            }
+            else
+            {
                 return array($contents, $fields);
             }
+        }
+
+        /**
+         * User is parsing the contents of the textarea field on the add candidate page.
+         */
+        if (isset($_POST['parseDocument']) && $_POST['parseDocument'] == 'true' && $contents != '')
+        {
+            $pu = new ParseUtility();
+            if ($res = $pu->documentParse('untitled', strlen($contents), '', $contents))
+            {
+                if (isset($res['first_name'])) $fields['firstName'] = $res['first_name']; else $fields['firstName'] = '';
+                if (isset($res['last_name'])) $fields['lastName'] = $res['last_name']; else $fields['lastName'] = '';
+                $fields['middleName'] = '';
+                if (isset($res['email_address'])) $fields['email1'] = $res['email_address']; else $fields['email1'] = '';
+                $fields['email2'] = '';
+                if (isset($res['us_address'])) $fields['address'] = $res['us_address']; else $fields['address'] = '';
+                if (isset($res['city'])) $fields['city'] = $res['city']; else $fields['city'] = '';
+                if (isset($res['state'])) $fields['state'] = $res['state']; else $fields['state'] = '';
+                if (isset($res['zip_code'])) $fields['zip'] = $res['zip_code']; else $fields['zip'] = '';
+                if (isset($res['phone_number'])) $fields['phoneHome'] = $res['phone_number']; else $fields['phoneHome'] = '';
+                $fields['phoneWork'] = $fields['phoneCell'] = '';
+                if (isset($res['skills'])) $fields['keySkills'] = str_replace("\n", ' ', str_replace('"', '\'\'', $res['skills']));
+            }
+
+            return array($contents, $fields);
         }
 
         return false;
@@ -1099,9 +1187,9 @@ $data['university'] = !empty($data['universityShortName']) ? $data['universitySh
             CommonErrors::fatal(COMMONERROR_BADINDEX, $this, 'The specified candidate ID could not be found.');
         }
 
-        if ($data['isAdminHidden'] == 1 && $this->getUserAccessLevel('candidates.hidden') < ACCESS_LEVEL_MULTI_SA)
+        if ($data['isAdminHidden'] == 1 && $this->getUserAccessLevel('candidates.hidden') < ACCESS_LEVEL_SA)
         {
-            $this->listByView('This candidate is hidden - only a CATS Administrator can unlock the candidate.');
+            $this->listByView('This candidate is hidden - only a Site Administrator can unlock the candidate.');
             return;
         }
 
@@ -1120,8 +1208,6 @@ $data['university'] = !empty($data['universityShortName']) ? $data['universitySh
         $sourcesRS = $candidates->getPossibleSources();
         $sourcesString = ListEditor::getStringFromList($sourcesRS, 'name');
 
-        $universitiesRS = $candidates->getPossibleDropDownOptions('candidate', 'university', 'university', null, 'university ASC', 'university IS NOT NULL AND university != "" AND site_id = ' . $this->_siteID);
-        $nationalitiesRS = $candidates->getPossibleDropDownOptions('nationality', 'name', 'name', null, 'sort_order ASC, name ASC');
         /* Is current source a possible source? */
         // FIXME: Use array search functions!
         $sourceInRS = false;
@@ -1157,16 +1243,7 @@ $data['university'] = !empty($data['universityShortName']) ? $data['universitySh
         }
 
         /* Date format for DateInput()s. */
-        if ($_SESSION['CATS']->isDateDMY())
-        {
-            $data['dateAvailableMDY'] = DateUtility::convert(
-                '-', $data['dateAvailable'], DATE_FORMAT_DDMMYY, DATE_FORMAT_MMDDYY
-            );
-        }
-        else
-        {
-            $data['dateAvailableMDY'] = $data['dateAvailable'];
-        }
+        $data['dateAvailableUser'] = $data['dateAvailable'];
 
         if (!eval(Hooks::get('CANDIDATE_EDIT'))) return;
 
@@ -1184,8 +1261,6 @@ $data['university'] = !empty($data['universityShortName']) ? $data['universitySh
         $this->_template->assign('canEmail', $canEmail);
         $this->_template->assign('EEOSettingsRS', $EEOSettingsRS);
         $this->_template->assign('emailTemplateDisabled', $emailTemplateDisabled);
-        $this->_template->assign('universitiesRS', $universitiesRS);
-        $this->_template->assign('nationalitiesRS', $nationalitiesRS);
         $this->_template->display('./modules/candidates/Edit.tpl');
     }
 
@@ -1213,16 +1288,19 @@ $data['university'] = !empty($data['universityShortName']) ? $data['universitySh
          * ahead and convert the date to MySQL format.
          */
         $dateAvailable = $this->getTrimmedInput('dateAvailable', $_POST);
+        $dateFormatFlag = $_SESSION['CATS']->isDateDMY()
+            ? DATE_FORMAT_DDMMYY
+            : DATE_FORMAT_MMDDYY;
         if (!empty($dateAvailable))
         {
-            if (!DateUtility::validate('-', $dateAvailable, DATE_FORMAT_MMDDYY))
+            if (!DateUtility::validate('-', $dateAvailable, $dateFormatFlag))
             {
                 CommonErrors::fatal(COMMONERROR_MISSINGFIELDS, $this, 'Invalid availability date.');
             }
 
             /* Convert start_date to something MySQL can understand. */
             $dateAvailable = DateUtility::convert(
-                '-', $dateAvailable, DATE_FORMAT_MMDDYY, DATE_FORMAT_YYYYMMDD
+                '-', $dateAvailable, $dateFormatFlag, DATE_FORMAT_YYYYMMDD
             );
         }
 
@@ -1338,6 +1416,7 @@ $data['university'] = !empty($data['universityShortName']) ? $data['universitySh
         $email1          = $this->getTrimmedInput('email1', $_POST);
         $email2          = $this->getTrimmedInput('email2', $_POST);
         $address         = $this->getTrimmedInput('address', $_POST);
+        $address2        = $this->getTrimmedInput('address2', $_POST);
         $city            = $this->getTrimmedInput('city', $_POST);
         $state           = $this->getTrimmedInput('state', $_POST);
         $zip             = $this->getTrimmedInput('zip', $_POST);
@@ -1353,13 +1432,10 @@ $data['university'] = !empty($data['universityShortName']) ? $data['universitySh
         $race            = $this->getTrimmedInput('race', $_POST);
         $veteran         = $this->getTrimmedInput('veteran', $_POST);
         $disability      = $this->getTrimmedInput('disability', $_POST);
-        $gpa             = $this->getTrimmedInput('gpa', $_POST);
+
         /* Candidate source list editor. */
-        $sourceCSV       = $this->getTrimmedInput('sourceCSV', $_POST);
-        $interviewStage = $this->getTrimmedInput('interviewStage', $_POST);
-        
-        $university = $this->getTrimmedInput('university', $_POST);
-        $nationality = $this->getTrimmedInput('nationality', $_POST);
+        $sourceCSV = $this->getTrimmedInput('sourceCSV', $_POST);
+
         /* Bail out if any of the required fields are empty. */
         if (empty($firstName) || empty($lastName))
         {
@@ -1381,6 +1457,7 @@ $data['university'] = !empty($data['universityShortName']) ? $data['universitySh
             $phoneCell,
             $phoneWork,
             $address,
+            $address2,
             $city,
             $state,
             $zip,
@@ -1401,11 +1478,7 @@ $data['university'] = !empty($data['universityShortName']) ? $data['universitySh
             $gender,
             $race,
             $veteran,
-            $disability,
-            $gpa,
-            $university,
-            $nationality,
-            $interviewStage
+            $disability
         );
         if (!$updateSuccess)
         {
@@ -1436,12 +1509,12 @@ $data['university'] = !empty($data['universityShortName']) ? $data['universitySh
     private function onDelete()
     {
         /* Bail out if we don't have a valid candidate ID. */
-        if (!$this->isRequiredIDValid('candidateID', $_GET))
+        if (!$this->isRequiredIDValid('candidateID', $_POST))
         {
             CommonErrors::fatal(COMMONERROR_BADINDEX, $this, 'Invalid candidate ID.');
         }
 
-        $candidateID = $_GET['candidateID'];
+        $candidateID = $_POST['candidateID'];
 
         if (!eval(Hooks::get('CANDIDATE_DELETE'))) return;
 
@@ -1590,30 +1663,30 @@ $data['university'] = !empty($data['universityShortName']) ? $data['universitySh
     private function onAddToPipeline()
     {
         /* Bail out if we don't have a valid job order ID. */
-        if (!$this->isRequiredIDValid('jobOrderID', $_GET))
+        if (!$this->isRequiredIDValid('jobOrderID', $_POST))
         {
             CommonErrors::fatalModal(COMMONERROR_BADINDEX, $this, 'Invalid job order ID.');
         }
 
-        if (isset($_GET['candidateID']))
+        if (isset($_POST['candidateID']))
         {
             /* Bail out if we don't have a valid candidate ID. */
-            if (!$this->isRequiredIDValid('candidateID', $_GET))
+            if (!$this->isRequiredIDValid('candidateID', $_POST))
             {
                 CommonErrors::fatalModal(COMMONERROR_BADINDEX, $this, 'Invalid candidate ID.');
             }
 
-            $candidateIDArray = array($_GET['candidateID']);
+            $candidateIDArray = array($_POST['candidateID']);
         }
         else
         {
-            if (!isset($_REQUEST['candidateIDArrayStored']) || !$this->isRequiredIDValid('candidateIDArrayStored', $_REQUEST, true))
+            if (!isset($_POST['candidateIDArrayStored']) || !$this->isRequiredIDValid('candidateIDArrayStored', $_POST, true))
             {
                 CommonErrors::fatalModal(COMMONERROR_BADINDEX, $this, 'Invalid candidateIDArrayStored parameter.');
                 return;
             }
 
-            $candidateIDArray = $_SESSION['CATS']->retrieveData($_REQUEST['candidateIDArrayStored']);
+            $candidateIDArray = $_SESSION['CATS']->retrieveData($_POST['candidateIDArrayStored']);
 
             if (!is_array($candidateIDArray))
             {
@@ -1635,7 +1708,7 @@ $data['university'] = !empty($data['universityShortName']) ? $data['universitySh
         }
 
 
-        $jobOrderID  = $_GET['jobOrderID'];
+        $jobOrderID  = $_POST['jobOrderID'];
 
         if (!eval(Hooks::get('CANDIDATE_ADD_TO_PIPELINE_PRE'))) return;
 
@@ -1684,7 +1757,7 @@ $data['university'] = !empty($data['universityShortName']) ? $data['universitySh
         );
     }
 
-    private function addActivityChangeStatus()
+    private function addActivity()
     {
         /* Bail out if we don't have a valid candidate ID. */
         if (!$this->isRequiredIDValid('candidateID', $_GET))
@@ -1698,7 +1771,82 @@ $data['university'] = !empty($data['universityShortName']) ? $data['universitySh
             CommonErrors::fatalModal(COMMONERROR_BADINDEX, $this, 'Invalid job order ID.');
         }
 
-        $selectedJobOrderID = $_GET['jobOrderID'];
+        if (isset($_GET['jobOrderID']))
+        {
+            $selectedJobOrderID = (int) $_GET['jobOrderID'];
+        }
+        else
+        {
+            $selectedJobOrderID = -1;
+        }
+        $candidateID = $_GET['candidateID'];
+
+        $candidates = new Candidates($this->_siteID);
+        $candidateData = $candidates->get($candidateID);
+
+        /* Bail out if we got an empty result set. */
+        if (empty($candidateData))
+        {
+            CommonErrors::fatalModal(COMMONERROR_BADINDEX, $this);
+            return;
+        }
+
+        $pipelines = new Pipelines($this->_siteID);
+        $pipelineRS = $pipelines->getNonClosedCandidatePipeline($candidateID);
+
+        /* Are we in "Only Schedule Event" mode? */
+        $onlyScheduleEvent = $this->isChecked('onlyScheduleEvent', $_GET);
+
+        $calendar = new Calendar($this->_siteID);
+        $calendarEventTypes = $calendar->getAllEventTypes();
+
+        if (!eval(Hooks::get('CANDIDATE_ADD_ACTIVITY_CHANGE_STATUS'))) return;
+
+        if (SystemUtility::isSchedulerEnabled() && !$_SESSION['CATS']->isDemo())
+        {
+            $allowEventReminders = true;
+        }
+        else
+        {
+            $allowEventReminders = false;
+        }
+
+        $this->_template->assign('candidateID', $candidateID);
+        $this->_template->assign('pipelineRS', $pipelineRS);
+        $this->_template->assign('selectedJobOrderID', $selectedJobOrderID);
+        $this->_template->assign('allowEventReminders', $allowEventReminders);
+        $this->_template->assign('userEmail', $_SESSION['CATS']->getEmail());
+        $this->_template->assign('calendarEventTypes', $calendarEventTypes);
+        $this->_template->assign('onlyScheduleEvent', $onlyScheduleEvent);
+        $this->_template->assign('isFinishedMode', false);
+        $this->_template->assign('isJobOrdersMode', false);
+        $this->_template->display(
+            './modules/candidates/AddActivityScheduleEventModal.tpl'
+        );
+    }
+
+    private function changeStatus()
+    {
+        /* Bail out if we don't have a valid candidate ID. */
+        if (!$this->isRequiredIDValid('candidateID', $_GET))
+        {
+            CommonErrors::fatalModal(COMMONERROR_BADINDEX, $this, 'Invalid candidate ID.');
+        }
+
+        /* Bail out if we don't have a valid job order ID. */
+        if (!$this->isOptionalIDValid('jobOrderID', $_GET))
+        {
+            CommonErrors::fatalModal(COMMONERROR_BADINDEX, $this, 'Invalid job order ID.');
+        }
+
+        if (isset($_GET['jobOrderID']))
+        {
+            $selectedJobOrderID = (int) $_GET['jobOrderID'];
+        }
+        else
+        {
+            $selectedJobOrderID = -1;
+        }
         $candidateID        = $_GET['candidateID'];
 
         $candidates = new Candidates($this->_siteID);
@@ -1713,18 +1861,41 @@ $data['university'] = !empty($data['universityShortName']) ? $data['universitySh
 
         $pipelines = new Pipelines($this->_siteID);
         $pipelineRS = $pipelines->getCandidatePipeline($candidateID);
+        if (empty($pipelineRS))
+        {
+            CommonErrors::fatalModal(COMMONERROR_BADINDEX, $this, 'The candidate is not in any pipeline entries.');
+            return;
+        }
 
         $statusRS = $pipelines->getStatusesForPicking();
-
         if ($selectedJobOrderID != -1)
         {
-            $selectedStatusID = ResultSetUtility::getColumnValueByIDValue(
-                $pipelineRS, 'jobOrderID', $selectedJobOrderID, 'statusID'
+            $pipelineData = ResultSetUtility::findRowByColumnValue(
+                $pipelineRS,
+                'jobOrderID',
+                $selectedJobOrderID
             );
+            if ($pipelineData === false)
+            {
+                CommonErrors::fatalModal(COMMONERROR_BADINDEX, $this, 'The specified pipeline entry could not be found.');
+                return;
+            }
+
+            $selectedStatusID = $pipelineData['statusID'];
         }
         else
         {
+            $pipelineData = $pipelineRS[0];
             $selectedStatusID = -1;
+        }
+
+        /* Override default send email behavior with site specific send email behavior. */
+        $mailerSettings = new MailerSettings($this->_siteID);
+        $mailerSettingsRS = $mailerSettings->getAll();
+        $candidateJoborderStatusSendsMessage = unserialize($mailerSettingsRS['candidateJoborderStatusSendsMessage']);
+        foreach ($statusRS as $index => $status)
+        {
+            $statusRS[$index]['triggersEmail'] = $candidateJoborderStatusSendsMessage[$status['statusID']];
         }
 
         /* Get the change status email template. */
@@ -1736,7 +1907,7 @@ $data['university'] = !empty($data['universityShortName']) ? $data['universitySh
             empty($statusChangeTemplateRS['textReplaced']))
         {
             $statusChangeTemplate = '';
-            $emailDisabled = '1';
+            $emailDisabled = empty($statusChangeTemplateRS) ? '1' : $statusChangeTemplateRS['disabled'];
         }
         else
         {
@@ -1765,56 +1936,20 @@ $data['university'] = !empty($data['universityShortName']) ? $data['universitySh
             $statusChangeTemplate
         );
 
-        $statusChangeTemplatesMap = array();
-        foreach ($statusRS as $status)
-        {
-            $perStatusRS = $emailTemplates->getByTag(
-                'EMAIL_TEMPLATE_STATUSCHANGE_' . $status['statusID']
-            );
-            if (!empty($perStatusRS) && !empty($perStatusRS['textReplaced']))
-            {
-                $text = str_replace($stringsToFind, $replacementStrings, $perStatusRS['textReplaced']);
-            }
-            else
-            {
-                $text = $statusChangeTemplate;
-            }
-            $statusChangeTemplatesMap[$status['statusID']] = $text;
-        }
-
-        /* Are we in "Only Schedule Event" mode? */
-        $onlyScheduleEvent = $this->isChecked('onlyScheduleEvent', $_GET);
-
-        $calendar = new Calendar($this->_siteID);
-        $calendarEventTypes = $calendar->getAllEventTypes();
-
         if (!eval(Hooks::get('CANDIDATE_ADD_ACTIVITY_CHANGE_STATUS'))) return;
-
-        if (SystemUtility::isSchedulerEnabled() && !$_SESSION['CATS']->isDemo())
-        {
-            $allowEventReminders = true;
-        }
-        else
-        {
-            $allowEventReminders = false;
-        }
 
         $this->_template->assign('candidateID', $candidateID);
         $this->_template->assign('pipelineRS', $pipelineRS);
+        $this->_template->assign('pipelineData', $pipelineData);
         $this->_template->assign('statusRS', $statusRS);
         $this->_template->assign('selectedJobOrderID', $selectedJobOrderID);
         $this->_template->assign('selectedStatusID', $selectedStatusID);
-        $this->_template->assign('allowEventReminders', $allowEventReminders);
-        $this->_template->assign('userEmail', $_SESSION['CATS']->getEmail());
-        $this->_template->assign('calendarEventTypes', $calendarEventTypes);
         $this->_template->assign('statusChangeTemplate', $statusChangeTemplate);
-        $this->_template->assign('onlyScheduleEvent', $onlyScheduleEvent);
         $this->_template->assign('emailDisabled', $emailDisabled);
         $this->_template->assign('isFinishedMode', false);
         $this->_template->assign('isJobOrdersMode', false);
-        $this->_template->assign('statusChangeTemplatesMap', $statusChangeTemplatesMap);
         $this->_template->display(
-            './modules/candidates/AddActivityChangeStatusModal.tpl'
+            './modules/candidates/ChangeStatusModal.tpl'
         );
     }
 
@@ -1885,9 +2020,9 @@ $data['university'] = !empty($data['universityShortName']) ? $data['universitySh
     }
     
     
-    private function onAddActivityChangeStatus()
+    private function onAddActivity()
     {
-        /* Bail out if we don't have a valid regardingjob order ID. */
+        /* Bail out if we don't have a valid regarding job order ID. */
         if (!$this->isOptionalIDValid('regardingID', $_POST))
         {
             CommonErrors::fatalModal(COMMONERROR_BADINDEX, $this, 'Invalid job order ID.');
@@ -1895,7 +2030,20 @@ $data['university'] = !empty($data['universityShortName']) ? $data['universitySh
 
         $regardingID = $_POST['regardingID'];
 
-        $this->_addActivityChangeStatus(false, $regardingID);
+        $this->_addActivity(false, $regardingID);
+    }
+
+    private function onChangeStatus()
+    {
+        /* Bail out if we don't have a valid regarding job order ID. */
+        if (!$this->isRequiredIDValid('regardingID', $_POST))
+        {
+            CommonErrors::fatalModal(COMMONERROR_BADINDEX, $this, 'Invalid job order ID.');
+        }
+
+        $regardingID = $_POST['regardingID'];
+
+        $this->_changeStatus(false, $regardingID);
     }
 
     /*
@@ -1905,19 +2053,19 @@ $data['university'] = !empty($data['universityShortName']) ? $data['universitySh
     private function onRemoveFromPipeline()
     {
         /* Bail out if we don't have a valid candidate ID. */
-        if (!$this->isRequiredIDValid('candidateID', $_GET))
+        if (!$this->isRequiredIDValid('candidateID', $_POST))
         {
             CommonErrors::fatal(COMMONERROR_BADINDEX, $this, 'Invalid candidate ID.');
         }
 
         /* Bail out if we don't have a valid job order ID. */
-        if (!$this->isRequiredIDValid('jobOrderID', $_GET))
+        if (!$this->isRequiredIDValid('jobOrderID', $_POST))
         {
             CommonErrors::fatal(COMMONERROR_BADINDEX, $this, 'Invalid job order ID.');
         }
 
-        $candidateID = $_GET['candidateID'];
-        $jobOrderID  = $_GET['jobOrderID'];
+        $candidateID = $_POST['candidateID'];
+        $jobOrderID  = $_POST['jobOrderID'];
 
         if (!eval(Hooks::get('CANDIDATE_REMOVE_FROM_PIPELINE_PRE'))) return;
 
@@ -1951,6 +2099,7 @@ $data['university'] = !empty($data['universityShortName']) ? $data['universitySh
         $this->_template->assign('keySkillsWildCardString', '');
         $this->_template->assign('fullNameWildCardString', '');
         $this->_template->assign('phoneNumberWildCardString', '');
+        $this->_template->assign('cityWildCardString', '');
         $this->_template->assign('mode', '');
         $this->_template->display('./modules/candidates/Search.tpl');
     }
@@ -1976,6 +2125,7 @@ $data['university'] = !empty($data['universityShortName']) ? $data['universitySh
         $keySkillsWildCardString   = '';
         $phoneNumberWildCardString = '';
         $fullNameWildCardString    = '';
+        $cityWildCardString        = '';
 
         /* Set up sorting. */
         if ($this->isRequiredIDValid('page', $_GET))
@@ -2153,6 +2303,37 @@ $data['university'] = !empty($data['universityShortName']) ? $data['universitySh
                 $resumeWildCardString = $query;
                 break;
 
+            case 'searchByCity':
+                $rs = $search->byCity($query, $sortBy, $sortDirection);
+
+                foreach ($rs as $rowIndex => $row)
+                {
+                    if (!empty($row['ownerFirstName']))
+                    {
+                        $rs[$rowIndex]['ownerAbbrName'] = StringUtility::makeInitialName(
+                            $row['ownerFirstName'],
+                            $row['ownerLastName'],
+                            false,
+                            LAST_NAME_MAXLEN
+                        );
+                    }
+                    else
+                    {
+                        $rs[$rowIndex]['ownerAbbrName'] = 'None';
+                    }
+
+                    $rsResume = $candidates->getResumes($row['candidateID']);
+                    if (isset($rsResume[0]))
+                    {
+                        $rs[$rowIndex]['resumeID'] = $rsResume[0]['attachmentID'];
+                    }
+                }
+
+                $isResumeMode = false;
+
+                $cityWildCardString = $query;
+                break;
+            
             case 'phoneNumber':
                 $rs = $search->byPhone($query, $sortBy, $sortDirection);
 
@@ -2219,6 +2400,7 @@ $data['university'] = !empty($data['universityShortName']) ? $data['universitySh
         $this->_template->assign('keySkillsWildCardString', $keySkillsWildCardString);
         $this->_template->assign('fullNameWildCardString', $fullNameWildCardString);
         $this->_template->assign('phoneNumberWildCardString', $phoneNumberWildCardString);
+        $this->_template->assign('cityWildCardString', $cityWildCardString);
         $this->_template->assign('mode', $mode);
         $this->_template->display('./modules/candidates/Search.tpl');
     }
@@ -2410,19 +2592,19 @@ $data['university'] = !empty($data['universityShortName']) ? $data['universitySh
     private function onDeleteAttachment()
     {
         /* Bail out if we don't have a valid attachment ID. */
-        if (!$this->isRequiredIDValid('attachmentID', $_GET))
+        if (!$this->isRequiredIDValid('attachmentID', $_POST))
         {
             CommonErrors::fatalModal(COMMONERROR_BADINDEX, $this, 'Invalid attachment ID.');
         }
 
         /* Bail out if we don't have a valid candidate ID. */
-        if (!$this->isRequiredIDValid('candidateID', $_GET))
+        if (!$this->isRequiredIDValid('candidateID', $_POST))
         {
             CommonErrors::fatalModal(COMMONERROR_BADINDEX, $this, 'Invalid candidate ID.');
         }
 
-        $candidateID  = $_GET['candidateID'];
-        $attachmentID = $_GET['attachmentID'];
+        $candidateID  = $_POST['candidateID'];
+        $attachmentID = $_POST['attachmentID'];
 
         if (!eval(Hooks::get('CANDIDATE_ON_DELETE_ATTACHMENT_PRE'))) return;
 
@@ -2441,21 +2623,21 @@ $data['university'] = !empty($data['universityShortName']) ? $data['universitySh
     private function administrativeHideShow()
     {
         /* Bail out if we don't have a valid joborder ID. */
-        if (!$this->isRequiredIDValid('candidateID', $_GET))
+        if (!$this->isRequiredIDValid('candidateID', $_POST))
         {
             CommonErrors::fatal(COMMONERROR_BADINDEX, $this, 'Invalid Job Order ID.');
         }
 
         /* Bail out if we don't have a valid status ID. */
-        if (!$this->isRequiredIDValid('state', $_GET, true))
+        if (!$this->isRequiredIDValid('state', $_POST, true))
         {
             CommonErrors::fatal(COMMONERROR_BADINDEX, $this, 'Invalid state ID.');
         }
 
-        $candidateID = $_GET['candidateID'];
+        $candidateID = $_POST['candidateID'];
 
         // FIXME: Checkbox?
-        $state = (boolean) $_GET['state'];
+        $state = (boolean) $_POST['state'];
 
         $candidates = new Candidates($this->_siteID);
         $candidates->administrativeHideShow($candidateID, $state);
@@ -2579,16 +2761,19 @@ $data['university'] = !empty($data['universityShortName']) ? $data['universitySh
          * ahead and convert the date to MySQL format.
          */
         $dateAvailable = $this->getTrimmedInput('dateAvailable', $_POST);
+        $dateFormatFlag = $_SESSION['CATS']->isDateDMY()
+            ? DATE_FORMAT_DDMMYY
+            : DATE_FORMAT_MMDDYY;
         if (!empty($dateAvailable))
         {
-            if (!DateUtility::validate('-', $dateAvailable, DATE_FORMAT_MMDDYY))
+            if (!DateUtility::validate('-', $dateAvailable, $dateFormatFlag))
             {
                 $this->$fatal('Invalid availability date.', $moduleDirectory);
             }
 
             /* Convert start_date to something MySQL can understand. */
             $dateAvailable = DateUtility::convert(
-                '-', $dateAvailable, DATE_FORMAT_MMDDYY, DATE_FORMAT_YYYYMMDD
+                '-', $dateAvailable, $dateFormatFlag, DATE_FORMAT_YYYYMMDD
             );
         }
 
@@ -2637,6 +2822,7 @@ $data['university'] = !empty($data['universityShortName']) ? $data['universitySh
         $email1          = $this->getTrimmedInput('email1', $_POST);
         $email2          = $this->getTrimmedInput('email2', $_POST);
         $address         = $this->getTrimmedInput('address', $_POST);
+        $address2        = $this->getTrimmedInput('address2', $_POST);
         $city            = $this->getTrimmedInput('city', $_POST);
         $state           = $this->getTrimmedInput('state', $_POST);
         $zip             = $this->getTrimmedInput('zip', $_POST);
@@ -2652,10 +2838,7 @@ $data['university'] = !empty($data['universityShortName']) ? $data['universitySh
         $race            = $this->getTrimmedInput('race', $_POST);
         $veteran         = $this->getTrimmedInput('veteran', $_POST);
         $disability      = $this->getTrimmedInput('disability', $_POST);
-        $gpa             = $this->getTrimmedInput('gpa', $_POST);
-        $university = $this->getTrimmedInput('university', $_POST);
-        $interviewStage = $this->getTrimmedInput('interviewStage', $_POST); 
-        $nationality     = $this->getTrimmedInput('nationality', $_POST);
+
         /* Candidate source list editor. */
         $sourceCSV = $this->getTrimmedInput('sourceCSV', $_POST);
 
@@ -2688,6 +2871,7 @@ $data['university'] = !empty($data['universityShortName']) ? $data['universitySh
             $phoneCell,
             $phoneWork,
             $address,
+            $address2,
             $city,
             $state,
             $zip,
@@ -2706,13 +2890,10 @@ $data['university'] = !empty($data['universityShortName']) ? $data['universitySh
             $gender,
             $race,
             $veteran,
-            $disability,
-            $gpa,
-            $university,
-            $nationality,
-            $interviewStage
+            $disability
         );
 
+        
         if ($candidateID <= 0)
         {
             return $candidateID;
@@ -2780,7 +2961,7 @@ $data['university'] = !empty($data['universityShortName']) ? $data['universitySh
          * file already and just needs to be attached. The attachment has also successfully
          * been DocumentToText converted, so we know it's a good file.
          */
-        else if (LicenseUtility::isParsingEnabled())
+        else
         {
             /**
              * Description: User clicks "browse" and selects a resume file. User doesn't click
@@ -2879,26 +3060,31 @@ $data['university'] = !empty($data['universityShortName']) ? $data['universitySh
 
                 if (!eval(Hooks::get('CANDIDATE_ON_CREATE_ATTACHMENT_POST'))) return;
             }
-        }
-
-        /* Create a text resume if the user posted one. (automated tool) */
-        else if (!empty($textResumeBlock))
-        {
-            $attachmentCreator = new AttachmentCreator($this->_siteID);
-            $attachmentCreator->createFromText(
-                DATA_ITEM_CANDIDATE, $candidateID, $textResumeBlock, $textResumeFilename, true
-            );
-
-            if ($attachmentCreator->isError())
+            else if (!$attachmentCreated && !empty($textResumeBlock))
             {
-                CommonErrors::fatal(COMMONERROR_FILEERROR, $this, $attachmentCreator->getError());
-                return;
-                //$this->fatal($attachmentCreator->getError());
-            }
-            $isTextExtractionError = $attachmentCreator->isTextExtractionError();
-            $textExtractionErrorMessage = $attachmentCreator->getTextExtractionError();
+                /* Create a text resume if the user posted one. (automated tool) */
+                if (!eval(Hooks::get('CANDIDATE_ON_CREATE_ATTACHMENT_PRE'))) return;
 
-            // FIXME: Show parse errors!
+                $attachmentCreator = new AttachmentCreator($this->_siteID);
+                $attachmentCreator->createFromText(
+                    DATA_ITEM_CANDIDATE, $candidateID, $textResumeBlock, $textResumeFilename, true
+                );
+
+                if ($attachmentCreator->isError())
+                {
+                    CommonErrors::fatal(COMMONERROR_FILEERROR, $this, $attachmentCreator->getError());
+                }
+
+                if ($attachmentCreator->duplicatesOccurred())
+                {
+                    $this->listByView(
+                        'This attachment has already been added to this candidate.'
+                    );
+                    return;
+                }
+
+                if (!eval(Hooks::get('CANDIDATE_ON_CREATE_ATTACHMENT_POST'))) return;
+            }
         }
 
         if (!eval(Hooks::get('CANDIDATE_ON_ADD_POST'))) return;
@@ -2907,23 +3093,17 @@ $data['university'] = !empty($data['universityShortName']) ? $data['universitySh
     }
 
     /**
-     * Processes an Add Activity / Change Status form and displays
-     * candidates/AddActivityChangeStatusModal.tpl. This is factored out
-     * for code clarity.
+     * Processes an Add Activity form and displays
+     * candidates/AddActivityScheduleEventModal.tpl.
      *
      * @param boolean from joborders module perspective
      * @param integer "regarding" job order ID or -1
      * @param string module directory
      * @return void
      */
-    private function _addActivityChangeStatus($isJobOrdersMode, $regardingID,
+    private function _addActivity($isJobOrdersMode, $regardingID,
         $directoryOverride = '')
     {
-        $notificationHTML = '';
-
-        $pipelines = new Pipelines($this->_siteID);
-        $statusRS = $pipelines->getStatusesForPicking();
-
         /* Module directory override for fatal() calls. */
         if ($directoryOverride != '')
         {
@@ -2940,69 +3120,78 @@ $data['university'] = !empty($data['universityShortName']) ? $data['universitySh
             CommonErrors::fatalModal(COMMONERROR_BADINDEX, $this, 'Invalid candidate ID.');
         }
 
-        /* Do we have a valid status ID. */
-        if (!$this->isOptionalIDValid('statusID', $_POST))
-        {
-            $statusID = -1;
-        }
-        else
-        {
-            $statusID = $_POST['statusID'];
-            if($statusID == PIPELINE_STATUS_PLACED)
-            {
-                $jobOrders = new JobOrders($this->_siteID);
-                $canBeHired = $jobOrders->checkOpenings($regardingID);
-                if(!$canBeHired)
-                {
-                    $this->fatalModal(
-                        'This job order has been filled. Cannot assign the status Placed to any other candidate.'
-                    );
-                }
-            }
-        }
-
         $candidateID = $_POST['candidateID'];
 
         if (!eval(Hooks::get('CANDIDATE_ON_ADD_ACTIVITY_CHANGE_STATUS_PRE'))) return;
 
         if ($this->isChecked('addActivity', $_POST))
         {
-            /* Bail out if we don't have a valid job order ID. */
-            if (!$this->isOptionalIDValid('activityTypeID', $_POST))
+            if (!$this->isRequiredIDValid('activityTypeID', $_POST))
+            {
+                $this->fatalModal('You must select an activity type.');
+            }
+
+            $activityTypeID = (int) $_POST['activityTypeID'];
+            $activityEntries = new ActivityEntries($this->_siteID);
+            $activityTypes = $activityEntries->getTypes();
+            if (ResultSetUtility::findRowByColumnValue(
+                $activityTypes, 'typeID', $activityTypeID
+            ) === false)
             {
                 CommonErrors::fatalModal(COMMONERROR_BADINDEX, $this, 'Invalid activity type ID.');
             }
 
-            $activityTypeID = $_POST['activityTypeID'];
-
             $activityNote = $this->getTrimmedInput('activityNote', $_POST);
 
-            $activityNote = htmlspecialchars($activityNote);
-
-            // FIXME: Move this to a highlighter-method? */
-            if (strpos($activityNote, 'Status change: ') === 0)
+            $activityDateOccurred = false;
+            $dateFormatFlag = $_SESSION['CATS']->isDateDMY()
+                ? DATE_FORMAT_DDMMYY
+                : DATE_FORMAT_MMDDYY;
+            $activityDate = $this->getTrimmedInput('activityDate', $_POST);
+            if (!empty($activityDate) &&
+                DateUtility::validate('-', $activityDate, $dateFormatFlag) &&
+                isset($_POST['activityHour']) && isset($_POST['activityMinute']) &&
+                isset($_POST['activityMeridiem']) &&
+                ctype_digit((string) $_POST['activityHour']) &&
+                ctype_digit((string) $_POST['activityMinute']) &&
+                ($_POST['activityMeridiem'] == 'AM' || $_POST['activityMeridiem'] == 'PM'))
             {
-                foreach ($statusRS as $data)
+                $activityHour = (int) $_POST['activityHour'];
+                $activityMinute = (int) $_POST['activityMinute'];
+
+                if ($activityHour >= 1 && $activityHour <= 12 &&
+                    $activityMinute >= 0 && $activityMinute <= 59)
                 {
-                    $activityNote = StringUtility::replaceOnce(
-                        $data['status'],
-                        '<span style="color: #ff6c00;">' . $data['status'] . '</span>',
-                        $activityNote
+                    $activityHour = $activityHour % 12;
+                    if ($_POST['activityMeridiem'] == 'PM')
+                    {
+                        $activityHour += 12;
+                    }
+
+                    $activityDateOccurred = sprintf(
+                        '%s %02d:%02d:00',
+                        DateUtility::convert(
+                            '-',
+                            $activityDate,
+                            $dateFormatFlag,
+                            DATE_FORMAT_YYYYMMDD
+                        ),
+                        $activityHour,
+                        $activityMinute
                     );
                 }
             }
 
             /* Add the activity entry. */
-            $activityEntries = new ActivityEntries($this->_siteID);
-            $activityID = $activityEntries->add(
+            $activityEntries->add(
                 $candidateID,
                 DATA_ITEM_CANDIDATE,
                 $activityTypeID,
                 $activityNote,
                 $this->_userID,
-                $regardingID
+                $regardingID,
+                $activityDateOccurred
             );
-            $activityTypes = $activityEntries->getTypes();
             $activityTypeDescription = ResultSetUtility::getColumnValueByIDValue(
                 $activityTypes, 'typeID', $activityTypeID, 'type'
             );
@@ -3016,115 +3205,15 @@ $data['university'] = !empty($data['universityShortName']) ? $data['universitySh
             $activityTypeDescription = '';
         }
 
-        if ($regardingID <= 0 || $statusID == -1)
-        {
-            $statusChanged = false;
-            $oldStatusDescription = '';
-            $newStatusDescription = '';
-        }
-        else
-        {
-            $data = $pipelines->get($candidateID, $regardingID);
-
-            /* Bail out if we got an empty result set. */
-            if (empty($data))
-            {
-                $this->fatalModal(
-                    'The specified pipeline entry could not be found.'
-                );
-            }
-
-            $validStatus = ResultSetUtility::findRowByColumnValue(
-                $statusRS, 'statusID', $statusID
-            );
-
-            /* If the status is invalid or unchanged, don't mess with it. */
-            if ($validStatus === false || $statusID == $data['status'])
-            {
-                $oldStatusDescription = '';
-                $newStatusDescription = '';
-                $statusChanged = false;
-            }
-            else
-            {
-                $oldStatusDescription = $data['status'];
-                $newStatusDescription = ResultSetUtility::getColumnValueByIDValue(
-                    $statusRS, 'statusID', $statusID, 'status'
-                );
-
-                if ($oldStatusDescription != $newStatusDescription)
-                {
-                    $statusChanged = true;
-                }
-                else
-                {
-                    $statusChanged = false;
-                }
-            }
-
-            if ($statusChanged && $this->isChecked('triggerEmail', $_POST))
-            {
-                $customMessage = $this->getTrimmedInput('customMessage', $_POST);
-
-                // FIXME: Actually validate the e-mail address?
-                if (empty($data['candidateEmail']))
-                {
-                    $email = '';
-                    $notificationHTML = '<p><span class="bold">Error:</span> An e-mail notification'
-                        . ' could not be sent to the candidate because the candidate'
-                        . ' does not have a valid e-mail address.</p>';
-                }
-                else if (empty($customMessage))
-                {
-                    $email = '';
-                    $notificationHTML = '<p><span class="bold">Error:</span> An e-mail notification'
-                        . ' will not be sent because the message text specified was blank.</p>';
-                }
-                else if ($this->getUserAccessLevel('candidates.emailCandidates') == ACCESS_LEVEL_DEMO)
-                {
-                    $email = '';
-                    $notificationHTML = '<p><span class="bold">Error:</span> Demo users can not send'
-                        . ' E-Mails.  No E-Mail was sent.</p>';
-                }
-                else
-                {
-                    $email = $data['candidateEmail'];
-                    $notificationHTML = '<p>An e-mail notification has been sent to the candidate.</p>';
-                }
-            }
-            else
-            {
-                $email = '';
-                $customMessage = '';
-                $notificationHTML = '<p>No e-mail notification has been sent to the candidate.</p>';
-            }
-
-            /* Set the pipeline entry's status, but don't send e-mails for now. */
-            $pipelines->setStatus(
-                $candidateID, $regardingID, $statusID, $email, $customMessage
-            );
-
-            /* If status = placed, and open positions > 0, reduce number of open positions by one. */
-            if ($statusID == PIPELINE_STATUS_PLACED && is_numeric($data['openingsAvailable']) && $data['openingsAvailable'] > 0)
-            {
-                $jobOrders = new JobOrders($this->_siteID);
-                $jobOrders->updateOpeningsAvailable($regardingID, $data['openingsAvailable'] - 1);
-            }
-            
-            /* If status is changed from placed to something else, increase number of open positions by one. */
-            if ($statusID != PIPELINE_STATUS_PLACED && $data['statusID'] == PIPELINE_STATUS_PLACED)
-            {
-                $jobOrders = new JobOrders($this->_siteID);
-                $jobOrders->updateOpeningsAvailable($regardingID, $data['openingsAvailable'] + 1);
-            }
-        }
-
         if ($this->isChecked('scheduleEvent', $_POST))
         {
             /* Bail out if we received an invalid date. */
             $trimmedDate = $this->getTrimmedInput('dateAdd', $_POST);
+            $dateFormatFlag = $_SESSION['CATS']->isDateDMY()
+                ? DATE_FORMAT_DDMMYY
+                : DATE_FORMAT_MMDDYY;
             if (empty($trimmedDate) ||
-                !DateUtility::validate('-', $trimmedDate, DATE_FORMAT_MMDDYY))
+                !DateUtility::validate('-', $trimmedDate, $dateFormatFlag))
             {
                 CommonErrors::fatalModal(COMMONERROR_MISSINGFIELDS, $this, 'Invalid date.');
             }
@@ -3164,7 +3253,7 @@ $data['university'] = !empty($data['universityShortName']) ? $data['universitySh
             if ($allDay)
             {
                 $date = DateUtility::convert(
-                    '-', $trimmedDate, DATE_FORMAT_MMDDYY, DATE_FORMAT_YYYYMMDD
+                    '-', $trimmedDate, $dateFormatFlag, DATE_FORMAT_YYYYMMDD
                 );
 
                 $hour = 12;
@@ -3209,7 +3298,7 @@ $data['university'] = !empty($data['universityShortName']) ? $data['universitySh
                     DateUtility::convert(
                         '-',
                         $trimmedDate,
-                        DATE_FORMAT_MMDDYY,
+                        $dateFormatFlag,
                         DATE_FORMAT_YYYYMMDD
                     ),
                     date('H:i:00', $time)
@@ -3224,9 +3313,6 @@ $data['university'] = !empty($data['universityShortName']) ? $data['universitySh
             {
                 CommonErrors::fatalModal(COMMONERROR_MISSINGFIELDS, $this);
                 return;
-                /*$this->fatalModal(
-                    'Required fields are missing.', $moduleDirectory
-                );*/
             }
 
             if ($regardingID > 0)
@@ -3235,7 +3321,7 @@ $data['university'] = !empty($data['universityShortName']) ? $data['universitySh
             }
             else
             {
-                $eventJobOrderID = -1;
+                $eventJobOrderID = null;
             }
 
             $calendar = new Calendar($this->_siteID);
@@ -3287,7 +3373,7 @@ $data['university'] = !empty($data['universityShortName']) ? $data['universitySh
             $onlyScheduleEvent = false;
         }
 
-        if (!$statusChanged && !$activityAdded && !$eventScheduled)
+        if (!$activityAdded && !$eventScheduled)
         {
             $changesMade = false;
         }
@@ -3300,21 +3386,213 @@ $data['university'] = !empty($data['universityShortName']) ? $data['universitySh
 
         $this->_template->assign('candidateID', $candidateID);
         $this->_template->assign('regardingID', $regardingID);
+        $this->_template->assign('activityAdded', $activityAdded);
+        $this->_template->assign('activityDescription', $activityNote);
+        $this->_template->assign('activityType', $activityTypeDescription);
+        $this->_template->assign('eventScheduled', $eventScheduled);
+        $this->_template->assign('eventHTML', $eventHTML);
+        $this->_template->assign('onlyScheduleEvent', $onlyScheduleEvent);
+        $this->_template->assign('changesMade', $changesMade);
+        $this->_template->assign('isFinishedMode', true);
+        $this->_template->assign('isJobOrdersMode', $isJobOrdersMode);
+        $this->_template->display(
+            './modules/candidates/AddActivityScheduleEventModal.tpl'
+        );
+    }
+
+    /**
+     * Processes a dedicated status change form and displays
+     * candidates/ChangeStatusModal.tpl.
+     *
+     * @param boolean from joborders module perspective
+     * @param integer "regarding" job order ID
+     * @param string module directory
+     * @return void
+     */
+    private function _changeStatus($isJobOrdersMode, $regardingID,
+        $directoryOverride = '')
+    {
+        $notificationHTML = '';
+        $activityAdded = false;
+        $activityNote = '';
+        $activityTypeDescription = '';
+
+        $pipelines = new Pipelines($this->_siteID);
+        $statusRS = $pipelines->getStatusesForPicking();
+
+        /* Module directory override for fatal() calls. */
+        if ($directoryOverride != '')
+        {
+            $moduleDirectory = $directoryOverride;
+        }
+        else
+        {
+            $moduleDirectory = $this->_moduleDirectory;
+        }
+
+        /* Bail out if we don't have a valid candidate ID. */
+        if (!$this->isRequiredIDValid('candidateID', $_POST))
+        {
+            CommonErrors::fatalModal(COMMONERROR_BADINDEX, $this, 'Invalid candidate ID.');
+        }
+
+        /* Bail out if we don't have a valid status ID. */
+        if (!$this->isRequiredIDValid('statusID', $_POST))
+        {
+            CommonErrors::fatalModal(COMMONERROR_BADINDEX, $this, 'Invalid status ID.');
+        }
+
+        $statusID = (int) $_POST['statusID'];
+        $validStatus = ResultSetUtility::findRowByColumnValue(
+            $statusRS, 'statusID', $statusID
+        );
+        if ($validStatus === false)
+        {
+            CommonErrors::fatalModal(COMMONERROR_BADINDEX, $this, 'Invalid status ID.');
+        }
+
+        /* Bail out if we don't have a valid job order ID. */
+        if (!$this->isRequiredIDValid('regardingID', $_POST) || $regardingID <= 0)
+        {
+            CommonErrors::fatalModal(COMMONERROR_BADINDEX, $this, 'Invalid job order ID.');
+        }
+
+        if ($statusID == PIPELINE_STATUS_PLACED)
+        {
+            $jobOrders = new JobOrders($this->_siteID);
+            $canBeHired = $jobOrders->checkOpenings($regardingID);
+            if (!$canBeHired)
+            {
+                $this->fatalModal(
+                    'This job order has been filled. Cannot assign the status Placed to any other candidate.'
+                );
+            }
+        }
+
+        $candidateID = $_POST['candidateID'];
+
+        if (!eval(Hooks::get('CANDIDATE_ON_ADD_ACTIVITY_CHANGE_STATUS_PRE'))) return;
+
+        $data = $pipelines->get($candidateID, $regardingID);
+
+        /* Bail out if we got an empty result set. */
+        if (empty($data))
+        {
+            $this->fatalModal(
+                'The specified pipeline entry could not be found.',
+                $moduleDirectory
+            );
+        }
+
+        $oldStatusDescription = $data['status'];
+        $newStatusDescription = ResultSetUtility::getColumnValueByIDValue(
+            $statusRS, 'statusID', $statusID, 'status'
+        );
+        $statusChanged = ($statusID != $data['statusID']);
+
+        if ($statusChanged && $this->isChecked('triggerEmail', $_POST))
+        {
+            $customMessage = $this->getTrimmedInput('customMessage', $_POST);
+
+            // FIXME: Actually validate the e-mail address?
+            if (empty($data['candidateEmail']))
+            {
+                $email = '';
+                $notificationHTML = '<p><span class="bold">Error:</span> An e-mail notification'
+                    . ' could not be sent to the candidate because the candidate'
+                    . ' does not have a valid e-mail address.</p>';
+            }
+            else if (empty($customMessage))
+            {
+                $email = '';
+                $notificationHTML = '<p><span class="bold">Error:</span> An e-mail notification'
+                    . ' will not be sent because the message text specified was blank.</p>';
+            }
+            else if ($this->getUserAccessLevel('candidates.emailCandidates') == ACCESS_LEVEL_DEMO)
+            {
+                $email = '';
+                $notificationHTML = '<p><span class="bold">Error:</span> Demo users can not send'
+                    . ' E-Mails.  No E-Mail was sent.</p>';
+            }
+            else
+            {
+                $email = $data['candidateEmail'];
+                $notificationHTML = '<p>An e-mail notification has been sent to the candidate.</p>';
+            }
+        }
+        else
+        {
+            $email = '';
+            $customMessage = '';
+            $notificationHTML = '<p>No e-mail notification has been sent to the candidate.</p>';
+        }
+
+        if ($statusChanged)
+        {
+            /* Set the pipeline entry's status, but don't send e-mails for now. */
+            $pipelines->setStatus(
+                $candidateID, $regardingID, $statusID, $email, $customMessage
+            );
+
+            /* If status = placed, and open positions > 0, reduce number of open positions by one. */
+            if ($statusID == PIPELINE_STATUS_PLACED && is_numeric($data['openingsAvailable']) && $data['openingsAvailable'] > 0)
+            {
+                $jobOrders = new JobOrders($this->_siteID);
+                $jobOrders->updateOpeningsAvailable($regardingID, $data['openingsAvailable'] - 1);
+            }
+
+            /* If status is changed from placed to something else, increase number of open positions by one. */
+            if ($statusID != PIPELINE_STATUS_PLACED && $data['statusID'] == PIPELINE_STATUS_PLACED)
+            {
+                $jobOrders = new JobOrders($this->_siteID);
+                $jobOrders->updateOpeningsAvailable($regardingID, $data['openingsAvailable'] + 1);
+            }
+            /* addActivity defaults to enabled for compatibility with legacy callers. */
+            if (isset($_POST['addActivityProvided']))
+            {
+                $addActivity = $this->isChecked('addActivity', $_POST);
+            }
+            else
+            {
+                $addActivity = true;
+            }
+
+            if ($addActivity)
+            {
+                /* Log status changes as activities in the dedicated status flow. */
+                $activityEntries = new ActivityEntries($this->_siteID);
+                $activityNote = sprintf('Status change: %s', $newStatusDescription);
+                $activityEntries->add(
+                    $candidateID,
+                    DATA_ITEM_CANDIDATE,
+                    ACTIVITY_STATUS_CHANGE,
+                    $activityNote,
+                    $this->_userID,
+                    $regardingID
+                );
+                $activityAdded = true;
+                $activityTypeDescription = 'Status Change';
+            }
+        }
+
+        $changesMade = $statusChanged;
+
+        if (!eval(Hooks::get('CANDIDATE_ON_ADD_ACTIVITY_CHANGE_STATUS_POST'))) return;
+
+        $this->_template->assign('candidateID', $candidateID);
+        $this->_template->assign('regardingID', $regardingID);
         $this->_template->assign('oldStatusDescription', $oldStatusDescription);
         $this->_template->assign('newStatusDescription', $newStatusDescription);
         $this->_template->assign('statusChanged', $statusChanged);
         $this->_template->assign('activityAdded', $activityAdded);
         $this->_template->assign('activityDescription', $activityNote);
         $this->_template->assign('activityType', $activityTypeDescription);
-        $this->_template->assign('eventScheduled', $eventScheduled);
-        $this->_template->assign('eventHTML', $eventHTML);
         $this->_template->assign('notificationHTML', $notificationHTML);
-        $this->_template->assign('onlyScheduleEvent', $onlyScheduleEvent);
         $this->_template->assign('changesMade', $changesMade);
         $this->_template->assign('isFinishedMode', true);
         $this->_template->assign('isJobOrdersMode', $isJobOrdersMode);
         $this->_template->display(
-            './modules/candidates/AddActivityChangeStatusModal.tpl'
+            './modules/candidates/ChangeStatusModal.tpl'
         );
     }
 
@@ -3479,8 +3757,8 @@ $data['university'] = !empty($data['universityShortName']) ? $data['universitySh
         {
             $duplicateCandidateID = $_POST['candidateID'];
         }
-        $query = $this->getTrimmedInput('wildCardString', $_POST);
-        $mode  = $this->getTrimmedInput('mode', $_POST);
+        $query = $this->getSanitisedInput('wildCardString', $_POST);
+        $mode  = $this->getSanitisedInput('mode', $_POST);
 
         /* Execute the search. */
         $search = new SearchCandidates($this->_siteID);
@@ -3532,6 +3810,15 @@ $data['university'] = !empty($data['universityShortName']) ? $data['universitySh
     
     private function mergeDuplicates()
     {
+        if (!$this->isRequiredIDValid('oldCandidateID', $_GET))
+        {
+            CommonErrors::fatal(COMMONERROR_BADINDEX, $this, 'Invalid candidate ID.');
+        }
+        if (!$this->isRequiredIDValid('newCandidateID', $_GET))
+        {
+            CommonErrors::fatal(COMMONERROR_BADINDEX, $this, 'Invalid candidate ID.');
+        }
+
         $candidates = new Candidates($this->_siteID);
         $oldCandidateID = $_GET['oldCandidateID'];
         $newCandidateID = $_GET['newCandidateID'];
@@ -3550,6 +3837,15 @@ $data['university'] = !empty($data['universityShortName']) ? $data['universitySh
     private function mergeDuplicatesInfo()
     {
         $candidates = new Candidates($this->_siteID);
+        if (!$this->isRequiredIDValid('oldCandidateID', $_POST))
+        {
+            CommonErrors::fatal(COMMONERROR_BADINDEX, $this, 'Invalid candidate ID.');
+        }
+        if (!$this->isRequiredIDValid('newCandidateID', $_POST))
+        {
+            CommonErrors::fatal(COMMONERROR_BADINDEX, $this, 'Invalid candidate ID.');
+        }
+
         $params = array();
         $params['firstName'] = $_POST['firstName'];
         $params['middleName'] =  $_POST['middleName'];
@@ -3571,15 +3867,24 @@ $data['university'] = !empty($data['universityShortName']) ? $data['universitySh
         $params['newCandidateID'] = $_POST['newCandidateID'];
         
         $candidates->mergeDuplicates($params, $candidates->getWithDuplicity($params['newCandidateID']));
-        $this->_template->assign('isFinishedMode', true); 
-        $this->_template->display('./modules/candidates/Merge.tpl');
+        CATSUtility::transferRelativeURI(
+            'm=candidates&a=show&candidateID=' . $params['oldCandidateID']
+        );
     }
     
     private function removeDuplicity()
     {
         $candidates = new Candidates($this->_siteID);
-        $oldCandidateID = $_GET['oldCandidateID'];
-        $newCandidateID = $_GET['newCandidateID'];
+        if (!$this->isRequiredIDValid('oldCandidateID', $_POST))
+        {
+            CommonErrors::fatal(COMMONERROR_BADINDEX, $this, 'Invalid candidate ID.');
+        }
+        if (!$this->isRequiredIDValid('newCandidateID', $_POST))
+        {
+            CommonErrors::fatal(COMMONERROR_BADINDEX, $this, 'Invalid candidate ID.');
+        }
+        $oldCandidateID = $_POST['oldCandidateID'];
+        $newCandidateID = $_POST['newCandidateID'];
         $candidates->removeDuplicity($oldCandidateID, $newCandidateID);
         $url = CATSUtility::getIndexName()."?m=candidates";
         header("Location: " . $url); /* Redirect browser */
@@ -3590,8 +3895,16 @@ $data['university'] = !empty($data['universityShortName']) ? $data['universitySh
     private function addDuplicates()
     {
         $candidates = new Candidates($this->_siteID);
-        $oldCandidateID = $_GET['candidateID'];
-        $newCandidateID = $_GET['duplicateCandidateID'];
+        if (!$this->isRequiredIDValid('candidateID', $_POST))
+        {
+            CommonErrors::fatalModal(COMMONERROR_BADINDEX, $this, 'Invalid candidate ID.');
+        }
+        if (!$this->isRequiredIDValid('duplicateCandidateID', $_POST))
+        {
+            CommonErrors::fatalModal(COMMONERROR_BADINDEX, $this, 'Invalid candidate ID.');
+        }
+        $oldCandidateID = $_POST['candidateID'];
+        $newCandidateID = $_POST['duplicateCandidateID'];
         $candidates->addDuplicates($newCandidateID, $oldCandidateID);
         $this->_template->assign('isFinishedMode', true);
         $this->_template->display('./modules/candidates/LinkDuplicity.tpl');

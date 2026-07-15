@@ -60,6 +60,15 @@ class ImportUI extends UserInterface
         $this->_subTabs = array();
     }
 
+    private function isValidImportFileID($fileID)
+    {
+        return $fileID != '' &&
+            $fileID === basename($fileID) &&
+            isset($_SESSION['CATS']->validImportFileIDs) &&
+            is_array($_SESSION['CATS']->validImportFileIDs) &&
+            in_array($fileID, $_SESSION['CATS']->validImportFileIDs, true);
+    }
+
 
     public function handleRequest()
     {
@@ -67,7 +76,14 @@ class ImportUI extends UserInterface
         switch ($action)
         {
             case 'revert':
-                $this->revert();
+                if ($this->isPostBack())
+                {
+                    $this->revert();
+                }
+                else
+                {
+                    CommonErrors::fatal(COMMONERROR_BADFIELDS, $this, 'Invalid request.');
+                }
                 break;
 
             case 'viewerrors':
@@ -107,11 +123,25 @@ class ImportUI extends UserInterface
                 break;
 
             case 'importBulkResumes':
-                $this->importBulkResumes();
+                if ($this->isPostBack())
+                {
+                    $this->importBulkResumes();
+                }
+                else
+                {
+                    CommonErrors::fatal(COMMONERROR_BADFIELDS, $this, 'Invalid request.');
+                }
                 break;
 
             case 'deleteBulkResumes':
-                $this->deleteBulkResumes();
+                if ($this->isPostBack())
+                {
+                    $this->deleteBulkResumes();
+                }
+                else
+                {
+                    CommonErrors::fatal(COMMONERROR_BADFIELDS, $this, 'Invalid request.');
+                }
                 break;
 
             case 'import':
@@ -133,13 +163,18 @@ class ImportUI extends UserInterface
     */
     private function revert()
     {
-        if (!$this->isRequiredIDValid('importID', $_GET))
+        if ($this->getUserAccessLevel('import.import') < ACCESS_LEVEL_EDIT)
+        {
+            CommonErrors::fatal(COMMONERROR_PERMISSION, $this, 'Invalid user level for action.');
+        }
+
+        if (!$this->isRequiredIDValid('importID', $_POST))
         {
             $this->import();
             return;
         }
 
-        $importID = $_GET['importID'];
+        $importID = $_POST['importID'];
 
         $import = new Import($this->_siteID);
         $tableName = $import->get($importID);
@@ -165,7 +200,7 @@ class ImportUI extends UserInterface
 
 
    /*
-    * Called by handleRequest() to view the errors of a pervious import.
+    * Called by handleRequest() to view the errors of a previous import.
     */
     private function viewErrors()
     {
@@ -176,25 +211,27 @@ class ImportUI extends UserInterface
             $this->import();
             return;
         }
-
+    
         $import = new Import($this->_siteID);
         $importData = $import->get($importID);
-
+    
         if (!eval(Hooks::get('IMPORT_VIEW_ERRORS'))) return;
-
+    
         if (isset($importData['importErrors']))
         {
-            $this->_template->assign('importErrors', $importData['importErrors']);
+            $importErrors = htmlspecialchars($importData['importErrors'], ENT_QUOTES | ENT_SUBSTITUTE, HTML_ENCODING);
+            $this->_template->assign('importErrors', $importErrors);
         }
         else
         {
             $this->_template->assign('importErrors', '');
         }
-
+    
+        $importID = htmlspecialchars($importID, ENT_QUOTES | ENT_SUBSTITUTE, HTML_ENCODING);
         $this->_template->assign('importID', $importID);
         $this->viewPending();
         return;
-    }
+    }    
 
    /*
     * Called by handleRequest() and viewErrors() to view pending imports and to display relavent information.
@@ -443,6 +480,19 @@ class ImportUI extends UserInterface
         /* If a file was submitted, then the user sent what colums he wanted to use already. */
         if (isset($_POST['fileName']))
         {
+            $fileName = $this->getTrimmedInput('fileName', $_POST);
+            if (!$this->isValidImportFileID($fileName))
+            {
+                $this->_template->assign(
+                    'errorMessage',
+                    'Invalid staged import file.'
+                );
+                $this->import();
+                return;
+            }
+
+            $_POST['fileName'] = $fileName;
+
             if ($_SESSION['CATS']->isDemo())
             {
                 CommonErrors::fatal(COMMONERROR_PERMISSION, $this, 'Demo user can not import data.');
@@ -481,20 +531,10 @@ class ImportUI extends UserInterface
         }
 
         /* Get file metadata. */
-        $originalFilename = $_FILES['file']['name'];
         $tempFilename     = $_FILES['file']['tmp_name'];
         $contentType      = $_FILES['file']['type'];
         $fileSize         = $_FILES['file']['size'];
         $fileUploadError  = $_FILES['file']['error'];
-
-        /* Recover from magic quotes. Note that tmp_name doesn't appear to
-         * get escaped, and stripslashes() on it breaks on Windows. - Will
-         */
-        if (get_magic_quotes_gpc())
-        {
-            $originalFilename = stripslashes($originalFilename);
-            $contentType      = stripslashes($contentType);
-        }
 
         if ($fileUploadError != UPLOAD_ERR_OK)
         {
@@ -533,14 +573,7 @@ class ImportUI extends UserInterface
         @chmod(CATS_TEMP_DIR, 0777);
 
         /* Make a random file name for the file. */
-        if ($dataType != 'Resume')
-        {
-            $randomFile = FileUtility::makeRandomFilename($tempFilename) . '.tmp';
-        }
-        else
-        {
-            $randomFile = $originalFilename;
-        }
+        $randomFile = FileUtility::makeRandomFilename($tempFilename) . '.tmp';
 
         /* Build new path information for the file. */
         $newFileFullPath  = CATS_TEMP_DIR . '/' . $randomFile;
@@ -573,6 +606,16 @@ class ImportUI extends UserInterface
                 break;
 
             default:
+                @unlink($newFileFullPath);
+                $validFileIDKey = array_search(
+                    $randomFile,
+                    $_SESSION['CATS']->validImportFileIDs,
+                    true
+                );
+                if ($validFileIDKey !== false)
+                {
+                    unset($_SESSION['CATS']->validImportFileIDs[$validFileIDKey]);
+                }
                 $this->_template->assign(
                     'errorMessage',
                     'No parser exists for the specified data type.'
@@ -742,11 +785,20 @@ class ImportUI extends UserInterface
             CommonErrors::fatal(COMMONERROR_PERMISSION, $this, 'Invalid user level for action.');
         }
 
-        $filePath = CATS_TEMP_DIR . '/' . $_POST['fileName'];
+        $fileName = $this->getTrimmedInput('fileName', $_POST);
+        if (!$this->isValidImportFileID($fileName))
+        {
+            $this->_template->assign('errorMessage', 'Invalid staged import file.');
+            $this->import();
+            return;
+        }
+
+        $filePath = CATS_TEMP_DIR . '/' . $fileName;
         if (!is_file($filePath))
         {
             $this->_template->assign('errorMessage', 'Invalid filename. (Internal error)');
             $this->import();
+            return;
         }
 
         $dataContaining = $this->getTrimmedInput('dataContaining', $_POST);
@@ -1369,14 +1421,7 @@ class ImportUI extends UserInterface
 
         $doc2text = new DocumentToText();
         $pu = new ParseUtility();
-        if (LicenseUtility::isParsingEnabled())
-        {
-            $parsingEnabled = true;
-        }
-        else
-        {
-            $parsingEnabled = false;
-        }
+        $parsingEnabled = true;
 
         if ($doc2text->convert($name, $type) === false)
         {
@@ -1554,7 +1599,7 @@ class ImportUI extends UserInterface
             {
                 $this->_template->assign('errorMessage', 'You didn\'t upload any files or there was a '
                     . 'problem working with any files you uploaded. Please use the '
-                    . '<a href="javascript:back()"><b>Back</b></a> button on your web browser '
+                    . '<a href="javascript:history.back()"><b>Back button</b></a> on your web browser '
                     . 'and select one or more files to import.'
                 );
 
@@ -1762,6 +1807,10 @@ class ImportUI extends UserInterface
                     {
                         // This was parsed data
                         $candidates = new Candidates($siteID);
+                        list($address1, $address2) = self::splitAddressForImport(
+                            $doc['address'],
+                            isset($doc['address2']) ? $doc['address2'] : ''
+                        );
 
                         $candidateID = $candidates->add(
                             $doc['firstName'],
@@ -1772,7 +1821,8 @@ class ImportUI extends UserInterface
                             $doc['phone'],
                             '',
                             '',
-                            $doc['address'],
+                            $address1,
+                            $address2,
                             $doc['city'],
                             $doc['state'],
                             $doc['zipCode'],
@@ -1981,6 +2031,16 @@ class ImportUI extends UserInterface
                         $doc['lastName'] = $doc['parse'][$id]; else $doc['lastName'] = '';
                     if (isset($doc['parse'][$id = 'us_address']))
                         $doc['address'] = $doc['parse'][$id]; else $doc['address'] = '';
+                    if (isset($doc['parse'][$id = 'address2']))
+                        $doc['address2'] = $doc['parse'][$id];
+                    else if (isset($doc['parse'][$id = 'address_line_2']))
+                        $doc['address2'] = $doc['parse'][$id];
+                    else if (isset($doc['parse'][$id = 'addressLineTwo']))
+                        $doc['address2'] = $doc['parse'][$id];
+                    else if (isset($doc['parse'][$id = 'address_line_two']))
+                        $doc['address2'] = $doc['parse'][$id];
+                    else
+                        $doc['address2'] = '';
                     if (isset($doc['parse'][$id = 'city']))
                         $doc['city'] = $doc['parse'][$id]; else $doc['city'] = '';
                     if (isset($doc['parse'][$id = 'state']))
@@ -2003,6 +2063,7 @@ class ImportUI extends UserInterface
                     $doc['firstName'] = $doc['lastName'] = $doc['address'] = $doc['city'] =
                         $doc['state'] = $doc['zipCode'] = $doc['email'] = $doc['phone'] =
                         $doc['education'] = $doc['skills'] = $doc['experience'] = '';
+                    $doc['address2'] = '';
                 }
                 $doc['id'] = $ind;
                 $documents[] = $doc;
@@ -2014,6 +2075,32 @@ class ImportUI extends UserInterface
             }
         }
         return array($documents, $success, $failed);
+    }
+
+    private static function splitAddressForImport($address, $address2 = '')
+    {
+        $address = str_replace("\r\n", "\n", $address);
+        $address = trim($address);
+        $address2 = trim($address2);
+
+        if ($address2 !== '')
+        {
+            $address2 = str_replace("\r\n", "\n", $address2);
+            $address2 = trim(str_replace("\n", ", ", $address2));
+            return array($address, $address2);
+        }
+
+        $parts = explode("\n", $address, 2);
+        $address1 = trim($parts[0]);
+        $address2 = '';
+        if (isset($parts[1]))
+        {
+            $address2 = trim(str_replace("\n", ", ", $parts[1]));
+        }
+
+        $address2 = str_replace("\r\n", "\n", $address2);
+        $address2 = trim(str_replace("\n", ", ", $address2));
+        return array($address1, $address2);
     }
 
     private function deleteBulkResumes()

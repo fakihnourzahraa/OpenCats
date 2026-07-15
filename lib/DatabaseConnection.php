@@ -259,7 +259,7 @@ class DatabaseConnection
      * @param integer Column number.
      * @return array Multi-dimensional associative result set array, or array()
      */
-    public function getColumn($query = null, $row, $column)
+    public function getColumn($query, $row, $column)
     {
         if ($query != null)
         {
@@ -507,9 +507,9 @@ class DatabaseConnection
      */
     public function makeQueryStringOrNULL($string)
     {
-        $string = trim($string);
+        $string = trim((string) $string);
 
-        if (empty($string))
+        if ($string === '')
         {
             return 'NULL';
         }
@@ -719,7 +719,7 @@ class DatabaseConnection
     {
         if (!$this->_inTransaction)
         {
-            // Ignore errors (if called for MyISAM, for example)
+            // Ignore errors (e.g., if transactions are not supported by the underlying storage engine)
             $this->query('BEGIN', true);
             return ($this->_inTransaction = true);
         }

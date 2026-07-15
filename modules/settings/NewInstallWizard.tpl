@@ -5,9 +5,9 @@
     <head>
         <title>CATS - Initial Configuration Wizard</title>
         <meta http-equiv="Content-Type" content="text/html; charset=<?php echo(HTML_ENCODING); ?>">
-        <style type="text/css" media="all">@import "modules/install/install.css";</style>
-        <script type="text/javascript" src="js/lib.js"></script>
-        <script type="text/javascript" src="modules/settings/validator.js"></script>
+        <style type="text/css" media="all">@import "<?php echo TemplateUtility::getVersionedAssetURL('modules/install/install.css'); ?>";</style>
+        <script type="text/javascript" src="<?php echo TemplateUtility::getVersionedAssetURL('js/lib.js'); ?>"></script>
+        <script type="text/javascript" src="<?php echo TemplateUtility::getVersionedAssetURL('modules/settings/validator.js'); ?>"></script>
     </head>
 
     <body>

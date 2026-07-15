@@ -156,8 +156,11 @@ class MRU
             );
         }
 
+        // return implode(
+        //     $HTML, '&nbsp;<span style="color: orange;">|</span>&nbsp;'
+        // );
         return implode(
-            $HTML, '&nbsp;<span style="color: orange;">|</span>&nbsp;'
+            '&nbsp;<span style="color: orange;">|</span>&nbsp;', $HTML
         );
     }
 

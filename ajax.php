@@ -3,7 +3,7 @@
  * CATS
  * AJAX Delegation Module
  *
- * CATS Version: 0.9.6
+ * CATS Version: 0.10.0
  *
  * Copyright (C) 2005 - 2007 Cognizo Technologies, Inc.
  *
@@ -46,23 +46,41 @@ include_once(LEGACY_ROOT . '/lib/CATSUtility.php');
 header('Last-Modified: ' . gmdate('D, d M Y H:i:s') . ' GMT');
 header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
 
-/* Make sure we aren't getting screwed over by magic quotes. */
-if (get_magic_quotes_runtime())
+/* Only start a session for POST requests so CSRF validation can determine logged-in state. */
+if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] === 'POST')
 {
-    if (function_exists('set_magic_quotes_runtime')) {
-        set_magic_quotes_runtime(0);
-    }
+    @session_name(CATS_SESSION_NAME);
+    session_start();
 }
-if (get_magic_quotes_gpc())
+
+if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] === 'POST' &&
+    isset($_SESSION['CATS']) && $_SESSION['CATS']->isLoggedIn())
 {
-    $_GET     = array_map('stripslashes', $_GET);
-    $_POST    = array_map('stripslashes', $_POST);
-    $_REQUEST = array_map('stripslashes', $_REQUEST);
+    $token = null;
+
+    if (isset($_POST['csrfToken']))
+    {
+        $token = $_POST['csrfToken'];
+    }
+
+    if (!$_SESSION['CATS']->isCSRFTokenValid($token))
+    {
+        header('Content-type: text/xml');
+        echo '<?xml version="1.0" encoding="', AJAX_ENCODING, '"?>', "\n";
+        echo(
+            "<data>\n" .
+            "    <errorcode>-1</errorcode>\n" .
+            "    <errormessage>Invalid request.</errormessage>\n" .
+            "</data>\n"
+        );
+
+        die();
+    }
 }
 
 if (!isset($_REQUEST['f']) || empty($_REQUEST['f']))
 {
-    header('Content-type: text/xml');
+    header('Content-type: text/xml; charset=' . AJAX_ENCODING);
     echo '<?xml version="1.0" encoding="', AJAX_ENCODING, '"?>', "\n";
     echo(
         "<data>\n" .
@@ -72,6 +90,31 @@ if (!isset($_REQUEST['f']) || empty($_REQUEST['f']))
     );
 
     die();
+}
+
+$installerActive = (!file_exists('INSTALL_BLOCK'));
+if ($installerActive)
+{
+    $module = '';
+    if (strpos($_REQUEST['f'], ':') !== false)
+    {
+        $parameters = explode(':', $_REQUEST['f']);
+        $module = preg_replace("/[^A-Za-z0-9]/", "", $parameters[0]);
+    }
+
+    if ($module !== 'install')
+    {
+        header('Content-type: text/xml');
+        echo '<?xml version="1.0" encoding="', AJAX_ENCODING, '"?>', "\n";
+        echo(
+            "<data>\n" .
+            "    <errorcode>-1</errorcode>\n" .
+            "    <errormessage>Installer is active. Only installer AJAX actions are allowed.</errormessage>\n" .
+            "</data>\n"
+        );
+
+        die();
+    }
 }
 
 if (strpos($_REQUEST['f'], ':') === false)
@@ -93,7 +136,7 @@ else
 
 if (!is_readable($filename))
 {
-    header('Content-type: text/xml');
+    header('Content-type: text/xml; charset=' . AJAX_ENCODING);
     echo '<?xml version="1.0" encoding="', AJAX_ENCODING, '"?>', "\n";
     echo(
         "<data>\n" .

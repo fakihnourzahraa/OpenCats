@@ -71,7 +71,7 @@ class Tags
                 site_id = %s",
             $this->_db->makeQueryStringOrNULL($title),
             $this->_db->makeQueryStringOrNULL($description),
-            $tagID,
+            $this->_db->makeQueryString($tagID),
             $this->_siteID
         );
 
@@ -94,7 +94,8 @@ class Tags
                 (tag_id = %s OR tag_parent_id = %s)
             AND
                 site_id = %s",
-            $tagID, $tagID,
+            $this->_db->makeQueryString($tagID), 
+	    $this->_db->makeQueryString($tagID),
             $this->_siteID
         );
 

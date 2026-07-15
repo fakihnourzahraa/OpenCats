@@ -82,8 +82,7 @@ class TemplateUtility
         echo '<body style="background: #eee;">', "\n";
         if ($title != '')
         {
-            $title = str_replace('\'', '\\\'', $title);
-            echo '<script type="text/javascript">parentSetPopTitle(\''.$title.'\');</script>';
+            echo '<script type="text/javascript">parentSetPopTitle(', Template::escapeJs($title), ');</script>';
         }
         self::_printQuickActionMenuHolder();
     }
@@ -133,33 +132,33 @@ class TemplateUtility
             // Begin top-right action block
             if (!eval(Hooks::get('TEMPLATE_LOGIN_INFO_TOP_RIGHT_UPGRADE'))) return;
 
-            if (LicenseUtility::isProfessional() &&
-                $_SESSION['CATS']->getAccessLevel(ACL::SECOBJ_ROOT) >= ACCESS_LEVEL_SA)
+            if ($_SESSION['CATS']->getAccessLevel(ACL::SECOBJ_ROOT) >= ACCESS_LEVEL_SA)
             {
-                if (abs(LicenseUtility::getExpirationDate() - time()) < 60*60*24*30)
-                {
-                    $daysLeft = abs(LicenseUtility::getExpirationDate() - time())/60/60/24;
-                    echo '<a href="http://www.catsone.com/professional" target="_blank">';
-                    echo '<img src="images/tabs/small_upgrade.jpg" border="0" /> ';
-                    echo 'License expires in ' . number_format($daysLeft, 0) . ' days, Renew?</a>&nbsp;&nbsp;&nbsp;&nbsp;', "\n";
-                }
-                else
-                {
-                    echo '<a href="http://www.opencats.org" target="_blank">';
-                    echo '<img src="images/tabs/small_upgrade.jpg" border="0" /> ';
-                    echo 'OpenCATS.org</a>&nbsp;&nbsp;&nbsp;&nbsp;', "\n";
-                }
+                echo '<a href="http://www.opencats.org" target="_blank">';
+                echo '<img src="images/tabs/small_upgrade.jpg" border="0" /> ';
+                echo 'OpenCATS.org</a>&nbsp;&nbsp;&nbsp;&nbsp;', "\n";
             }
 
-            echo '<a href="', $indexName, '?m=logout">';
+            echo '<form id="logoutForm" name="logoutForm" method="post" action="', $indexName, '?m=logout" '
+                . 'style="display: inline; padding: 0; margin: 0; border: 0;">';
+            if (isset($_SESSION['CATS']) && $_SESSION['CATS']->isLoggedIn())
+            {
+                $csrfToken = Template::escapeAttr($_SESSION['CATS']->getCSRFToken());
+                echo '<input type="hidden" name="csrfToken" value="', $csrfToken, '" />';
+            }
+            echo '<button type="submit" class="linkButton">';
             echo '<img src="images/tabs/small_logout.jpg" border="0" /> ';
-            echo 'Logout</a>', "\n";
+            echo 'Logout</button>', "\n";
+            echo '</form>', "\n";
             echo '</div>', "\n";
             // End top-right action block
 
             if (!eval(Hooks::get('TEMPLATE_LOGIN_INFO_EXTENDED_SITE_NAME'))) return;
 
-            echo '<span>', $fullName, '&nbsp;&lt;', $username, '&gt;&nbsp;(', $siteName, ')</span>', "\n";
+            $fullNameEscaped = Template::escapeHtml($fullName);
+            $usernameEscaped = Template::escapeHtml($username);
+            $siteNameEscaped = Template::escapeHtml($siteName);
+            echo '<span>', $fullNameEscaped, '&nbsp;&lt;', $usernameEscaped, '&gt;&nbsp;(', $siteNameEscaped, ')</span>', "\n";
 
             if ($_SESSION['CATS']->getAccessLevel(ACL::SECOBJ_ROOT) >= ACCESS_LEVEL_SA)
             {
@@ -417,16 +416,24 @@ class TemplateUtility
 
                 if (count($savedSearchSaved) >= RECENT_SEARCH_MAX_ITEMS)
                 {
-                    echo '<a href="javascript:void(0);" onclick="alert(\'The maximum amount of saved searches is ',
-                         RECENT_SEARCH_MAX_ITEMS, '. To save this search, delete another saved search.\');">';
+                    $openTag = '<a href="javascript:void(0);" onclick="alert(\'The maximum amount of saved searches is ' .
+                               RECENT_SEARCH_MAX_ITEMS . '. To save this search, delete another saved search.\');">';
+                    $closeTag = '</a>';
                 }
                 else
                 {
-                    echo '<a href="', $indexName, '?m=home&amp;a=addSavedSearch&amp;searchID=',
-                         $savedSearchRow['searchID'], '&amp;currentURL=', $currentUrlGETString, '">';
+                    $openTag = '<form method="post" action="' . $indexName . '?m=home&amp;a=addSavedSearch" style="display:inline;">'
+                             . '<input type="hidden" name="postback" value="postback" />'
+                             . '<input type="hidden" name="searchID" value="' . $savedSearchRow['searchID'] . '" />'
+                             . '<input type="hidden" name="currentURL" value="' . $currentUrlGETString . '" />'
+                             . '<button type="submit" class="linkButton">';
+                    $closeTag = '</button></form>';
                 }
 
-                echo '<img src="images/actions/add_small.gif" alt="" style="border: none;" title="Save This Search" /></a>&nbsp;', "\n";
+                echo $openTag,
+                     '<img src="images/actions/add_small.gif" alt="" style="border: none;" title="Save This Search" />',
+                     $closeTag,
+                     '&nbsp;', "\n";
 
                 $escapedURL  = htmlspecialchars($savedSearchRow['URL']);
 
@@ -481,9 +488,12 @@ class TemplateUtility
                 }
                 $escapedURL = '/'.$escapedURL;
 
-                echo '<a href="', $indexName, '?m=home&amp;a=deleteSavedSearch&amp;searchID=',
-                     $savedSearchRow['searchID'], '&currentURL=', $currentUrlGETString, '">',
-                     '<img src="images/actions/delete_small.gif" style="border: none;" title="Delete This Search" /></a>&nbsp;';
+                echo '<form method="post" action="', $indexName, '?m=home&amp;a=deleteSavedSearch" style="display:inline;">',
+                     '<input type="hidden" name="postback" value="postback" />',
+                     '<input type="hidden" name="searchID" value="', $savedSearchRow['searchID'], '" />',
+                     '<input type="hidden" name="currentURL" value="', $currentUrlGETString, '" />',
+                     '<button type="submit" class="linkButton">',
+                     '<img src="images/actions/delete_small.gif" style="border: none;" title="Delete This Search" /></button></form>&nbsp;';
 
                 echo '<a href="', $escapedURL, '&amp;savedSearchID=', $savedSearchRow['searchID'],
                      '" onclick="gotoSearch(\'', $escapedText, "', '", $escapedURL,
@@ -817,7 +827,7 @@ class TemplateUtility
            BY THE TERMS OF THE CPL FOR OpenCATS OPEN SOURCE EDITION.
 
              II) The following copyright notice must be retained and clearly legible
-             at the bottom of every rendered HTML document: Copyright (C) 2007-2020
+             at the bottom of every rendered HTML document: Copyright (C) 2007-2023
              OpenCATs All rights reserved.
 
              III) The "Powered by OpenCATS" text or logo must be retained and clearly
@@ -828,7 +838,7 @@ class TemplateUtility
 
         echo '<div class="footerBlock">', "\n";
         echo '<p id="footerText">OpenCATS Version ', CATS_VERSION, $buildString,
-             '. <span id="toolbarVersion"></span>Powered by <a href="http://www.opencats.org/"><strong>OpenCATS</strong></a>.</p>', "\n";
+             '. Powered by <a href="http://www.opencats.org/"><strong>OpenCATS</strong></a>.</p>', "\n";
         echo '<span id="footerResponse">Server Response Time: ', $loadTime, ' seconds.</span><br />';
         echo '<span id="footerCopyright">', COPYRIGHT_HTML, '</span>', "\n";
         if (!eval(Hooks::get('TEMPLATEUTILITY_SHOWPRIVACYPOLICY'))) return;
@@ -839,13 +849,6 @@ class TemplateUtility
         echo '</body>', "\n";
         echo '</html>', "\n";
 
-        if (LicenseUtility::isProfessional() && !rand(0,10))
-        {
-            if (!LicenseUtility::validateProfessionalKey(LICENSE_KEY))
-            {
-                CATSUtility::changeConfigSetting('LICENSE_KEY', "''");
-            }
-        }
     }
 
     /**
@@ -1059,6 +1062,32 @@ class TemplateUtility
     }
 
     /**
+     * Escapes activity notes and highlights status change text at render time.
+     *
+     * @param string activity note text
+     * @return string escaped notes with optional status text highlight
+     */
+    public static function highlightStatusChangeActivityNote($notes)
+    {
+        $statusPrefix = 'Status change: ';
+        if (strpos($notes, $statusPrefix) !== 0)
+        {
+            return Template::escapeHtml($notes);
+        }
+
+        $statusText = substr($notes, strlen($statusPrefix));
+        if ($statusText === '')
+        {
+            return Template::escapeHtml($notes);
+        }
+
+        return Template::escapeHtml($statusPrefix)
+            . '<span class="statusChangeHighlight">'
+            . Template::escapeHtml($statusText)
+            . '</span>';
+    }
+
+    /**
      * Removes from $text everything from starting block through ending block.
      * Optionally also removes a following piece of text indicated by closing
      * tag.
@@ -1150,6 +1179,76 @@ class TemplateUtility
     }
 
     /**
+     * Returns an asset URL with a file-based version query parameter.
+     *
+     * @param string Relative asset path
+     * @return string
+     */
+    public static function getVersionedAssetURL($assetPath)
+    {
+        $assetPath = (string) $assetPath;
+        if ($assetPath == '')
+        {
+            return $assetPath;
+        }
+
+        $parsedURL = parse_url($assetPath);
+        if ($parsedURL === false || isset($parsedURL['scheme']) || isset($parsedURL['host']))
+        {
+            return $assetPath;
+        }
+
+        $path = isset($parsedURL['path']) ? $parsedURL['path'] : '';
+        if ($path == '')
+        {
+            return $assetPath;
+        }
+
+        $legacyRootPath = realpath(LEGACY_ROOT);
+        if ($legacyRootPath === false)
+        {
+            return $assetPath;
+        }
+
+        $normalizedPath = ltrim(str_replace('\\', '/', $path), '/');
+        if ($normalizedPath == '')
+        {
+            return $assetPath;
+        }
+
+        $assetFilePath = realpath(
+            $legacyRootPath . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $normalizedPath)
+        );
+        if ($assetFilePath === false)
+        {
+            return $assetPath;
+        }
+
+        $legacyRootPrefix = rtrim($legacyRootPath, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
+        if ($assetFilePath !== $legacyRootPath && strpos($assetFilePath, $legacyRootPrefix) !== 0)
+        {
+            return $assetPath;
+        }
+
+        $fileMTime = @filemtime($assetFilePath);
+        if ($fileMTime === false)
+        {
+            return $assetPath;
+        }
+
+        $queryString = isset($parsedURL['query']) ? $parsedURL['query'] . '&' : '';
+        $queryString .= 'v=' . (int) $fileMTime;
+
+        $versionedAssetURL = $path . '?' . $queryString;
+        if (isset($parsedURL['fragment']))
+        {
+            $versionedAssetURL .= '#' . $parsedURL['fragment'];
+        }
+
+        return $versionedAssetURL;
+    }
+
+    /**
      * Prints template header HTML.
      *
      * @param string page title
@@ -1165,21 +1264,11 @@ class TemplateUtility
 
         $siteID = $_SESSION['CATS']->getSiteID();
 
-        /* This prevents caching problems when SVN updates are preformed. */
-        if ($_SESSION['CATS']->getCachedBuild() > 0)
-        {
-            $javascriptAntiCache = '?b=' . $_SESSION['CATS']->getCachedBuild();
-        }
-        else
-        {
-            $javascriptAntiCache = '?v=' . CATSUtility::getVersionAsInteger();
-        }
-
         echo '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"', "\n";
         echo '"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">', "\n";
         echo '<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">', "\n";
         echo '<head>', "\n";
-        echo '<title>OpenCATS - ', $pageTitle, '</title>', "\n";
+        echo '<title>OpenCATS - ', Template::escapeHtml($pageTitle), '</title>', "\n";
         echo '<meta http-equiv="Content-Type" content="text/html; charset=', HTML_ENCODING, '" />', "\n";
         echo '<link rel="icon" href="images/favicon.ico" type="image/x-icon" />', "\n";
         echo '<link rel="shortcut icon" href="images/favicon.ico" type="image/x-icon" />', "\n";
@@ -1187,33 +1276,114 @@ class TemplateUtility
              CATSUtility::getIndexName(), '?m=rss" />', "\n";
 
         /* Core JS files */
-        echo '<script type="text/javascript" src="js/lib.js'.$javascriptAntiCache.'"></script>', "\n";
-        echo '<script type="text/javascript" src="js/quickAction.js'.$javascriptAntiCache.'"></script>', "\n";
-        echo '<script type="text/javascript" src="js/calendarDateInput.js'.$javascriptAntiCache.'"></script>', "\n";
-        echo '<script type="text/javascript" src="js/submodal/subModal.js'.$javascriptAntiCache.'"></script>', "\n";
-        echo '<script type="text/javascript" src="js/jquery-1.3.2.min.js'.$javascriptAntiCache.'"></script>', "\n";
-        echo '<script type="text/javascript">CATSIndexName = "'.CATSUtility::getIndexName().'";</script>', "\n";
+        $coreJavaScriptFiles = array(
+            'js/lib.js',
+            'js/quickAction.js',
+            'js/calendarDateInput.js',
+            'js/submodal/subModal.js',
+            'js/jquery-1.3.2.min.js'
+        );
+        foreach ($coreJavaScriptFiles as $coreJavaScriptFile)
+        {
+            $versionedFilename = self::getVersionedAssetURL($coreJavaScriptFile);
+            echo '<script type="text/javascript" src="', $versionedFilename, '"></script>', "\n";
+        }
+        echo '<script type="text/javascript">CATSIndexName = ', Template::escapeJs(CATSUtility::getIndexName()), ';</script>', "\n";
+        if (isset($_SESSION['CATS']) && $_SESSION['CATS']->isLoggedIn())
+        {
+            $csrfToken = $_SESSION['CATS']->getCSRFToken();
+            echo '<script type="text/javascript">CATSCsrfToken = ',
+                 Template::escapeJs($csrfToken), ';</script>', "\n";
+            echo '<script type="text/javascript">', "\n";
+            echo 'function catsInjectCSRFToken()', "\n";
+            echo '{', "\n";
+            echo '    if (typeof CATSCsrfToken == "undefined" || CATSCsrfToken === null || CATSCsrfToken === "")', "\n";
+            echo '    {', "\n";
+            echo '        return;', "\n";
+            echo '    }', "\n";
+            echo '    var forms = document.getElementsByTagName("form");', "\n";
+            echo '    for (var i = 0; i < forms.length; i++)', "\n";
+            echo '    {', "\n";
+            echo '        var form = forms[i];', "\n";
+            echo '        var method = form.method;', "\n";
+            echo '        if (!method || method.toLowerCase() != "post")', "\n";
+            echo '        {', "\n";
+            echo '            continue;', "\n";
+            echo '        }', "\n";
+            echo '        var action = form.action;', "\n";
+            echo '        if (action && (action.indexOf("http://") == 0 || action.indexOf("https://") == 0))', "\n";
+            echo '        {', "\n";
+            echo '            var parser = document.createElement("a");', "\n";
+            echo '            parser.href = action;', "\n";
+            echo '            if (parser.host && parser.host.toLowerCase() != window.location.host.toLowerCase())', "\n";
+            echo '            {', "\n";
+            echo '                continue;', "\n";
+            echo '            }', "\n";
+            echo '        }', "\n";
+            echo '        var hasToken = false;', "\n";
+            echo '        if (form.elements)', "\n";
+            echo '        {', "\n";
+            echo '            for (var j = 0; j < form.elements.length; j++)', "\n";
+            echo '            {', "\n";
+            echo '                if (form.elements[j].name == "csrfToken")', "\n";
+            echo '                {', "\n";
+            echo '                    hasToken = true;', "\n";
+            echo '                    break;', "\n";
+            echo '                }', "\n";
+            echo '            }', "\n";
+            echo '        }', "\n";
+            echo '        if (hasToken)', "\n";
+            echo '        {', "\n";
+            echo '            continue;', "\n";
+            echo '        }', "\n";
+            echo '        var input = document.createElement("input");', "\n";
+            echo '        input.type = "hidden";', "\n";
+            echo '        input.name = "csrfToken";', "\n";
+            echo '        input.value = CATSCsrfToken;', "\n";
+            echo '        form.appendChild(input);', "\n";
+            echo '    }', "\n";
+            echo '}', "\n";
+            echo 'var catsOldOnload = window.onload;', "\n";
+            echo 'window.onload = function()', "\n";
+            echo '{', "\n";
+            echo '    if (catsOldOnload)', "\n";
+            echo '    {', "\n";
+            echo '        catsOldOnload();', "\n";
+            echo '    }', "\n";
+            echo '    catsInjectCSRFToken();', "\n";
+            echo '};', "\n";
+            echo '</script>', "\n";
+        }
 
        $headIncludes[] = 'main.css';
 
         foreach ($headIncludes as $key => $filename)
         {
-            $extension = substr($filename, strrpos($filename, '.') + 1);
+            $path = parse_url($filename, PHP_URL_PATH);
+            if ($path === false || $path === null)
+            {
+                $path = $filename;
+            }
+            $extension = strtolower(pathinfo($path, PATHINFO_EXTENSION));
 
-            $filename .= $javascriptAntiCache;
+            $versionedFilename = self::getVersionedAssetURL($filename);
 
             if ($extension == 'js')
             {
-                echo '<script type="text/javascript" src="', $filename, '"></script>', "\n";
+                echo '<script type="text/javascript" src="', $versionedFilename, '"></script>', "\n";
             }
             else if ($extension == 'css')
             {
-                echo '<style type="text/css" media="all">@import "', $filename, '";</style>', "\n";
+                echo '<style type="text/css" media="all">@import "', $versionedFilename, '";</style>', "\n";
             }
         }
 
-        echo '<!--[if IE]><link rel="stylesheet" type="text/css" href="ie.css" /><![endif]-->', "\n";
-        echo '<![if !IE]><link rel="stylesheet" type="text/css" href="not-ie.css" /><![endif]>', "\n";
+        echo '<!--[if IE]><link rel="stylesheet" type="text/css" href="',
+             self::getVersionedAssetURL('ie.css'),
+             '" /><![endif]-->', "\n";
+        echo '<![if !IE]><link rel="stylesheet" type="text/css" href="',
+             self::getVersionedAssetURL('not-ie.css'),
+             '" /><![endif]>', "\n";
         echo '</head>', "\n\n";
     }
 

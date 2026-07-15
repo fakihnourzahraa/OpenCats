@@ -32,6 +32,18 @@ include_once(LEGACY_ROOT . '/lib/ActivityEntries.php');
 
 $interface = new SecureAJAXInterface();
 
+if ($_SERVER['REQUEST_METHOD'] !== 'POST')
+{
+    $interface->outputXMLErrorPage(-1, 'Invalid request.');
+    die();
+}
+
+if ($_SESSION['CATS']->getAccessLevel('contacts.deleteActivity') < ACCESS_LEVEL_EDIT)
+{
+    $interface->outputXMLErrorPage(-1, ERROR_NO_PERMISSION);
+    die();
+}
+
 if (!$interface->isRequiredIDValid('activityID'))
 {
     $interface->outputXMLErrorPage(-1, 'Invalid activity ID.');
@@ -40,7 +52,7 @@ if (!$interface->isRequiredIDValid('activityID'))
 
 $siteID = $interface->getSiteID();
 
-$activityID = $_REQUEST['activityID'];
+$activityID = $_POST['activityID'];
 
 /* Delete the activity entry. */
 $activityEntries = new ActivityEntries($siteID);

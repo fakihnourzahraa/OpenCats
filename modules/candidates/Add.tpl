@@ -22,6 +22,10 @@
 
 <?php endif; ?>
 
+<script type="text/javascript">
+    window.CATSUserDateFormat = '<?php echo($_SESSION['CATS']->isDateDMY() ? 'DD-MM-YY' : 'MM-DD-YY'); ?>';
+</script>
+
             <p class="note<?php if ($this->isModal): ?>Unsized<?php endif; ?>">Basic Information</p>
 
             <table style="font-weight:bold; border: 1px solid #000; background-color: #ffed1a; padding:5px; display:none; margin-bottom:7px;" width="100%" id="candidateAlreadyInSystemTable">
@@ -118,12 +122,6 @@
                                     </tr>
                                 </table>
                             <?php else: ?>
-                                <?php if (PARSING_ENABLED &&
-                                    count($this->parsingStatus) &&
-                                    $this->parsingStatus['parseUsed'] >= $this->parsingStatus['parseLimit'] &&
-                                    $this->parsingStatus['parseLimit'] >= 0): ?>
-                                <a href="http://www.catsone.com/professional" target="_blank">All daily resume imports used. For more, upgrade to CATS professional</a>.
-                                <?php endif; ?>
                                 <?php $freeformTop = '<p class="freeformtop">Cut and paste freeform address here.</p>'; ?>
                                 <?php eval(Hooks::get('CANDIDATE_TEMPLATE_ABOVE_FREEFORM')); ?>
                                 <?php echo($freeformTop); ?>
@@ -189,12 +187,8 @@
                         <td class="tdData">
                             <input type="text" tabindex="6" name="phoneHome" id="phoneHome" class="inputbox" style="width: 150px;" value="<?php if (isset($this->preassignedFields['phoneHome'])) $this->_($this->preassignedFields['phoneHome']); ?>" onchange="checkPhoneAlreadyInSystem(this.value);"  />
                             <?php if ($this->isParsingEnabled): ?>
-                                <?php if ($this->parsingStatus['parseLimit'] >= 0 && $this->parsingStatus['parseUsed'] >= $this->parsingStatus['parseLimit']): ?>
-                                    &nbsp;
-                                <?php else: ?>
-                                    <?php if ($this->isModal): ?>&nbsp;&nbsp;<?php else: ?>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<?php endif; ?>
-                                    <img id="transfer" src="images/parser/transfer<?php echo ($this->contents != '' ? '' : '_grey'); ?>.gif" <?php echo ($this->contents != '' ? 'style="cursor: pointer;"' : ''); ?> border="0" alt="Import Resume" onclick="parseDocumentFileContents();" />
-                                <?php endif; ?>
+                                <?php if ($this->isModal): ?>&nbsp;&nbsp;<?php else: ?>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<?php endif; ?>
+                                <img id="transfer" src="images/parser/transfer<?php echo ($this->contents != '' ? '' : '_grey'); ?>.gif" <?php echo ($this->contents != '' ? 'style="cursor: pointer;"' : ''); ?> border="0" alt="Import Resume" onclick="parseDocumentFileContents();" />
                             <?php else: ?>
                                 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<input id="arrowButton" tabindex="91" align="middle" type="button" value="&lt;--" class="arrowbutton" onclick="AddressParser_parse('addressBlock', 'person', 'addressParserIndicator', 'arrowButton'); document.addCandidateForm.firstName.focus();" />
                             <?php endif; ?>
@@ -224,8 +218,17 @@
                             <label id="addressLabel" for="address">Address:</label>
                         </td>
                         <td class="tdData">
-                            <textarea tabindex="9" name="address" id="address" rows="2" cols="40" class="inputbox" style="width: 150px"><?php if(isset($this->preassignedFields['address'])) $this->_($this->preassignedFields['address']); if(isset($this->preassignedFields['address2'])) $this->_("\n" . $this->preassignedFields['address2']); ?></textarea>
+                            <input type="text" tabindex="9" name="address" id="address" class="inputbox" style="width: 150px" value="<?php if (isset($this->preassignedFields['address'])) $this->_($this->preassignedFields['address']); ?>" />
                             &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<img src="images/indicator2.gif" id="addressParserIndicator" alt="" style="visibility: hidden; margin-left: 10px;" height="16" width="16" />
+                        </td>
+                    </tr>
+
+                    <tr>
+                        <td class="tdVertical">
+                            <label id="address2Label" for="address2">Address 2:</label>
+                        </td>
+                        <td class="tdData">
+                            <input type="text" tabindex="10" name="address2" id="address2" class="inputbox" style="width: 150px" value="<?php if (isset($this->preassignedFields['address2'])) $this->_($this->preassignedFields['address2']); ?>" />
                         </td>
                     </tr>
 
@@ -280,7 +283,7 @@
                             <?php if ($this->associatedAttachment == 0): ?>
                                 <nobr> <?php /* FIXME:  remove nobr stuff */ ?>
                                     <?php if (isset($this->overAttachmentQuota)): ?>
-                                        <span style="font-size:10px;">(You have already reached your limit of <?php echo(FREE_ACCOUNT_SIZE/1024); ?> MB of attachments, and cannot add additional file attachments without upgrading to CATS Professional Hosted.)<br /></font>Copy and Paste Resume:&nbsp;
+                                        <span style="font-size:10px;">(You have already reached your limit of <?php echo(FREE_ACCOUNT_SIZE/1024); ?> MB of attachments, and cannot add additional file attachments.)<br /></font>Copy and Paste Resume:&nbsp;
                                     <?php else: ?>
                                         <input type="file" id="file" name="file" size="21" tabindex="<?php echo($tabIndex++); ?>" <?php if($this->associatedTextResume !== false): ?>disabled<?php endif; ?> /> &nbsp;
                                     <?php endif; ?>
@@ -289,10 +292,10 @@
                                     </a>
                                 </nobr>
                              <?php else: ?>
-                                <a href="<?php echo $this->associatedAttachmentRS['retrievalURL']; ?>">
+                                <a href="<?php echo htmlspecialchars($this->associatedAttachmentRS['retrievalURL'], ENT_QUOTES | ENT_SUBSTITUTE, HTML_ENCODING, false); ?>">
                                     <img src="<?php $this->_($this->associatedAttachmentRS['attachmentIcon']) ?>" alt="" width="16" height="16" style="border: none;" />
                                 </a>
-                                <a href="<?php echo $this->associatedAttachmentRS['retrievalURL']; ?>">
+                                <a href="<?php echo htmlspecialchars($this->associatedAttachmentRS['retrievalURL'], ENT_QUOTES | ENT_SUBSTITUTE, HTML_ENCODING, false); ?>">
                                     <?php $this->_($this->associatedAttachmentRS['originalFilename']) ?>
                                 </a>
                                 <?php echo($this->associatedAttachmentRS['previewLink']); ?>
@@ -416,7 +419,7 @@
                             <label id="dateAvailableLabel" for="dateAvailable">Date Available:</label>
                         </td>
                         <td class="tdData">
-                            <script type="text/javascript">DateInput('dateAvailable', false, 'MM-DD-YY', '', <?php echo($tabIndex++); ?>);</script>
+                            <script type="text/javascript">DateInput('dateAvailable', false, (typeof window.CATSUserDateFormat !== 'undefined' ? window.CATSUserDateFormat : 'MM-DD-YY'), '', <?php echo($tabIndex++); ?>);</script>
 
                             <?php /* DateInput()s take up 3 tabindexes. */ ?>
                             <?php $tabIndex += 2; ?>
@@ -491,57 +494,6 @@
                             <textarea class="inputbox" tabindex="<?php echo($tabIndex++); ?>" name="notes" id="notes" rows="5" cols="40" style="width: 400px;"><?php if (isset($this->preassignedFields['notes'])) $this->_($this->preassignedFields['notes']); ?></textarea>
                         </td>
                     </tr>
-
-                    <tr>
-                        <td class="tdVertical">
-                            <label id="gpaLabel" for="gpa">GPA:</label>
-                        </td>
-                        <td class="tdData">
-                            <input type="number" class="inputbox" tabindex="<?php echo($tabIndex++); ?>" name="gpa" id="gpa" step="0.01" style="width: 50px;" value="<?php if (isset($this->preassignedFields['gpa'])) $this->_($this->preassignedFields['gpa']); ?>" />
-                        </td>
-                    </tr>
-
-                  <tr>
-                    <td class="tdVertical">
-                        <label id="universityIDLabel" for="university">University:</label>
-                    </td>
-                    <td class="tdData">
-                        <input type="text" id="university" name="university" class="inputbox" style="width: 250px;" value="<?php if(isset($this->preassignedFields['university'])) $this->_($this->preassignedFields['university']); ?>" />
-                    </td>
-                </tr>
-                
-                <tr>
-                    <td class="tdVertical">
-                        <label id="nationalityLabel" for="nationality">Nationality:</label>
-                    </td>
-                    <td class="tdData">
-                        <input type="text" id="nationality" name="nationality" class="inputbox" style="width: 250px;" value="<?php if(isset($this->preassignedFields['nationality'])) $this->_($this->preassignedFields['nationality']); ?>" />
-                    </td>
-                </tr>
-<tr>
-    <td class="tdVertical">
-        <label for="interviewStage">Interview Stage:</label>
-    </td>
-    <td class="tdData">
-        <select id="interviewStage" name="interviewStage" class="inputbox" style="width: 250px;">
-            <option value="">-- Select Stage --</option>
-            <?php foreach (array(
-                'Applied',
-                '1st Screening',
-                'Interview 1',
-                'Interview 2',
-                'Job offered',
-                'Job offer refused',
-                'Job offer accepted'
-            ) as $stage): ?>
-                <option value="<?php $this->_($stage); ?>"
-                    <?php if (isset($this->data['interviewStage']) && $this->data['interviewStage'] == $stage) echo('selected'); ?>>
-                    <?php $this->_($stage); ?>
-                </option>
-            <?php endforeach; ?>
-        </select>
-    </td>
-</tr>
                 </table>
 
                 <input type="submit" tabindex="<?php echo($tabIndex++); ?>" class="button" value="Add Candidate" />&nbsp;

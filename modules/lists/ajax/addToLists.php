@@ -62,19 +62,31 @@ function isRequiredValueValid($value)
 
 $interface = new SecureAJAXInterface();
 
-if (!isset($_REQUEST['listsToAdd']))
+if ($_SERVER['REQUEST_METHOD'] !== 'POST')
+{
+    $interface->outputXMLErrorPage(-1, 'Invalid request.');
+    die();
+}
+
+if ($_SESSION['CATS']->getAccessLevel('lists') < ACCESS_LEVEL_EDIT)
+{
+    $interface->outputXMLErrorPage(-1, ERROR_NO_PERMISSION);
+    die();
+}
+
+if (!isset($_POST['listsToAdd']))
 {
     $interface->outputXMLErrorPage(-1, 'No listsToAdd passed.');
     die();
 }
 
-if (!isset($_REQUEST['itemsToAdd']))
+if (!isset($_POST['itemsToAdd']))
 {
     $interface->outputXMLErrorPage(-1, 'No itemsToAdd passed.');
     die();
 }
 
-if (!$interface->isRequiredIDValid('dataItemType'))
+if (!isset($_POST['dataItemType']) || !ctype_digit((string) $_POST['dataItemType']))
 {
     $interface->outputXMLErrorPage(-1, 'Invalid saved list type.');
     die();
@@ -82,9 +94,9 @@ if (!$interface->isRequiredIDValid('dataItemType'))
 
 $siteID = $interface->getSiteID();
 
-$listsToAdd = explode(',', $_REQUEST['listsToAdd']);
-$itemsToAdd = explode(',', $_REQUEST['itemsToAdd']);
-$dataItemType = $_REQUEST['dataItemType'];
+$listsToAdd = explode(',', $_POST['listsToAdd']);
+$itemsToAdd = explode(',', $_POST['itemsToAdd']);
+$dataItemType = $_POST['dataItemType'];
 
 foreach ($listsToAdd as $index => $data)
 {

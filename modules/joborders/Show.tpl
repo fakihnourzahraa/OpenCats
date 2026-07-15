@@ -3,121 +3,15 @@ include_once('./vendor/autoload.php');
 use OpenCATS\UI\QuickActionMenu;
 ?>
 <?php if ($this->isPopup): ?>
-    <?php TemplateUtility::printHeader('Job Order - '.$this->data['title'], array('js/sorttable.js', 'js/match.js', 'js/pipeline.js', 'js/attachment.js', 'js/dataGrid.js', 'js/dataGridFilters.js')); ?>
+    <?php TemplateUtility::printHeader('Job Order - ' . $this->data['title'], array('js/sorttable.js', 'js/match.js', 'js/pipeline.js', 'js/attachment.js')); ?>
 <?php else: ?>
-    <?php TemplateUtility::printHeader('Job Order - '.$this->data['title'], array( 'js/sorttable.js', 'js/match.js', 'js/pipeline.js', 'js/attachment.js', 'js/dataGrid.js', 'js/dataGridFilters.js')); ?>
+    <?php TemplateUtility::printHeader('Job Order - ' . $this->data['title'], array( 'js/sorttable.js', 'js/match.js', 'js/pipeline.js', 'js/attachment.js')); ?>
     <?php TemplateUtility::printHeaderBlock(); ?>
     <?php TemplateUtility::printTabs($this->active); ?>
         <div id="main">
             <?php TemplateUtility::printQuickSearch(); ?>
 <?php endif; ?>
 
-<script type="text/javascript">
-    filterDropDownRegistry['University'] = [
-        <?php foreach ($this->universitiesRS as $i => $u): ?>
-            { value: '<?php echo addslashes($u['shortName']); ?>', label: '<?php echo addslashes($u['shortName']); ?>' }<?php echo ($i < count($this->universitiesRS) - 1) ? ',' : ''; ?>
-        <?php endforeach; ?>
-    ];
-    filterDropDownRegistry['Nationality'] = [
-        <?php foreach ($this->nationalitiesRS as $i => $n): ?>
-            { value: '<?php echo addslashes($n['optionValue']); ?>', label: '<?php echo addslashes($n['optionLabel']); ?>' }<?php echo ($i < count($this->nationalitiesRS) - 1) ? ',' : ''; ?>
-        <?php endforeach; ?>
-    ];
-    filterDropDownRegistry['Source'] = [
-        <?php foreach ($this->sourcesRS as $i => $s): ?>
-            { value: '<?php echo addslashes($s['name']); ?>', label: '<?php echo addslashes($s['name']); ?>' }<?php echo ($i < count($this->sourcesRS) - 1) ? ',' : ''; ?>
-        <?php endforeach; ?>
-    ];
-    filterDropDownRegistry['Status'] = [
-        <?php foreach ($this->statusesRS as $i => $s): ?>
-            { value: '<?php echo addslashes($s['optionValue']); ?>', label: '<?php echo addslashes($s['optionLabel']); ?>' }<?php echo ($i < count($this->statusesRS) - 1) ? ',' : ''; ?>
-        <?php endforeach; ?>
-    ];
-    
-
-    filterIsInRegistry['University'] = [
-        <?php if (!empty($this->pipelineUniversitiesIsIn)): foreach ($this->pipelineUniversitiesIsIn as $i => $u): ?>
-            { value: '<?php echo addslashes($u['val']); ?>', label: '<?php echo addslashes($u['val']); ?>' }<?php echo ($i < count($this->pipelineUniversitiesIsIn) - 1) ? ',' : ''; ?>
-        <?php endforeach; endif; ?>
-    ];
-    filterIsInRegistry['Nationality'] = [
-        <?php if (!empty($this->pipelineNationalitiesIsIn)): foreach ($this->pipelineNationalitiesIsIn as $i => $n): ?>
-            { value: '<?php echo addslashes($n['val']); ?>', label: '<?php echo addslashes($n['val']); ?>' }<?php echo ($i < count($this->pipelineNationalitiesIsIn) - 1) ? ',' : ''; ?>
-        <?php endforeach; endif; ?>
-    ];
-    filterIsInRegistry['Source'] = [
-        <?php if (!empty($this->pipelineSourcesIsIn)): foreach ($this->pipelineSourcesIsIn as $i => $s): ?>
-            { value: '<?php echo addslashes($s['val']); ?>', label: '<?php echo addslashes($s['val']); ?>' }<?php echo ($i < count($this->pipelineSourcesIsIn) - 1) ? ',' : ''; ?>
-        <?php endforeach; endif; ?>
-    ];
-
-    filterDateRangeRegistry['Created'] = true;
-    filterDateRangeRegistry['Modified'] = true;
-    filterDateRangeRegistry['Added'] = true;
-    filterRangeRegistry['GPA'] = true;
-    filterRangeRegistry['Desired Pay'] = true;
-    
-
-    filterDropDownRegistry['Interview Stage'] = [
-    {value: 'Applied',              label: 'Applied'},
-    {value: '1st Screening',        label: '1st Screening'},
-    {value: 'Interview 1',          label: 'Interview 1'},
-    {value: 'Interview 2',          label: 'Interview 2'},
-    {value: 'Job offered',          label: 'Job offered'},
-    {value: 'Job offer refused',    label: 'Job offer refused'},
-    {value: 'Job offer accepted',   label: 'Job offer accepted'}
-];
-
-</script>
-<script type="text/javascript">
-function pipelineColumnBox_toggle() {
-    var box = document.getElementById('pipelineColumnBox');
-    if (!box) return;
-    box.style.display = (box.style.display === 'block') ? 'none' : 'block';
-}
-function pipelineColumnBox_close(e) {
-    var box = document.getElementById('pipelineColumnBox');
-    if (!box) return;
-    var icon = document.getElementById('pipelineColumnIcon');
-    if (icon && icon.contains(e.target)) return;
-    if (box.contains(e.target)) return;
-    box.style.display = 'none';
-}
-function pipelineToggleColumn(col, action) {
-    var http = (window.XMLHttpRequest ? new XMLHttpRequest() : new ActiveXObject("Microsoft.XMLHTTP"));
-    var filterString = document.getElementById('filterArea<?php echo md5('joborders:PipelineCandidatesDataGrid'); ?>') 
-                       ? document.getElementById('filterArea<?php echo md5('joborders:PipelineCandidatesDataGrid'); ?>').value 
-                       : '';
-    var POSTData  = '&joborderID=<?php $this->_(isset($this->data['jobOrderID']) ? $this->data['jobOrderID'] : 0); ?>';
-        POSTData += '&page=0';
-        POSTData += '&entriesPerPage=<?php $this->_($this->pipelineEntriesPerPage); ?>';
-        POSTData += '&sortBy=dateCreatedInt';
-        POSTData += '&sortDirection=desc';
-        POSTData += '&indexFile=<?php echo CATSUtility::getIndexName(); ?>';
-        POSTData += '&isPopup=<?php echo $this->isPopup ? 1 : 0; ?>';
-        POSTData += '&filterString=' + encodeURIComponent(filterString);
-        POSTData += '&setColumn='  + encodeURIComponent(col);
-        POSTData += '&colAction='  + encodeURIComponent(action);
-
-    document.getElementById('ajaxPipelineTableIndicator').style.display = '';
-
-    AJAX_callCATSFunction(
-        http, 'getPipelineJobOrder', POSTData,
-        function () {
-            if (http.readyState != 4) return;
-            document.getElementById('ajaxPipelineTableIndicator').style.display = 'none';
-            document.getElementById('ajaxPipelineTable').innerHTML = http.responseText;
-            execJS(http.responseText);
-        },
-        55000, '<?php echo $this->sessionCookie; ?>', false, false
-    );
-
-}
-document.addEventListener('click', pipelineColumnBox_close);
-</script>
-<input type="hidden"
-    id="filterArea<?php echo md5('joborders:PipelineCandidatesDataGrid'); ?>"
-    value="<?php echo htmlspecialchars($this->savedPipelineFilter); ?>" />
         <div id="contents">
             <table>
                 <tr>
@@ -131,7 +25,15 @@ document.addEventListener('click', pipelineColumnBox_close);
             <p class="note">Job Order Details</p>
 
             <?php if ($this->data['isAdminHidden'] == 1): ?>
-                <p class="warning">This Job Order is hidden.  Only CATS Administrators can view it or search for it.  To make it visible by the site users, click <a href="<?php echo(CATSUtility::getIndexName()); ?>?m=joborders&amp;a=administrativeHideShow&amp;jobOrderID=<?php echo($this->jobOrderID); ?>&amp;state=0" style="font-weight:bold;">Here.</a></p>
+                <div class="warning">
+                    This Job Order is hidden.  Only Site Administrators can view it or search for it.  To make it visible by the site users, click
+                    <form method="post" action="<?php echo(CATSUtility::getIndexName()); ?>?m=joborders&amp;a=administrativeHideShow" style="display:inline;">
+                        <input type="hidden" name="postback" value="postback" />
+                        <input type="hidden" name="jobOrderID" value="<?php echo Template::escapeAttr($this->jobOrderID); ?>" />
+                        <input type="hidden" name="state" value="0" />
+                        <button type="submit" class="linkButton">Here.</button>
+                    </form>
+                </div>
             <?php endif; ?>
 
             <?php if (isset($this->frozen)): ?>
@@ -140,7 +42,7 @@ document.addEventListener('click', pipelineColumnBox_close);
                         <td class="tdVertical">
                             This Job Order is <?php $this->_($this->data['status']); ?> and can not be modified.
                            <?php if ($this->getUserAccessLevel('joborders.edit') >= ACCESS_LEVEL_EDIT): ?>
-                               <a id="edit_link" href="<?php echo(CATSUtility::getIndexName()); ?>?m=joborders&amp;a=edit&amp;jobOrderID=<?php echo($this->jobOrderID); ?>">
+                               <a id="edit_link" href="<?php echo Template::escapeUrl(CATSUtility::getIndexName() . '?m=joborders&a=edit&jobOrderID=' . $this->jobOrderID); ?>">
                                    <img src="images/actions/edit.gif" width="16" height="16" class="absmiddle" alt="edit" border="0" />&nbsp;Edit
                                </a>
                                the Job Order to make it Active.&nbsp;&nbsp;
@@ -157,7 +59,7 @@ document.addEventListener('click', pipelineColumnBox_close);
                             <tr>
                                 <td class="vertical">Title:</td>
                                 <td class="data" width="300">
-                                    <span class="<?php echo($this->data['titleClass']); ?>"><?php $this->_($this->data['title']); ?></span>
+                                    <span class="<?php echo Template::escapeAttr($this->data['titleClass']); ?>"><?php $this->_($this->data['title']); ?></span>
                                     <?php echo($this->data['public']) ?>
                                     <?php TemplateUtility::printSingleQuickActionMenu(new QuickActionMenu(DATA_ITEM_JOBORDER, $this->data['jobOrderID'], $_SESSION['CATS']->getAccessLevel('joborders.edit'))); ?>
                                 </td>
@@ -166,8 +68,8 @@ document.addEventListener('click', pipelineColumnBox_close);
                             <tr>
                                 <td class="vertical">Company Name:</td>
                                 <td class="data">
-                                    <a href="<?php echo(CATSUtility::getIndexName()); ?>?m=companies&amp;a=show&amp;companyID=<?php echo($this->data['companyID']); ?>">
-                                        <?php echo($this->data['companyName']); ?>
+                                    <a href="<?php echo Template::escapeUrl(CATSUtility::getIndexName() . '?m=companies&a=show&companyID=' . $this->data['companyID']); ?>">
+                                        <?php $this->_($this->data['companyName']); ?>
                                     </a>
                                 </td>
                             </tr>
@@ -175,7 +77,7 @@ document.addEventListener('click', pipelineColumnBox_close);
                             <tr>
                                 <td class="vertical">Department:</td>
                                 <td class="data">
-                                    <?php echo($this->data['department']); ?>
+                                    <?php $this->_($this->data['department']); ?>
                                 </td>
                             </tr>
 
@@ -186,28 +88,28 @@ document.addEventListener('click', pipelineColumnBox_close);
 
                             <tr>
                                 <td class="vertical">Company Job ID:</td>
-                                <td class="data"><?php echo($this->data['companyJobID']); ?></td>
+                                <td class="data"><?php $this->_($this->data['companyJobID']); ?></td>
                             </tr>
 
                             <!-- CONTACT INFO -->
                             <tr>
                                 <td class="vertical">Contact Name:</td>
                                 <td class="data">
-                                    <a href="<?php echo(CATSUtility::getIndexName()); ?>?m=contacts&amp;a=show&amp;contactID=<?php echo($this->data['contactID']); ?>">
-                                        <?php echo($this->data['contactFullName']); ?>
+                                    <a href="<?php echo Template::escapeUrl(CATSUtility::getIndexName() . '?m=contacts&a=show&contactID=' . $this->data['contactID']); ?>">
+                                        <?php $this->_($this->data['contactFullName']); ?>
                                     </a>
                                 </td>
                             </tr>
 
                             <tr>
                                 <td class="vertical">Contact Phone:</td>
-                                <td class="data"><?php echo($this->data['contactWorkPhone']); ?></td>
+                                <td class="data"><?php $this->_($this->data['contactWorkPhone']); ?></td>
                             </tr>
 
                             <tr>
                                 <td class="vertical">Contact Email:</td>
                                 <td class="data">
-                                    <a href="mailto:<?php $this->_($this->data['contactEmail']); ?>"><?php $this->_($this->data['contactEmail']); ?></a>
+                                    <a href="<?php echo Template::escapeUrl('mailto:' . $this->data['contactEmail']); ?>"><?php $this->_($this->data['contactEmail']); ?></a>
                                 </td>
                             </tr>
                             <!-- /CONTACT INFO -->
@@ -318,18 +220,18 @@ document.addEventListener('click', pipelineColumnBox_close);
                 <b>This job order is public<?php if ($this->careerPortalURL === false): ?>.</b><?php else: ?>
                     and will be shown on your
                     <?php if ($this->getUserAccessLevel('joborders.careerPortalUrl') >= ACCESS_LEVEL_SA): ?>
-                        <a style="font-weight: bold;" href="<?php $this->_($this->careerPortalURL); ?>">Careers Website</a>.
+                        <a style="font-weight: bold;" href="<?php echo Template::escapeUrl($this->careerPortalURL); ?>">Careers Website</a>.
                     <?php else: ?>
                         Careers Website.
                     <?php endif; ?></b>
                 <?php endif; ?>
 
                 <?php if ($this->questionnaireID !== false): ?>
-                    <br />Applicants must complete the "<i><?php echo $this->questionnaireData['title']; ?></i>" (<a href="<?php echo CATSUtility::getIndexName(); ?>?m=settings&a=careerPortalQuestionnaire&questionnaireID=<?php echo $this->questionnaireID; ?>">edit</a>) questionnaire when applying.
+                    <br />Applicants must complete the "<i><?php $this->_($this->questionnaireData['title']); ?></i>" (<a href="<?php echo Template::escapeUrl(CATSUtility::getIndexName() . '?m=settings&a=careerPortalQuestionnaire&questionnaireID=' . $this->questionnaireID); ?>">edit</a>) questionnaire when applying.
                 <?php else: ?>
                     <br />You have not attached any
                     <?php if ($this->getUserAccessLevel('setting.carrerPortalSettings') >= ACCESS_LEVEL_SA): ?>
-                        <a href="<?php echo CATSUtility::getIndexName(); ?>?m=settings&a=careerPortalSettings">Questionnaires</a>.
+                        <a href="<?php echo Template::escapeUrl(CATSUtility::getIndexName() . '?m=settings&a=careerPortalSettings'); ?>">Questionnaires</a>.
                     <?php else: ?>
                         Questionnaires.
                     <?php endif; ?>
@@ -349,7 +251,7 @@ document.addEventListener('click', pipelineColumnBox_close);
                                             <tr>
                                                 <td>
                                                     <?php echo $attachmentsData['retrievalLink']; ?>
-                                                        <img src="<?php $this->_($attachmentsData['attachmentIcon']) ?>" alt="" width="16" height="16" border="0" />
+                                                        <img src="<?php echo Template::escapeUrl($attachmentsData['attachmentIcon']); ?>" alt="" width="16" height="16" border="0" />
                                                         &nbsp;
                                                         <?php $this->_($attachmentsData['originalFilename']) ?>
                                                     </a>
@@ -358,9 +260,12 @@ document.addEventListener('click', pipelineColumnBox_close);
                                                 <td>
                                                     <?php if (!$this->isPopup): ?>
                                                         <?php if ($this->getUserAccessLevel('joborders.deleteAttachment') >= ACCESS_LEVEL_DELETE): ?>
-                                                            <a href="<?php echo(CATSUtility::getIndexName()); ?>?m=joborders&amp;a=deleteAttachment&amp;jobOrderID=<?php echo($this->jobOrderID); ?>&amp;attachmentID=<?php $this->_($attachmentsData['attachmentID']) ?>"  title="Delete" onclick="javascript:return confirm('Delete this attachment?');">
-                                                                <img src="images/actions/delete.gif" alt="" width="16" height="16" border="0" />
-                                                            </a>
+                                                            <form method="post" action="<?php echo(CATSUtility::getIndexName()); ?>?m=joborders&amp;a=deleteAttachment" style="display:inline;" onsubmit="return confirm('Delete this attachment?');">
+                                                                <input type="hidden" name="postback" value="postback" />
+                                                                <input type="hidden" name="jobOrderID" value="<?php echo Template::escapeAttr($this->jobOrderID); ?>" />
+                                                                <input type="hidden" name="attachmentID" value="<?php echo Template::escapeAttr($attachmentsData['attachmentID']); ?>" />
+                                                                <input type="image" src="images/actions/delete.gif" alt="" width="16" height="16" border="0" />
+                                                            </form>
                                                         <?php endif; ?>
                                                     <?php endif; ?>
                                                 </td>
@@ -372,7 +277,7 @@ document.addEventListener('click', pipelineColumnBox_close);
                                             <?php if (isset($this->attachmentLinkHTML)): ?>
                                                 <?php echo($this->attachmentLinkHTML); ?>
                                             <?php else: ?>
-                                                <a href="#" onclick="showPopWin('<?php echo(CATSUtility::getIndexName()); ?>?m=joborders&amp;a=createAttachment&amp;jobOrderID=<?php echo($this->jobOrderID); ?>', 400, 125, null); return false;">
+                                                <a href="#" onclick="showPopWin(<?php echo Template::escapeJsAttr(CATSUtility::getIndexName() . '?m=joborders&a=createAttachment&jobOrderID=' . $this->jobOrderID); ?>, 400, 125, null); return false;">
                                             <?php endif; ?>
                                                 <img src="images/paperclip_add.gif" width="16" height="16" border="0" alt="add attachment" class="absmiddle" />&nbsp;Add Attachment
                                             </a>
@@ -427,46 +332,60 @@ document.addEventListener('click', pipelineColumnBox_close);
             <div id="actionbar">
                 <span style="float:left;">
                     <?php if ($this->getUserAccessLevel('joborders.edit') >= ACCESS_LEVEL_EDIT): ?>
-                        <a id="edit_link" href="<?php echo(CATSUtility::getIndexName()); ?>?m=joborders&amp;a=edit&amp;jobOrderID=<?php echo($this->jobOrderID); ?>">
+                        <a id="edit_link" href="<?php echo Template::escapeUrl(CATSUtility::getIndexName() . '?m=joborders&a=edit&jobOrderID=' . $this->jobOrderID); ?>">
                             <img src="images/actions/edit.gif" width="16" height="16" class="absmiddle" alt="edit" border="0" />&nbsp;Edit
                         </a>
                         &nbsp;&nbsp;&nbsp;&nbsp;
                     <?php endif; ?>
                     <?php if ($this->getUserAccessLevel('joborders.delete') >= ACCESS_LEVEL_DELETE): ?>
-                        <a id="delete_link" href="<?php echo(CATSUtility::getIndexName()); ?>?m=joborders&amp;a=delete&amp;jobOrderID=<?php echo($this->jobOrderID); ?>" onclick="javascript:return confirm('Delete this job order?');">
-                            <img src="images/actions/delete.gif" width="16" height="16" class="absmiddle" alt="delete" border="0" />&nbsp;Delete
-                        </a>
+                        <form id="delete_link" method="post" action="<?php echo(CATSUtility::getIndexName()); ?>?m=joborders&amp;a=delete" style="display:inline;" onsubmit="return confirm('Delete this job order?');">
+                            <input type="hidden" name="postback" value="postback" />
+                            <input type="hidden" name="jobOrderID" value="<?php echo Template::escapeAttr($this->jobOrderID); ?>" />
+                            <button type="submit" class="linkButton">
+                                <img src="images/actions/delete.gif" width="16" height="16" class="absmiddle" alt="delete" border="0" />&nbsp;Delete
+                            </button>
+                        </form>
                         &nbsp;&nbsp;&nbsp;&nbsp;
                     <?php endif; ?>
-                    <?php if ($this->getUserAccessLevel('joborders.hidden') >= ACCESS_LEVEL_MULTI_SA): ?>
+                    <?php if ($this->getUserAccessLevel('joborders.hidden') >= ACCESS_LEVEL_SA): ?>
                         <?php if ($this->data['isAdminHidden'] == 1): ?>
-                            <a href="<?php echo(CATSUtility::getIndexName()); ?>?m=joborders&amp;a=administrativeHideShow&amp;jobOrderID=<?php echo($this->jobOrderID); ?>&amp;state=0">
-                                <img src="images/resume_preview_inline.gif" width="16" height="16" class="absmiddle" alt="delete" border="0" />&nbsp;Administrative Show
-                            </a>
+                            <form method="post" action="<?php echo(CATSUtility::getIndexName()); ?>?m=joborders&amp;a=administrativeHideShow" style="display:inline;">
+                                <input type="hidden" name="postback" value="postback" />
+                                <input type="hidden" name="jobOrderID" value="<?php echo Template::escapeAttr($this->jobOrderID); ?>" />
+                                <input type="hidden" name="state" value="0" />
+                                <button type="submit" class="linkButton">
+                                    <img src="images/resume_preview_inline.gif" width="16" height="16" class="absmiddle" alt="delete" border="0" />&nbsp;Administrative Show
+                                </button>
+                            </form>
                             <?php else: ?>
-                            <a href="<?php echo(CATSUtility::getIndexName()); ?>?m=joborders&amp;a=administrativeHideShow&amp;jobOrderID=<?php echo($this->jobOrderID); ?>&amp;state=1">
-                                <img src="images/resume_preview_inline.gif" width="16" height="16" class="absmiddle" alt="delete" border="0" />&nbsp;Administrative Hide
-                            </a>
+                            <form method="post" action="<?php echo(CATSUtility::getIndexName()); ?>?m=joborders&amp;a=administrativeHideShow" style="display:inline;">
+                                <input type="hidden" name="postback" value="postback" />
+                                <input type="hidden" name="jobOrderID" value="<?php echo Template::escapeAttr($this->jobOrderID); ?>" />
+                                <input type="hidden" name="state" value="1" />
+                                <button type="submit" class="linkButton">
+                                    <img src="images/resume_preview_inline.gif" width="16" height="16" class="absmiddle" alt="delete" border="0" />&nbsp;Administrative Hide
+                                </button>
+                            </form>
                         <?php endif; ?>
                         &nbsp;&nbsp;&nbsp;&nbsp;
                     <?php endif; ?>
                 </span>
                 <span style="float:right;">
                     <?php if (!empty($this->data['public']) && $this->careerPortalEnabled): ?>
-                        <a id="public_link" href="<?php echo(CATSUtility::getAbsoluteURI()); ?>careers/<?php echo(CATSUtility::getIndexName()); ?>?p=showJob&amp;ID=<?php echo($this->jobOrderID); ?>">
+                        <a id="public_link" href="<?php echo Template::escapeUrl(CATSUtility::getAbsoluteURI() . 'careers/' . CATSUtility::getIndexName() . '?p=showJob&ID=' . $this->jobOrderID); ?>">
                             <img src="images/public.gif" width="16" height="16" class="absmiddle" alt="Online Application" border="0" />&nbsp;Online Application
                         </a>
                         &nbsp;&nbsp;&nbsp;&nbsp;
                     <?php endif; ?>
                     <?php /* TODO: Make report available for every site. */ ?>
-                    <a id="report_link" href="<?php echo(CATSUtility::getIndexName()); ?>?m=reports&amp;a=customizeJobOrderReport&amp;jobOrderID=<?php echo($this->jobOrderID); ?>">
+                    <a id="report_link" href="<?php echo Template::escapeUrl(CATSUtility::getIndexName() . '?m=reports&a=customizeJobOrderReport&jobOrderID=' . $this->jobOrderID); ?>">
                         <img src="images/reportsSmall.gif" width="16" height="16" class="absmiddle" alt="report" border="0" />&nbsp;Generate Report
                     </a>
                     <?php if ($this->privledgedUser): ?>
                         &nbsp;&nbsp;&nbsp;&nbsp;
-                        <a id="history_link" href="<?php echo(CATSUtility::getIndexName()); ?>?m=settings&amp;a=viewItemHistory&amp;dataItemType=400&amp;dataItemID=<?php echo($this->jobOrderID); ?>">
+                        <a id="history_link" href="<?php echo Template::escapeUrl(CATSUtility::getIndexName() . '?m=settings&a=viewItemHistory&dataItemType=400&dataItemID=' . $this->jobOrderID); ?>">
                             <img src="images/icon_clock.gif" width="16" height="16" class="absmiddle"  border="0" />&nbsp;View History
-                        </a
+                        </a>
                     <?php endif; ?>
                 </span>
             </div>
@@ -475,108 +394,14 @@ document.addEventListener('click', pipelineColumnBox_close);
             <br />
 
             <p class="note">Candidate in Job Order</p>
-            <?php $this->dataGrid->drawFilterArea(); ?>
 
-            <script type="text/javascript">
-            var pipelineDataGridFilterID =
-                'filterArea<?php echo md5('joborders:PipelineCandidatesDataGrid'); ?>';
-
-            submitFilter<?php echo md5('joborders:PipelineCandidatesDataGrid'); ?> = function(retainFilterVisible) {
-                var filterAreaEl = document.getElementById(pipelineDataGridFilterID);
-                var filterString = filterAreaEl ? filterAreaEl.value : '';
-                var md5 = '<?php echo md5('joborders:PipelineCandidatesDataGrid'); ?>';
-
-                var tableID = 'filterResultsAreaTable' + md5;
-                var table = document.getElementById(tableID);
-                if (table) {
-                    table.innerHTML = '';
-                    if (filterString !== '') {
-                        var filters = filterString.split(',');
-                        var counter = 0;
-                        filters.forEach(function(f) {
-                            var eqPos = f.indexOf('=');
-                            if (eqPos === -1) return;
-                            var col = decodeURIComponent(f.substring(0, eqPos));
-                         var opLen = (f.substr(eqPos, 3) === '=d>' || f.substr(eqPos, 3) === '=d<' || f.substr(eqPos, 3) === '=in') ? 3 : 2;
-var op = f.substring(eqPos, eqPos + opLen);
-var val = decodeURIComponent(f.substring(eqPos + opLen));
-var opNames = {'==':'is equal to','=~':'contains','=>':'is greater than','=<':'is less than','=d>':'from','=d<':'to','=e':'is empty'};
-                            var span = document.createElement('span');
-                            span.className = 'filterArea';
-                            span.innerHTML = '<a href="javascript:void(0);" onclick="this.parentNode.style.display=\'none\'; removeColumnFromFilter(\'' + pipelineDataGridFilterID + '\', \'' + col + '\'); submitFilter' + md5 + '();">'
-                                + '<img src="images/actions/delete_small.gif" style="padding:0px;margin:0px;" border="0" title="Remove this Filter" /></a>&nbsp;'
-                                + '\'' + col + '\' ' + (opNames[op] || op) + ': '
-                            + '<select id="filterResultsAreaTable' + md5 + (counter+1) + 'columnName" disabled="disabled" class="inputbox" style="display:none;"><option value="' + col + '!@!===~">' + col + '</option></select>'
-                                + (op === '=e' ? '' : '<input class="inputbox" style="width:180px;" value="' + val + '" onchange="addColumnToFilter(\'' + pipelineDataGridFilterID + '\', \'' + col + '\', \'' + op + '\', this.value); submitFilter' + md5 + '();" />');
-                            table.appendChild(span);
-                            counter++;
-                        });
-                        newFilterCounter<?php echo md5('joborders:PipelineCandidatesDataGrid'); ?> = counter;
-                        } else {
-                        newFilterCounter<?php echo md5('joborders:PipelineCandidatesDataGrid'); ?> = 0;
-                        var filterArea = document.getElementById('filterResultsArea<?php echo md5('joborders:PipelineCandidatesDataGrid'); ?>');
-                        if (filterArea) filterArea.style.display = '';
-                        showNewFilter<?php echo md5('joborders:PipelineCandidatesDataGrid'); ?>();
-                    }
-                }
-
-                PipelineJobOrder_populate(
-                    <?php $this->_($this->data['jobOrderID']); ?>,
-                    0,
-                    <?php $this->_($this->pipelineEntriesPerPage); ?>,
-                    'dateCreatedInt', 'desc',
-                    <?php if ($this->isPopup) echo(1); else echo(0); ?>,
-                    'ajaxPipelineTable',
-                    '<?php echo($this->sessionCookie); ?>',
-                    'ajaxPipelineTableIndicator',
-                    '<?php echo(CATSUtility::getIndexName()); ?>'
-                );
-            };
-            var originalClearFilter = clearFilter;
-            clearFilter = function(filterElementID) {
-                originalClearFilter(filterElementID);
-                var tableID = 'filterResultsAreaTable<?php echo md5('joborders:PipelineCandidatesDataGrid'); ?>';
-                var table = document.getElementById(tableID);
-                if (table) table.innerHTML = '';
-                newFilterCounter<?php echo md5('joborders:PipelineCandidatesDataGrid'); ?> = 0;
-                showNewFilter<?php echo md5('joborders:PipelineCandidatesDataGrid'); ?>();
-            };
-            </script>
-
-             <script type="text/javascript">
-document.addEventListener('DOMContentLoaded', function() {
-    var filterArea = document.getElementById(
-        'filterResultsArea<?php echo md5('joborders:PipelineCandidatesDataGrid'); ?>'
-    );
-    if (filterArea) filterArea.style.display = '';
-
-    var originalShowNewFilter = showNewFilter;
-    showNewFilter = function(counter, tableID, arrayKeys, md5) {
-        originalShowNewFilter(counter, tableID, arrayKeys, md5);
-        setTimeout(function() {
-            var selects = document.querySelectorAll('[id^="filterResultsAreaTable' + md5 + '"][id$="columnOperator"]');
-            selects.forEach(function(sel) {
-                for (var i = 0; i < sel.options.length; i++) {
-                    if (sel.options[i].value === '=e') return;
-                }
-                var opt = document.createElement('option');
-                opt.value = '=e';
-                opt.text = 'is empty';
-                sel.appendChild(opt);
-            });
-        }, 0);
-    };
-
-    <?php if (!empty($this->savedPipelineFilter)): ?>
-    submitFilter<?php echo md5('joborders:PipelineCandidatesDataGrid'); ?>(true);
-    <?php else: ?>
-    showNewFilter<?php echo md5('joborders:PipelineCandidatesDataGrid'); ?>();
-    <?php endif; ?>
-});
-            </script>
-
-
-            <p id="ajaxPipelineControl">                
+            <p id="ajaxPipelineControl">
+                Number of visible entries:&nbsp;&nbsp;
+                <select id="numberOfEntriesSelect" onchange="PipelineJobOrder_changeLimit(<?php $this->_($this->data['jobOrderID']); ?>, this.value, <?php if ($this->isPopup) echo(1); else echo(0); ?>, 'ajaxPipelineTable', <?php echo Template::escapeJsAttr($this->sessionCookie); ?>, 'ajaxPipelineTableIndicator', <?php echo Template::escapeJsAttr(CATSUtility::getIndexName()); ?>);" class="selectBox">
+                    <option value="15" <?php if ($this->pipelineEntriesPerPage == 15): ?>selected<?php endif; ?>>15 entries</option>
+                    <option value="30" <?php if ($this->pipelineEntriesPerPage == 30): ?>selected<?php endif; ?>>30 entries</option>
+                    <option value="50" <?php if ($this->pipelineEntriesPerPage == 50): ?>selected<?php endif; ?>>50 entries</option>
+                    <option value="99999" <?php if ($this->pipelineEntriesPerPage == 99999): ?>selected<?php endif; ?>>All entries</option>
                 </select>&nbsp;
                 <span id="ajaxPipelineNavigation">
                 </span>&nbsp;
@@ -584,27 +409,39 @@ document.addEventListener('DOMContentLoaded', function() {
             </p>
 
             <div id="ajaxPipelineTable"></div>
-          
             <input type="checkbox" name="select_all" onclick="selectAll_candidates(this)" title="Select all candidates" /> <a href="javascript:void(0);" onclick="exportFromPipeline()" title="Export selected candidates">Export</a>&nbsp;&nbsp;&nbsp;&nbsp;
-            
             <script type="text/javascript">
-function exportFromPipeline() {
-    var ids = getSelected_candidates();
-    if (ids.length > 0) {
-        window.location.href = '<?php echo(CATSUtility::getIndexName()); ?>?m=joborders&a=exportPipeline&jobOrderID=<?php echo($this->data['jobOrderID']); ?>&candidateIDs=' + urlEncode(serializeArray(ids));
-    } else {
-        alert('No data selected');
-    }
-}
+            	function exportFromPipeline(){
+<?php
+	$params = array(
+			'sortBy' => 'dateModifiedSort',
+			'sortDirection' => 'DESC',
+	        'filterVisible' => false,
+	        'rangeStart' => 0,
+	        'maxResults' => 100000000,
+	        'exportIDs' => '<dynamic>',
+	        'noSaveParameters' => true);
+
+	$instance_name = 'candidates:candidatesListByViewDataGrid';
+	$instance_md5 = md5($instance_name);
+?>
+					var exportArray<?= $instance_md5 ?> = getSelected_candidates();
+            		if (exportArray<?= $instance_md5 ?>.length>0) {
+                		window.location.href='<?= CATSUtility::getIndexName()?>?m=export&a=exportByDataGrid&i=<?= urlencode($instance_name); ?>&p=<?= urlencode(json_encode($params)) ?>&dynamicArgument<?= $instance_md5 ?>=' + serializeArray(exportArray<?= $instance_md5 ?>);
+            		} else {
+                		alert('No data selected');
+            		}
+            	}
+
 
             </script>
             <script type="text/javascript">
-                PipelineJobOrder_populate(<?php $this->_($this->data['jobOrderID']); ?>, 0, <?php $this->_($this->pipelineEntriesPerPage); ?>, 'dateCreatedInt', 'desc', <?php if ($this->isPopup) echo(1); else echo(0); ?>, 'ajaxPipelineTable', '<?php echo($this->sessionCookie); ?>', 'ajaxPipelineTableIndicator', '<?php echo(CATSUtility::getIndexName()); ?>');
+                PipelineJobOrder_populate(<?php $this->_($this->data['jobOrderID']); ?>, 0, <?php $this->_($this->pipelineEntriesPerPage); ?>, 'dateCreatedInt', 'desc', <?php if ($this->isPopup) echo(1); else echo(0); ?>, 'ajaxPipelineTable', <?php echo Template::escapeJs($this->sessionCookie); ?>, 'ajaxPipelineTableIndicator', <?php echo Template::escapeJs(CATSUtility::getIndexName()); ?>);
             </script>
 
             <?php if (!$this->isPopup): ?>
             <?php if ($this->getUserAccessLevel('joborders.considerCandidateSearch') >= ACCESS_LEVEL_EDIT && !isset($this->frozen)): ?>
-                <a href="#" onclick="showPopWin('<?php echo(CATSUtility::getIndexName()); ?>?m=joborders&amp;a=considerCandidateSearch&amp;jobOrderID=<?php echo($this->jobOrderID); ?>', 820, 550, null); return false;">
+                <a href="#" onclick="showPopWin(<?php echo Template::escapeJsAttr(CATSUtility::getIndexName() . '?m=joborders&a=considerCandidateSearch&jobOrderID=' . $this->jobOrderID); ?>, 820, 550, null); return false;">
                     <img src="images/consider.gif" width="16" height="16" class="absmiddle" alt="add candidate" border="0" />&nbsp;Add Candidate to This Job Order
                 </a>
             <?php endif; ?>

@@ -6,7 +6,7 @@
 
 find_whitespace_files() {
 	grep -rE '[[:space:]]+$' . | sed 's/:.*//' | \
-        grep -E '(\.php|\.tpl|\.js|INSTALL|DEVELOPMENT-GUIDELINES|CHANGELOG|AUTHORS)$' | grep -v simpletest | sort | uniq
+        grep -E '(\.php|\.tpl|\.js|INSTALL|DEVELOPMENT-GUIDELINES|CHANGELOG|AUTHORS)$' | sort | uniq
 }
 
 if [ ! -f "modules/login/LoginUI.php" ]; then

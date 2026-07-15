@@ -77,7 +77,7 @@ else
              $activity['enteredByLastName'],
              ')</td>';
         echo '<td style="padding-right: 6px; width: 625px;">',
-             $activity['notes'],
+             nl2br(htmlspecialchars($activity['notes'], ENT_QUOTES | ENT_SUBSTITUTE, HTML_ENCODING)),
              '<br /></td>';
         echo '</tr>';
     }

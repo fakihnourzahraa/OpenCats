@@ -47,7 +47,6 @@ include_once(LEGACY_ROOT . '/lib/Questionnaire.php');
 include_once(LEGACY_ROOT . '/lib/CommonErrors.php');
 include_once(LEGACY_ROOT . '/lib/JobOrderTypes.php');
 include_once(LEGACY_ROOT . '/lib/JobOrderStatuses.php');
-include_once(LEGACY_ROOT . '/modules/joborders/dataGrids.php');
 
 
 class JobOrdersUI extends UserInterface
@@ -151,7 +150,14 @@ class JobOrdersUI extends UserInterface
                 {
                     CommonErrors::fatal(COMMONERROR_PERMISSION, $this, 'Invalid user level for action.');
                 }
-                $this->onDelete();
+                if ($this->isPostBack())
+                {
+                    $this->onDelete();
+                }
+                else
+                {
+                    CommonErrors::fatal(COMMONERROR_BADFIELDS, $this, 'Invalid request.');
+                }
                 break;
 
             case 'search':
@@ -172,19 +178,36 @@ class JobOrdersUI extends UserInterface
 
                 break;
 
-            /* Change candidate-joborder status. */
-            case 'addActivityChangeStatus':
-                if ($this->getUserAccessLevel('pipelines.addActivityChangeStatus') < ACCESS_LEVEL_EDIT)
+            /* Add candidate activity / schedule event. */
+            case 'addActivity':
+                if ($this->getUserAccessLevel('pipelines.addActivity') < ACCESS_LEVEL_EDIT)
                 {
                     CommonErrors::fatal(COMMONERROR_PERMISSION, $this, 'Invalid user level for action.');
                 }
                 if ($this->isPostBack())
                 {
-                    $this->onAddActivityChangeStatus();
+                    $this->onAddActivity();
                 }
                 else
                 {
-                    $this->addActivityChangeStatus();
+                    $this->addActivity();
+                }
+
+                break;
+
+            /* Change candidate-joborder status (dedicated modal). */
+            case 'changeStatus':
+                if ($this->getUserAccessLevel('pipelines.changeStatus') < ACCESS_LEVEL_EDIT)
+                {
+                    CommonErrors::fatal(COMMONERROR_PERMISSION, $this, 'Invalid user level for action.');
+                }
+                if ($this->isPostBack())
+                {
+                    $this->onChangeStatus();
+                }
+                else
+                {
+                    $this->changeStatus();
                 }
 
                 break;
@@ -220,7 +243,14 @@ class JobOrdersUI extends UserInterface
                 {
                     CommonErrors::fatal(COMMONERROR_PERMISSION, $this, 'Invalid user level for action.');
                 }
-                $this->onAddToPipeline();
+                if ($this->isPostBack())
+                {
+                    $this->onAddToPipeline();
+                }
+                else
+                {
+                    CommonErrors::fatalModal(COMMONERROR_BADFIELDS, $this, 'Invalid request.');
+                }
                 break;
 
             /*
@@ -248,7 +278,14 @@ class JobOrdersUI extends UserInterface
                 {
                     CommonErrors::fatal(COMMONERROR_PERMISSION, $this, 'Invalid user level for action.');
                 }
-                $this->onRemoveFromPipeline();
+                if ($this->isPostBack())
+                {
+                    $this->onRemoveFromPipeline();
+                }
+                else
+                {
+                    CommonErrors::fatal(COMMONERROR_BADFIELDS, $this, 'Invalid request.');
+                }
                 break;
 
             /* Add an attachment */
@@ -277,7 +314,14 @@ class JobOrdersUI extends UserInterface
                 {
                     CommonErrors::fatal(COMMONERROR_PERMISSION, $this, 'Invalid user level for action.');
                 }
-                $this->onDeleteAttachment();
+                if ($this->isPostBack())
+                {
+                    $this->onDeleteAttachment();
+                }
+                else
+                {
+                    CommonErrors::fatal(COMMONERROR_BADFIELDS, $this, 'Invalid request.');
+                }
                 break;
 
             /* FIXME: function setCandidateJobOrder() does not exist
@@ -291,11 +335,18 @@ class JobOrdersUI extends UserInterface
             */
 
             case 'administrativeHideShow':
-                if ($this->getUserAccessLevel('joborders.administrativeHideShow') < ACCESS_LEVEL_MULTI_SA)
+                if ($this->getUserAccessLevel('joborders.administrativeHideShow') < ACCESS_LEVEL_SA)
                 {
                     CommonErrors::fatal(COMMONERROR_PERMISSION, $this, 'Invalid user level for action.');
                 }
-                $this->administrativeHideShow();
+                if ($this->isPostBack())
+                {
+                    $this->administrativeHideShow();
+                }
+                else
+                {
+                    CommonErrors::fatal(COMMONERROR_BADFIELDS, $this, 'Invalid request.');
+                }
                 break;
 
             /* Main job orders page. */
@@ -307,129 +358,10 @@ class JobOrdersUI extends UserInterface
                 }
                 $this->listByView();
                 break;
-            case 'exportPipeline':
-                $this->exportPipeline();
-                break;
         }
     }
 
-private function exportPipeline()
-{
-    $siteID       = $this->_siteID;
-    $jobOrderID   = $this->getTrimmedInput('jobOrderID', $_GET);
-    $candidateIDs = isset($_GET['candidateIDs'])
-        ? array_map('intval', unserialize(urldecode($_GET['candidateIDs'])))
-        : array();
 
-    if (!$jobOrderID || empty($candidateIDs)) die('Invalid input.');
-
-    $pipelines   = new Pipelines($siteID);
-    $pipelinesRS = $pipelines->getJobOrderPipeline($jobOrderID);
-
-    /* Build addedByAbbrName */
-    foreach ($pipelinesRS as $i => $row)
-    {
-        $pipelinesRS[$i]['addedByAbbrName'] = StringUtility::makeInitialName(
-            $row['addedByFirstName'], $row['addedByLastName'], LAST_NAME_MAXLEN
-        );
-    }
-
-    /* Merge extra field values into rows */
-    $allCandidateIDs = array_map(function($r) { return $r['candidateID']; }, $pipelinesRS);
-    $extraFieldsByCandidate = $pipelines->getExtraFieldsForPipelineCandidates($allCandidateIDs);
-    foreach ($pipelinesRS as $idx => $row)
-    {
-        $cid = $row['candidateID'];
-        if (isset($extraFieldsByCandidate[$cid]))
-        {
-            foreach ($extraFieldsByCandidate[$cid] as $fieldName => $value)
-            {
-                $pipelinesRS[$idx][$fieldName] = $value;
-            }
-        }
-    }
-
-    /* Filter to selected candidates only */
-    $pipelinesRS = array_values(array_filter($pipelinesRS, function($row) use ($candidateIDs) {
-        return in_array((int)$row['candidateID'], $candidateIDs);
-    }));
-
-    /* Base column map */
-    $allCols = array(
-        'firstName'           => array('First Name',       'firstName'),
-        'lastName'            => array('Last Name',        'lastName'),
-        'state'               => array('Loc',              'state'),
-        'city'                => array('City',             'city'),
-        'zip'                 => array('Zip',              'zip'),
-        'address'             => array('Address',          'address'),
-        'dateCreatedInt'      => array('Added',            'dateCreated'),
-        'addedByAbbrName'     => array('Entered By',       'addedByAbbrName'),
-        // 'status'              => array('Status',           'status'),
-        'lastActivity'        => array('Last Activity',    'lastActivity'),
-        'candidateEmail'      => array('E-Mail',           'candidateEmail'),
-        'candidateEmail2'     => array('2nd E-Mail',       'candidateEmail2'),
-        'phoneHome'           => array('Home Phone',       'phoneHome'),
-        'phoneCell'           => array('Cell Phone',       'phoneCell'),
-        'phoneWork'           => array('Work Phone',       'phoneWork'),
-        'keySkills'           => array('Key Skills',       'keySkills'),
-        'currentEmployer'     => array('Current Employer', 'currentEmployer'),
-        'currentPay'          => array('Current Pay',      'currentPay'),
-        'desiredPay'          => array('Desired Pay',      'desiredPay'),
-        'canRelocate'         => array('Can Relocate',     'canRelocate'),
-        'source'              => array('Source',           'source'),
-        'webSite'             => array('Web Site',         'webSite'),
-        'notes'               => array('Misc Notes',       'notes'),
-        'dateAvailable'       => array('Available',        'dateAvailable'),
-        'dateModified'        => array('Modified',         'dateModified'),
-        'gpa'                 => array('GPA',              'gpa'),
-        'nationality'         => array('Nationality',      'nationality'),
-        'universityShortName' => array('University',       'universityShortName'),
-    );
-
-    /* Add extra field definitions to column map */
-    $extraFieldDefs = $pipelines->getExtraFieldDefinitions();
-    if ($extraFieldDefs)
-    {
-        foreach ($extraFieldDefs as $def)
-        {
-            $fn = $def['field_name'];
-            $allCols[$fn] = array($fn, $fn);
-        }
-    }
-
-    /* Build export columns from visible session cols */
-    $visibleCols = isset($_SESSION['pipelineCols'][$siteID])
-        ? $_SESSION['pipelineCols'][$siteID]
-        : array('firstName', 'lastName', 'state', 'dateCreatedInt', 'addedByAbbrName', 'status', 'lastActivity');
-
-    $exportCols = array();
-    foreach ($visibleCols as $key)
-    {
-        if (isset($allCols[$key])) $exportCols[$key] = $allCols[$key];
-    }
-
-    header('Content-Disposition: attachment; filename="export.csv"');
-    header('Content-Type: text/x-csv; charset=utf-8');
-
-    $out = fopen('php://output', 'w');
-    fputcsv($out, array_column($exportCols, 0));
-
-    foreach ($pipelinesRS as $row)
-    {
-        $cells = array();
-        foreach ($exportCols as $key => $def)
-        {
-            $val = isset($row[$def[1]]) ? $row[$def[1]] : '';
-            if ($key === 'canRelocate')  $val = ($val == 1 ? 'Yes' : 'No');
-            if ($key === 'lastActivity') $val = strip_tags($val);
-            $cells[] = $val;
-        }
-        fputcsv($out, $cells);
-    }
-
-    fclose($out);
-    die();
-}
     /*
      * Called by handleRequest() to process loading the list / main page.
      */
@@ -438,7 +370,7 @@ private function exportPipeline()
         $jobOrderFilters = JobOrderStatuses::getFilters();
 
         $dataGridProperties = DataGrid::getRecentParamaters("joborders:JobOrdersListByViewDataGrid");
-        
+
         /* If this is the first time we visited the datagrid this session, the recent paramaters will
          * be empty.  Fill in some default values. */
         if ($dataGridProperties == array())
@@ -499,9 +431,9 @@ private function exportPipeline()
             CommonErrors::fatal(COMMONERROR_BADINDEX, $this, 'The specified job order ID could not be found.');
         }
 
-        if ($data['isAdminHidden'] == 1 && $this->getUserAccessLevel('joborders.hidden') < ACCESS_LEVEL_MULTI_SA)
+        if ($data['isAdminHidden'] == 1 && $this->getUserAccessLevel('joborders.hidden') < ACCESS_LEVEL_SA)
         {
-            $this->listByView('This Job Order is hidden - only a CATS Administrator can unlock the Job Order.');
+            $this->listByView('This Job Order is hidden - only a Site Administrator can unlock the Job Order.');
             return;
         }
 
@@ -512,8 +444,8 @@ private function exportPipeline()
             $data['city'], $data['state']
         );
 
-        $data['description'] = trim($data['description']);
-        $data['notes'] = trim($data['notes']);
+        $data['description'] = CATSUtility::sanitizeHtmlAllowlist(isset($data['description']) ? $data['description'] : '');
+        $data['notes'] = CATSUtility::sanitizeHtmlAllowlist(isset($data['notes']) ? $data['notes'] : '');
 
         /* Determine the Job Type Description */
         $data['typeDescription'] = $jobOrders->typeCodeToString($data['type']);
@@ -643,104 +575,10 @@ private function exportPipeline()
         $this->_template->assign('privledgedUser', $privledgedUser);
         $this->_template->assign('sessionCookie', $_SESSION['CATS']->getCookie());
 
-        $candidates = new Candidates($this->_siteID);
-        
-        $sourcesRS = $candidates->getPossibleSources();
-        $this->_template->assign('sourcesRS', $sourcesRS);
-
-        $db = DatabaseConnection::getInstance();
-
-$pipelineUniversitiesIsIn = $db->getAllAssoc(sprintf(
-    "SELECT DISTINCT candidate.university AS val
-    FROM candidate
-    INNER JOIN candidate_joborder ON candidate_joborder.candidate_id = candidate.candidate_id
-    WHERE candidate_joborder.joborder_id = %d
-    AND candidate_joborder.site_id = %d
-    AND candidate.university IS NOT NULL AND candidate.university != ''
-    ORDER BY candidate.university ASC",
-    $jobOrderID, $this->_siteID
-));
-        $this->_template->assign('pipelineUniversitiesIsIn', $pipelineUniversitiesIsIn);
-
-        $pipelineNationalitiesIsIn = $db->getAllAssoc(sprintf(
-            "SELECT DISTINCT candidate.nationality AS val
-            FROM candidate
-            INNER JOIN candidate_joborder ON candidate_joborder.candidate_id = candidate.candidate_id
-            WHERE candidate_joborder.joborder_id = %d
-            AND candidate_joborder.site_id = %d
-            AND candidate.nationality IS NOT NULL AND candidate.nationality != ''
-            ORDER BY candidate.nationality ASC",
-            $jobOrderID, $this->_siteID
-        ));
-        $this->_template->assign('pipelineNationalitiesIsIn', $pipelineNationalitiesIsIn);
-
-        $pipelineSourcesIsIn = $db->getAllAssoc(sprintf(
-            "SELECT DISTINCT candidate.source AS val
-            FROM candidate
-            INNER JOIN candidate_joborder ON candidate_joborder.candidate_id = candidate.candidate_id
-            WHERE candidate_joborder.joborder_id = %d
-            AND candidate_joborder.site_id = %d
-            AND candidate.source IS NOT NULL AND candidate.source != ''
-            ORDER BY candidate.source ASC",
-            $jobOrderID, $this->_siteID
-        ));
-        $this->_template->assign('pipelineSourcesIsIn', $pipelineSourcesIsIn);
-
-        $universitiesRS = $candidates->getPossibleDropDownOptions('university', 'university_id', 'canonical_name', 'short_name');
-        $nationalitiesRS = $candidates->getPossibleDropDownOptions('nationality', 'name', 'name', null, 'sort_order ASC, name ASC');
-        $this->_template->assign('universitiesRS', $universitiesRS);
-        $this->_template->assign('nationalitiesRS', $nationalitiesRS);
-
-        $statusesRS = $candidates->getPossibleDropDownOptions(
-            'candidate_joborder_status',
-            'short_description',
-            'short_description',
-            null,
-            'candidate_joborder_status_id ASC',
-            'is_enabled = 1 AND candidate_joborder_status_id != 0'
-        );
-        $this->_template->assign('statusesRS', $statusesRS);
-
         if (!eval(Hooks::get('JO_SHOW'))) return;
 
-    //     $dataGridProperties = DataGrid::getRecentParamaters('joborders:PipelineCandidatesDataGrid');
-    //     if ($dataGridProperties == array())
-    //     {
-    //         $dataGridProperties = array(
-    //             'rangeStart'    => 0,
-    //             'maxResults'    => 15,
-    //             'filterVisible' => true,
-    //             'filter'        => 'First+Name=~',
-    //         );
-    //     }
-
-    //     $dataGrid = new PipelineCandidatesDataGrid($this->_siteID, $dataGridProperties, 0);
-    //     $this->_template->assign('dataGrid', $dataGrid);
-    //     $this->_template->assign('userID', $_SESSION['CATS']->getUserID());
-    //     $this->_template->display('./modules/joborders/Show.tpl');
-
-$savedPipelineFilter = isset($_SESSION['pipelineFilter'][$jobOrderID])
-    ? $_SESSION['pipelineFilter'][$jobOrderID]
-    : '';
-
- 
-$dataGridProperties = DataGrid::getRecentParamaters('joborders:PipelineCandidatesDataGrid');
-if ($dataGridProperties == array())
-{
-    $dataGridProperties = array(
-        'rangeStart'    => 0,
-        'maxResults'    => 15,
-        'filterVisible' => true,
-        'filter'        => $savedPipelineFilter !== '' ? $savedPipelineFilter : 'First+Name=~',
-    );
-}
-
-$dataGrid = new PipelineCandidatesDataGrid($this->_siteID, $dataGridProperties, 0);
-$this->_template->assign('dataGrid', $dataGrid);
-$this->_template->assign('userID', $_SESSION['CATS']->getUserID());
-$this->_template->assign('savedPipelineFilter', $savedPipelineFilter);
-$this->_template->display('./modules/joborders/Show.tpl');
-}
+        $this->_template->display('./modules/joborders/Show.tpl');
+    }
 
     /*
      * Called by handleRequest() to render the add popup.
@@ -936,16 +774,19 @@ $this->_template->display('./modules/joborders/Show.tpl');
          * convert the date to MySQL format.
          */
         $startDate = $this->getTrimmedInput('startDate', $_POST);
+        $dateFormatFlag = $_SESSION['CATS']->isDateDMY()
+            ? DATE_FORMAT_DDMMYY
+            : DATE_FORMAT_MMDDYY;
         if (!empty($startDate))
         {
-            if (!DateUtility::validate('-', $startDate, DATE_FORMAT_MMDDYY))
+            if (!DateUtility::validate('-', $startDate, $dateFormatFlag))
             {
                 CommonErrors::fatal(COMMONERROR_MISSINGFIELDS, $this, 'Invalid start date.');
             }
 
             /* Convert start_date to something MySQL can understand. */
             $startDate = DateUtility::convert(
-                '-', $startDate, DATE_FORMAT_MMDDYY, DATE_FORMAT_YYYYMMDD
+                '-', $startDate, $dateFormatFlag, DATE_FORMAT_YYYYMMDD
             );
         }
 
@@ -984,7 +825,7 @@ $this->_template->display('./modules/joborders/Show.tpl');
         $notes       = $this->getTrimmedInput('notes', $_POST);
 
         /* Bail out if any of the required fields are empty. */
-        if (empty($title) || empty($type) || empty($city) || empty($state))
+        if (empty($title) || empty($type) || empty($city))
         {
             CommonErrors::fatal(COMMONERROR_MISSINGFIELDS, $this, 'Required fields are missing.');
         }
@@ -1087,16 +928,7 @@ $this->_template->display('./modules/joborders/Show.tpl');
         $departmentsString = ListEditor::getStringFromList($departmentsRS, 'name');
 
         /* Date format for DateInput()s. */
-        if ($_SESSION['CATS']->isDateDMY())
-        {
-            $data['startDateMDY'] = DateUtility::convert(
-                '-', $data['startDate'], DATE_FORMAT_DDMMYY, DATE_FORMAT_MMDDYY
-            );
-        }
-        else
-        {
-            $data['startDateMDY'] = $data['startDate'];
-        }
+        $data['startDateUser'] = $data['startDate'];
 
         /* Get extra fields. */
         $extraFieldRS = $jobOrders->extraFields->getValuesForEdit($jobOrderID);
@@ -1200,9 +1032,12 @@ $this->_template->display('./modules/joborders/Show.tpl');
          * convert the date to MySQL format.
          */
         $startDate = $this->getTrimmedInput('startDate', $_POST);
+        $dateFormatFlag = $_SESSION['CATS']->isDateDMY()
+            ? DATE_FORMAT_DDMMYY
+            : DATE_FORMAT_MMDDYY;
         if (!empty($startDate))
         {
-            if (!DateUtility::validate('-', $startDate, DATE_FORMAT_MMDDYY))
+            if (!DateUtility::validate('-', $startDate, $dateFormatFlag))
             {
                 CommonErrors::fatal(COMMONERROR_MISSINGFIELDS, $this, 'Invalid start date.');
                 return;
@@ -1210,7 +1045,7 @@ $this->_template->display('./modules/joborders/Show.tpl');
 
             /* Convert start_date to something MySQL can understand. */
             $startDate = DateUtility::convert(
-                '-', $startDate, DATE_FORMAT_MMDDYY, DATE_FORMAT_YYYYMMDD
+                '-', $startDate, $dateFormatFlag, DATE_FORMAT_YYYYMMDD
             );
         }
 
@@ -1328,7 +1163,7 @@ $this->_template->display('./modules/joborders/Show.tpl');
         $notes       = $this->getTrimmedInput('notes', $_POST);
 
         /* Bail out if any of the required fields are empty. */
-        if (empty($title) || empty($type) || empty($city) || empty($state))
+        if (empty($title) || empty($type) || empty($city))
         {
             CommonErrors::fatal(COMMONERROR_MISSINGFIELDS, $this, 'Required fields are missing.');
         }
@@ -1359,12 +1194,12 @@ $this->_template->display('./modules/joborders/Show.tpl');
     private function onDelete()
     {
         /* Bail out if we don't have a valid job order ID. */
-        if (!$this->isRequiredIDValid('jobOrderID', $_GET))
+        if (!$this->isRequiredIDValid('jobOrderID', $_POST))
         {
             CommonErrors::fatal(COMMONERROR_BADINDEX, $this, 'Invalid job order ID.');
         }
 
-        $jobOrderID = $_GET['jobOrderID'];
+        $jobOrderID = $_POST['jobOrderID'];
 
         if (!eval(Hooks::get('JO_ON_DELETE_PRE'))) return;
 
@@ -1485,19 +1320,19 @@ $this->_template->display('./modules/joborders/Show.tpl');
     private function onAddToPipeline()
     {
         /* Bail out if we don't have a valid job order ID. */
-        if (!$this->isRequiredIDValid('jobOrderID', $_GET))
+        if (!$this->isRequiredIDValid('jobOrderID', $_POST))
         {
             CommonErrors::fatalModal(COMMONERROR_BADINDEX, $this, 'Invalid job order ID.');
         }
 
         /* Bail out if we don't have a valid candidate ID. */
-        if (!$this->isRequiredIDValid('candidateID', $_GET))
+        if (!$this->isRequiredIDValid('candidateID', $_POST))
         {
             CommonErrors::fatalModal(COMMONERROR_BADINDEX, $this, 'Invalid candidate ID.');
         }
 
-        $jobOrderID  = $_GET['jobOrderID'];
-        $candidateID = $_GET['candidateID'];
+        $jobOrderID  = $_POST['jobOrderID'];
+        $candidateID = $_POST['candidateID'];
 
         if (!eval(Hooks::get('JO_ON_ADD_PIPELINE'))) return;
 
@@ -1557,11 +1392,7 @@ $this->_template->display('./modules/joborders/Show.tpl');
         $EEOSettings = new EEOSettings($this->_siteID);
         $EEOSettingsRS = $EEOSettings->getAll();
 
-        if (is_array($parsingStatus = LicenseUtility::getParsingStatus()) &&
-            isset($parsingStatus['parseLimit']))
-        {
-            $parsingStatus['parseLimit'] = $parsingStatus['parseLimit'] - 1;
-        }
+        $parsingStatus = array();
 
         $careerPortalSettings = new CareerPortalSettings($this->_siteID);
         $careerPortalSettingsRS = $careerPortalSettings->getAll();
@@ -1574,7 +1405,7 @@ $this->_template->display('./modules/joborders/Show.tpl');
         $this->_template->assign('careerPortalEnabled', $careerPortalEnabled);
         $this->_template->assign('questionnaires', $questionnaires);
         $this->_template->assign('contents', $contents);
-        $this->_template->assign('isParsingEnabled', $tmp = LicenseUtility::isParsingEnabled());
+        $this->_template->assign('isParsingEnabled', true);
         $this->_template->assign('parsingStatus', $parsingStatus);
         $this->_template->assign('extraFieldRS', $extraFieldRS);
         $this->_template->assign('sourcesRS', $sourcesRS);
@@ -1630,7 +1461,71 @@ $this->_template->display('./modules/joborders/Show.tpl');
         );
     }
 
-    private function addActivityChangeStatus()
+    private function addActivity()
+    {
+        /* Bail out if we don't have a valid candidate ID. */
+        if (!$this->isRequiredIDValid('candidateID', $_GET))
+        {
+            CommonErrors::fatalModal(COMMONERROR_BADINDEX, $this, 'Invalid candidate ID.');
+        }
+
+        /* Bail out if we don't have a valid job order ID. */
+        if (!$this->isRequiredIDValid('jobOrderID', $_GET))
+        {
+            CommonErrors::fatalModal(COMMONERROR_BADINDEX, $this, 'Invalid job order ID.');
+        }
+
+        $candidateID = $_GET['candidateID'];
+        $jobOrderID  = $_GET['jobOrderID'];
+
+        $candidates = new Candidates($this->_siteID);
+        $candidateData = $candidates->get($candidateID);
+
+        /* Bail out if we got an empty result set. */
+        if (empty($candidateData))
+        {
+            CommonErrors::fatal(COMMONERROR_BADINDEX, $this, 'The specified candidate ID could not be found.');
+        }
+
+        $pipelines = new Pipelines($this->_siteID);
+        $pipelineData = $pipelines->get($candidateID, $jobOrderID);
+
+        /* Bail out if we got an empty result set. */
+        if (empty($pipelineData))
+        {
+            CommonErrors::fatal(COMMONERROR_BADINDEX, $this, 'The specified pipeline entry could not be found.');
+        }
+
+        $calendar = new Calendar($this->_siteID);
+        $calendarEventTypes = $calendar->getAllEventTypes();
+
+        if (SystemUtility::isSchedulerEnabled() && !$_SESSION['CATS']->isDemo())
+        {
+            $allowEventReminders = true;
+        }
+        else
+        {
+            $allowEventReminders = false;
+        }
+
+        $this->_template->assign('candidateID', $candidateID);
+        $this->_template->assign('pipelineData', $pipelineData);
+        $this->_template->assign('selectedJobOrderID', $jobOrderID);
+        $this->_template->assign('calendarEventTypes', $calendarEventTypes);
+        $this->_template->assign('allowEventReminders', $allowEventReminders);
+        $this->_template->assign('userEmail', $_SESSION['CATS']->getEmail());
+        $this->_template->assign('onlyScheduleEvent', false);
+        $this->_template->assign('isFinishedMode', false);
+        $this->_template->assign('isJobOrdersMode', true);
+
+        if (!eval(Hooks::get('JO_ADD_ACTIVITY_CHANGE_STATUS'))) return;
+
+        $this->_template->display(
+            './modules/candidates/AddActivityScheduleEventModal.tpl'
+        );
+    }
+
+    private function changeStatus()
     {
         /* Bail out if we don't have a valid candidate ID. */
         if (!$this->isRequiredIDValid('candidateID', $_GET))
@@ -1689,7 +1584,7 @@ $this->_template->display('./modules/joborders/Show.tpl');
             empty($statusChangeTemplateRS['textReplaced']))
         {
             $statusChangeTemplate = '';
-            $emailDisabled = $statusChangeTemplateRS['disabled'];
+            $emailDisabled = empty($statusChangeTemplateRS) ? '1' : $statusChangeTemplateRS['disabled'];
         }
         else
         {
@@ -1716,58 +1611,24 @@ $this->_template->display('./modules/joborders/Show.tpl');
             $statusChangeTemplate
         );
 
-        $statusChangeTemplatesMap = array();
-        foreach ($statusRS as $status)
-        {
-            $perStatusRS = $emailTemplates->getByTag(
-                'EMAIL_TEMPLATE_STATUSCHANGE_' . $status['statusID']
-            );
-            if (!empty($perStatusRS) && !empty($perStatusRS['textReplaced']))
-            {
-                $text = str_replace($stringsToFind, $replacementStrings, $perStatusRS['textReplaced']);
-            }
-            else
-            {
-                $text = $statusChangeTemplate;
-            }
-            $statusChangeTemplatesMap[$status['statusID']] = $text;
-        }
-
-        $calendar = new Calendar($this->_siteID);
-        $calendarEventTypes = $calendar->getAllEventTypes();
-
-        if (SystemUtility::isSchedulerEnabled() && !$_SESSION['CATS']->isDemo())
-        {
-            $allowEventReminders = true;
-        }
-        else
-        {
-            $allowEventReminders = false;
-        }
-
         $this->_template->assign('candidateID', $candidateID);
         $this->_template->assign('pipelineData', $pipelineData);
         $this->_template->assign('statusRS', $statusRS);
         $this->_template->assign('selectedJobOrderID', $jobOrderID);
         $this->_template->assign('selectedStatusID', $selectedStatusID);
-        $this->_template->assign('calendarEventTypes', $calendarEventTypes);
-        $this->_template->assign('allowEventReminders', $allowEventReminders);
-        $this->_template->assign('userEmail', $_SESSION['CATS']->getEmail());
-        $this->_template->assign('onlyScheduleEvent', false);
         $this->_template->assign('statusChangeTemplate', $statusChangeTemplate);
         $this->_template->assign('emailDisabled', $emailDisabled);
         $this->_template->assign('isFinishedMode', false);
         $this->_template->assign('isJobOrdersMode', true);
-        $this->_template->assign('statusChangeTemplatesMap', $statusChangeTemplatesMap);
-        
+
         if (!eval(Hooks::get('JO_ADD_ACTIVITY_CHANGE_STATUS'))) return;
 
         $this->_template->display(
-            './modules/candidates/AddActivityChangeStatusModal.tpl'
+            './modules/candidates/ChangeStatusModal.tpl'
         );
     }
 
-    private function onAddActivityChangeStatus()
+    private function onAddActivity()
     {
         /* Bail out if we don't have a valid regarding job order ID. */
         if (!$this->isRequiredIDValid('regardingID', $_POST))
@@ -1781,7 +1642,26 @@ $this->_template->display('./modules/joborders/Show.tpl');
 
         include_once(LEGACY_ROOT . '/modules/candidates/CandidatesUI.php');
         $candidatesUI = new CandidatesUI();
-        $candidatesUI->publicAddActivityChangeStatus(
+        $candidatesUI->publicAddActivity(
+            true, $regardingID, $this->_moduleDirectory
+        );
+    }
+
+    private function onChangeStatus()
+    {
+        /* Bail out if we don't have a valid regarding job order ID. */
+        if (!$this->isRequiredIDValid('regardingID', $_POST))
+        {
+            CommonErrors::fatalModal(COMMONERROR_BADINDEX, $this, 'Invalid job order ID.');
+        }
+
+        $regardingID = $_POST['regardingID'];
+
+        if (!eval(Hooks::get('JO_ON_ADD_ACTIVITY_CHANGE_STATUS'))) return;
+
+        include_once(LEGACY_ROOT . '/modules/candidates/CandidatesUI.php');
+        $candidatesUI = new CandidatesUI();
+        $candidatesUI->publicChangeStatus(
             true, $regardingID, $this->_moduleDirectory
         );
     }
@@ -1794,19 +1674,19 @@ $this->_template->display('./modules/joborders/Show.tpl');
     {
 
         /* Bail out if we don't have a valid candidate ID. */
-        if (!$this->isRequiredIDValid('candidateID', $_GET))
+        if (!$this->isRequiredIDValid('candidateID', $_POST))
         {
             CommonErrors::fatalModal(COMMONERROR_BADINDEX, $this, 'Invalid candidate ID.');
         }
 
         /* Bail out if we don't have a valid job order ID. */
-        if (!$this->isRequiredIDValid('jobOrderID', $_GET))
+        if (!$this->isRequiredIDValid('jobOrderID', $_POST))
         {
             CommonErrors::fatalModal(COMMONERROR_BADINDEX, $this, 'Invalid job order ID.');
         }
 
-        $candidateID = $_GET['candidateID'];
-        $jobOrderID  = $_GET['jobOrderID'];
+        $candidateID = $_POST['candidateID'];
+        $jobOrderID  = $_POST['jobOrderID'];
 
         if (!eval(Hooks::get('JO_ON_REMOVE_PIPELINE'))) return;
 
@@ -2053,19 +1933,19 @@ $this->_template->display('./modules/joborders/Show.tpl');
     private function onDeleteAttachment()
     {
         /* Bail out if we don't have a valid attachment ID. */
-        if (!$this->isRequiredIDValid('attachmentID', $_GET))
+        if (!$this->isRequiredIDValid('attachmentID', $_POST))
         {
             CommonErrors::fatalModal(COMMONERROR_BADINDEX, $this, 'Invalid attachment ID.');
         }
 
         /* Bail out if we don't have a valid joborder ID. */
-        if (!$this->isRequiredIDValid('jobOrderID', $_GET))
+        if (!$this->isRequiredIDValid('jobOrderID', $_POST))
         {
             CommonErrors::fatalModal(COMMONERROR_BADINDEX, $this, 'Invalid Job Order ID.');
         }
 
-        $jobOrderID  = $_GET['jobOrderID'];
-        $attachmentID = $_GET['attachmentID'];
+        $jobOrderID  = $_POST['jobOrderID'];
+        $attachmentID = $_POST['attachmentID'];
 
         if (!eval(Hooks::get('JO_ON_DELETE_ATTACHMENT_PRE'))) return;
 
@@ -2084,21 +1964,21 @@ $this->_template->display('./modules/joborders/Show.tpl');
     private function administrativeHideShow()
     {
         /* Bail out if we don't have a valid joborder ID. */
-        if (!$this->isRequiredIDValid('jobOrderID', $_GET))
+        if (!$this->isRequiredIDValid('jobOrderID', $_POST))
         {
             CommonErrors::fatal(COMMONERROR_BADINDEX, $this, 'Invalid Job Order ID.');
         }
 
         /* Bail out if we don't have a valid status ID. */
-        if (!$this->isRequiredIDValid('state', $_GET, true))
+        if (!$this->isRequiredIDValid('state', $_POST, true))
         {
             CommonErrors::fatal(COMMONERROR_BADINDEX, $this, 'Invalid state ID.');
         }
 
-        $jobOrderID = $_GET['jobOrderID'];
+        $jobOrderID = $_POST['jobOrderID'];
 
         // FIXME: Checkbox?
-        (boolean) $state = $_GET['state'];
+        $state = (boolean) $_POST['state'];
 
         $joborders = new JobOrders($this->_siteID);
         $joborders->administrativeHideShow($jobOrderID, $state);
