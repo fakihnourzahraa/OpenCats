@@ -102,97 +102,6 @@ filter.Filter.prototype.createFieldSelect = function(defaultValue, filterAreaID,
     return selectColumn;
 }
 
-filter.Filter.prototype.createSearchableFieldSelect = function(
-    defaultValue, filterAreaID, filterCounter, selectableColumns, instanceName
-) {
-    var selectColumn = this.createFieldSelect(
-        defaultValue, filterAreaID, filterCounter, selectableColumns
-    );
-    var changeHandler = this.createSelectAreaChangeHandler(
-        selectColumn, filterCounter, filterAreaID, selectableColumns, instanceName
-    );
-    selectColumn.addEventListener("change", changeHandler);
-    selectColumn.style.display = "none";   // kept in DOM for the ID lookup
-
-    var colWrapper = document.createElement("div");
-    colWrapper.style.cssText = "display:inline-block; vertical-align:middle;";
-
-    var colDisplay = document.createElement("div");
-    colDisplay.className = "inputbox";
-    colDisplay.style.cssText = "width:160px; cursor:pointer; padding:2px 4px; background:#fff; border:1px solid #999; display:inline-block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;";
-    colDisplay.textContent = selectColumn.options[selectColumn.selectedIndex]
-        ? selectColumn.options[selectColumn.selectedIndex].text : "-- Select --";
-
-    var colPanel = document.createElement("div");
-    colPanel.style.cssText = "display:none; position:absolute; z-index:9999; background:#fff; border:1px solid #999; width:200px; box-shadow:2px 2px 4px rgba(0,0,0,0.2);";
-    selectColumn._colPanel = colPanel;
-
-    var colSearch = document.createElement("input");
-    colSearch.type = "text";
-    colSearch.placeholder = "Search...";
-    colSearch.style.cssText = "width:100%; box-sizing:border-box; padding:4px; border:none; border-bottom:1px solid #ccc;";
-
-    var colList = document.createElement("div");
-    colList.style.cssText = "max-height:260px; overflow-y:auto;";
-
-    function buildColList(filterText) {
-        colList.innerHTML = "";
-        var needle = (filterText || "").toLowerCase();
-        for (var i = 0; i < selectColumn.options.length; i++) {
-            var opt = selectColumn.options[i];
-            if (opt.disabled) continue;
-            if (needle && opt.text.toLowerCase().indexOf(needle) === -1) continue;
-            (function(o) {
-                var item = document.createElement("div");
-                item.style.cssText = "padding:4px 8px; cursor:pointer;";
-                item.textContent = o.text;
-                item.addEventListener("mouseenter", function() { this.style.background = "#eee"; });
-                item.addEventListener("mouseleave", function() { this.style.background = ""; });
-                item.addEventListener("mousedown", function(e) {   // not click
-                    e.preventDefault();
-                    selectColumn.value = o.value;
-                    colDisplay.textContent = o.text;
-                    colPanel.style.display = "none";
-                    changeHandler();
-                });
-                colList.appendChild(item);
-            })(opt);
-        }
-    }
-
-    colSearch.addEventListener("keyup", function() { buildColList(this.value); });
-
-    colDisplay.addEventListener("click", function(e) {
-        e.stopPropagation();
-        if (colPanel.style.display === "none") {
-            var rect = colDisplay.getBoundingClientRect();
-            colPanel.style.left = (rect.left + window.scrollX) + "px";
-            colPanel.style.top  = (rect.bottom + window.scrollY) + "px";
-            colPanel.style.display = "block";
-            colSearch.value = "";
-            buildColList("");
-            colSearch.focus();
-        } else {
-            colPanel.style.display = "none";
-        }
-    });
-
-    document.addEventListener("click", function(e) {
-        if (!colWrapper.contains(e.target) && !colPanel.contains(e.target)) {
-            colPanel.style.display = "none";
-        }
-    });
-
-    colPanel.appendChild(colSearch);
-    colPanel.appendChild(colList);
-    colWrapper.appendChild(colDisplay);
-    colWrapper.appendChild(selectColumn);
-    document.body.appendChild(colPanel);   // escapes the <table> overflow clip
-
-    colWrapper.selectColumn = selectColumn;
-
-    return colWrapper;
-}
 
 filter.Filter.prototype.createOption = function(value, innerHtml, isSelected) {
     var option = document.createElement("option");
@@ -226,6 +135,131 @@ filter.DefaultFilter = function(defaultValue, filterCounter, filterAreaID, selec
 }
 
 filter.DefaultFilter.prototype = Object.create(filter.Filter.prototype);
+
+filter.DefaultFilter.prototype.createQuickSearchInput = function() {
+    var wrapper = document.createElement("div");
+    wrapper.style.cssText = "display:inline-block; position:relative; vertical-align:middle;";
+
+    var input = document.createElement("input");
+    input.className = "inputbox";
+    input.style.width = "180px";
+    input.autocomplete = "off";
+
+    var panel = document.createElement("div");
+    panel.style.cssText = "display:none; position:absolute; z-index:9999; background:#fff; border:1px solid #999; width:260px; max-height:220px; overflow-y:auto; box-shadow:2px 2px 4px rgba(0,0,0,0.2);";
+
+    var debounceTimer = null;
+
+    function fireChange() {
+        var evt;
+        try { evt = new Event("change"); } catch (e) {
+            evt = document.createEvent("Event");
+            evt.initEvent("change", true, true);
+        }
+        input.dispatchEvent(evt);
+    }
+
+    function esc(s) {
+        var d = document.createElement("div");
+        d.textContent = s || "";
+        return d.innerHTML;
+    }
+
+    function renderResults(results) {
+        panel.innerHTML = "";
+        if (!results || !results.length) {
+            panel.style.display = "none";
+            return;
+        }
+        for (var i = 0; i < results.length; i++) {
+            (function(r) {
+                var name = (r.firstName || "") + " " + (r.lastName || "");
+                var sub  = r.email1 || r.phoneHome || r.phoneCell || "";
+
+                var item = document.createElement("div");
+                item.style.cssText = "padding:4px 8px; cursor:pointer;";
+                item.innerHTML = "<div>" + esc(name.trim()) + "</div>" +
+                    (sub ? "<div style='font-size:11px;color:#666;'>" + esc(sub) + "</div>" : "");
+
+                item.addEventListener("mouseenter", function() { this.style.background = "#eee"; });
+                item.addEventListener("mouseleave", function() { this.style.background = ""; });
+                item.addEventListener("mousedown", function(e) {
+                    e.preventDefault();
+                    input.value = name.trim();
+                    panel.style.display = "none";
+                    fireChange();
+                });
+                panel.appendChild(item);
+            })(results[i]);
+        }
+        panel.style.display = "block";
+    }
+
+    input.addEventListener("input", function() {
+        var term = input.value;
+        if (debounceTimer) clearTimeout(debounceTimer);
+
+        if (term.trim() === "") {
+            panel.style.display = "none";
+            return;
+        }
+
+        debounceTimer = setTimeout(function() {
+            var url = "index.php?m=home&a=quickSearchCandidatesJSON&quickSearchFor=" + encodeURIComponent(term);
+            fetch(url, { credentials: "same-origin" })
+                .then(function(resp) { return resp.json(); })
+                .then(function(data) { renderResults(data); })
+                .catch(function() { panel.style.display = "none"; });
+        }, 250);
+    });
+
+    document.addEventListener("click", function(e) {
+        if (!wrapper.contains(e.target) && !panel.contains(e.target)) {
+            panel.style.display = "none";
+        }
+    });
+
+    var rect;
+    input.addEventListener("focus", function() {
+        rect = input.getBoundingClientRect();
+        panel.style.left = (rect.left + window.scrollX) + "px";
+        panel.style.top  = (rect.bottom + window.scrollY) + "px";
+    });
+
+    wrapper.appendChild(input);
+    document.body.appendChild(panel);   // escapes overflow-clipped ancestors
+
+    wrapper.inputEl = input;
+    wrapper.panelEl = panel;
+    return wrapper;
+};
+
+// filter.DefaultFilter.prototype.createOperatorSelect = function(currentValue, filterAreaID, filterCounter) {
+//     var operatorSelect = this.createElement("select", {
+//         id: filterAreaID + filterCounter + "operator",
+//         className: "inputbox",
+//         style: "width: 120px"
+//     });
+//     var possibleTypes = getFilterColumnTypesFromOptionValue(currentValue);
+//     for (var i = 0; i < possibleTypes.length;)
+//     {
+//         var possibleType;
+//         if (possibleTypes.substr(i, 3) === "=d>" || possibleTypes.substr(i, 3) === "=d<" || possibleTypes.substr(i, 3) === "=in" || possibleTypes.substr(i, 3) == "=bt") {
+//             possibleType = possibleTypes.substr(i, 3);
+//             i += 3;
+//         } else {
+//             possibleType = possibleTypes.substr(i, 2);
+//             i += 2;
+//         }
+//         var names = filter.getNames();
+//         if (names[possibleType]) {
+//             operatorSelect.appendChild(
+//                 this.createOption(possibleType, names[possibleType])
+//             );
+//         }
+//     }
+//     return operatorSelect;
+// }
 
 filter.DefaultFilter.prototype.createOperatorSelect = function(currentValue, filterAreaID, filterCounter) {
     var operatorSelect = this.createElement("select", {
@@ -307,78 +341,36 @@ filter.DefaultFilter.prototype.createInputArea = function(filterAreaID, filterCo
 
 filter.DefaultFilter.prototype.buildDropDownValueWidget = function(options, onSelect) {
     var me = this;
-    var wrapper = document.createElement("div");
-    wrapper.style.cssText = "display:inline-block; position:relative; vertical-align:middle;";
+    var select = document.createElement("select");
+    select.id = me.filterAreaID + me.filterCounter + "value";
+    select.className = "inputbox";
+    select.style.width = "180px";
 
-    var display = document.createElement("div");
-    display.className = "inputbox";
-    display.style.cssText = "width:180px; cursor:pointer; padding:2px 4px; background:#fff; border:1px solid #999; display:inline-block;";
-    display.innerHTML = "-- Select --";
+    var placeholder = document.createElement("option");
+    placeholder.value = "";
+    placeholder.textContent = "-- Select --";
+    select.appendChild(placeholder);
 
-    var panel = document.createElement("div");
-    panel.style.cssText = "display:none; position:absolute; z-index:9999; background:#fff; border:1px solid #999; width:180px; box-shadow:2px 2px 4px rgba(0,0,0,0.2);";
-
-    var searchInput = document.createElement("input");
-    searchInput.type = "text";
-    searchInput.placeholder = "Search...";
-    searchInput.style.cssText = "width:100%; box-sizing:border-box; padding:4px; border:none; border-bottom:1px solid #ccc;";
-
-    var list = document.createElement("div");
-    list.style.cssText = "max-height:200px; overflow-y:auto;";
-
-    var hiddenInput = document.createElement("input");
-    hiddenInput.type = "hidden";
-    hiddenInput.id = me.filterAreaID + me.filterCounter + "value";
-
-    function buildList(filterText) {
-        list.innerHTML = "";
-        for (var i = 0; i < options.length; i++) {
-            var opt = options[i];
-            if (filterText && opt.label.toLowerCase().indexOf(filterText.toLowerCase()) === -1) continue;
-            (function(o) {
-                var item = document.createElement("div");
-                item.style.cssText = "padding:4px 8px; cursor:pointer;";
-                item.textContent = o.label;
-                item.addEventListener("mouseenter", function() { this.style.background = "#eee"; });
-                item.addEventListener("mouseleave", function() { this.style.background = ""; });
-                item.addEventListener("click", function() {
-                    hiddenInput.value = o.value;
-                    display.textContent = o.label;
-                    panel.style.display = "none";
-                    onSelect();
-                });
-                list.appendChild(item);
-            })(opt);
-        }
+    for (var i = 0; i < options.length; i++) {
+        var opt = document.createElement("option");
+        opt.value = options[i].value;
+        opt.textContent = options[i].label;
+        select.appendChild(opt);
     }
 
-    buildList("");
-    searchInput.addEventListener("input", function() { buildList(this.value); });
-    display.addEventListener("click", function(e) {
-        e.stopPropagation();
-        panel.style.display = panel.style.display === "none" ? "block" : "none";
-        if (panel.style.display === "block") { searchInput.value = ""; buildList(""); searchInput.focus(); }
-    });
-    document.addEventListener("click", function() { panel.style.display = "none"; });
-
-    panel.appendChild(searchInput);
-    panel.appendChild(list);
-    wrapper.appendChild(display);
-    wrapper.appendChild(hiddenInput);
-    wrapper.appendChild(panel);
-    return wrapper;
+    select.addEventListener("change", onSelect);
+    return select;
 };
 
 filter.DefaultFilter.prototype.render = function() {
     var me = this;
     var filterDiv = document.createElement("div");
 
-var colWrapper = this.createSearchableFieldSelect(
-    this.defaultValue, this.filterAreaID, this.filterCounter,
-    this.selectableColumns, this.instanceName
-);
-var selectColumn = colWrapper.selectColumn;
-filterDiv.appendChild(colWrapper);
+    var selectColumn = this.createFieldSelect(this.defaultValue, this.filterAreaID, this.filterCounter, this.selectableColumns);
+    selectColumn.addEventListener("change", this.createSelectAreaChangeHandler(
+        selectColumn, this.filterCounter, this.filterAreaID, this.selectableColumns, this.instanceName
+    ));
+    filterDiv.appendChild(selectColumn);
 
     var operatorSelect = this.createOperatorSelect(selectColumn.value, this.filterAreaID, this.filterCounter);
     filterDiv.appendChild(operatorSelect);
@@ -426,6 +418,13 @@ filterDiv.appendChild(colWrapper);
     };
 
     var updateValueArea = function() {
+        // valueArea.innerHTML = "";
+        // var op  = operatorSelect.value;
+        // var col = getColumn();
+        if (valueArea._qsPanel && valueArea._qsPanel.parentNode) {
+            valueArea._qsPanel.parentNode.removeChild(valueArea._qsPanel);
+            valueArea._qsPanel = null;
+        }
         valueArea.innerHTML = "";
         var op  = operatorSelect.value;
         var col = getColumn();
@@ -469,13 +468,19 @@ filterDiv.appendChild(colWrapper);
             return;
         }
 
-        /* Everything else: a single typed value. */
-        var input = document.createElement("input");
-        input.id = me.filterAreaID + me.filterCounter + "value";
-        input.className = "inputbox";
-        input.style.width = "180px";
-        input.addEventListener("change", applyFilter);
-        valueArea.appendChild(input);
+        // /* Everything else: a single typed value. */
+        // var input = document.createElement("input");
+        // input.id = me.filterAreaID + me.filterCounter + "value";
+        // input.className = "inputbox";
+        // input.style.width = "180px";
+        // input.addEventListener("change", applyFilter);
+        // valueArea.appendChild(input);
+        /* Everything else: quick-search-backed value input. */
+        var qsWidget = me.createQuickSearchInput();
+        qsWidget.inputEl.id = me.filterAreaID + me.filterCounter + "value";
+        qsWidget.inputEl.addEventListener("change", applyFilter);
+        valueArea._qsPanel = qsWidget.panelEl;
+        valueArea.appendChild(qsWidget);
     };
 
     operatorSelect.addEventListener("change", updateValueArea);
@@ -572,12 +577,12 @@ filter.DropDownFilter.prototype.render = function() {
     var me = this;
     var columnName = getFilterColumnNameFromOptionValue(this.defaultValue);
     var filterDiv = document.createElement("div");
-
-var colWrapper = this.createSearchableFieldSelect(
-    this.defaultValue, this.filterAreaID, this.filterCounter,
-    this.selectableColumns, this.instanceName
-);
-filterDiv.appendChild(colWrapper);
+    
+    var selectColumn = this.createFieldSelect(this.defaultValue, this.filterAreaID, this.filterCounter, this.selectableColumns);
+    selectColumn.addEventListener("change", this.createSelectAreaChangeHandler(
+        selectColumn, this.filterCounter, this.filterAreaID, this.selectableColumns, this.instanceName
+    ));
+    filterDiv.appendChild(selectColumn);
 
     var operatorSelect = this.createElement("select", {
         id: this.filterAreaID + this.filterCounter + "operator",
@@ -594,71 +599,26 @@ var valueArea = document.createElement("div");
     valueArea.style.cssText = "display:inline-block; vertical-align:middle;";
     filterDiv.appendChild(valueArea);
 
-    function buildValueWidget(options, onSelect) {
-        var wrapper = document.createElement("div");
-        wrapper.style.cssText = "display:inline-block; position:relative; vertical-align:middle;";
+function buildValueWidget(options, onSelect) {
+        var select = document.createElement("select");
+        select.id = me.filterAreaID + me.filterCounter + "value";
+        select.className = "inputbox";
+        select.style.width = "220px";
 
-        var display = document.createElement("div");
-        display.className = "inputbox";
-        display.style.cssText = "width:220px; cursor:pointer; padding:2px 4px; background:#fff; border:1px solid #999; display:inline-block;";
-        display.innerHTML = "-- Select --";
+        var placeholder = document.createElement("option");
+        placeholder.value = "";
+        placeholder.textContent = "-- Select --";
+        select.appendChild(placeholder);
 
-        var panel = document.createElement("div");
-        panel.style.cssText = "display:none; position:absolute; z-index:9999; background:#fff; border:1px solid #999; width:220px; box-shadow:2px 2px 4px rgba(0,0,0,0.2);";
-
-        var searchInput = document.createElement("input");
-        searchInput.type = "text";
-        searchInput.placeholder = "Search...";
-        searchInput.style.cssText = "width:100%; box-sizing:border-box; padding:4px; border:none; border-bottom:1px solid #ccc;";
-
-        var list = document.createElement("div");
-        list.style.cssText = "max-height:200px; overflow-y:auto;";
-
-        var hiddenInput = document.createElement("input");
-        hiddenInput.type = "hidden";
-        hiddenInput.id   = me.filterAreaID + me.filterCounter + "value";
-
-        function buildList(filterText) {
-            list.innerHTML = "";
-            for (var i = 0; i < options.length; i++) {
-                var opt = options[i];
-                if (filterText && opt.label.toLowerCase().indexOf(filterText.toLowerCase()) === -1) continue;
-                (function(o) {
-                    var item = document.createElement("div");
-                    item.style.cssText = "padding:4px 8px; cursor:pointer;";
-                    item.textContent = o.label;
-                    item.addEventListener("mouseenter", function() { this.style.background = "#eee"; });
-                    item.addEventListener("mouseleave",  function() { this.style.background = "";    });
-                    item.addEventListener("click", function() {
-                        hiddenInput.value   = o.value;
-                        display.textContent = o.label;
-                        panel.style.display = "none";
-                        onSelect();
-                    });
-                    list.appendChild(item);
-                })(opt);
-            }
+        for (var i = 0; i < options.length; i++) {
+            var opt = document.createElement("option");
+            opt.value = options[i].value;
+            opt.textContent = options[i].label;
+            select.appendChild(opt);
         }
 
-        buildList("");
-        searchInput.addEventListener("input", function() { buildList(this.value); });
-        display.addEventListener("click", function(e) {
-            e.stopPropagation();
-            panel.style.display = panel.style.display === "none" ? "block" : "none";
-            if (panel.style.display === "block") {
-                searchInput.value = "";
-                buildList("");
-                searchInput.focus();
-            }
-        });
-        document.addEventListener("click", function() { panel.style.display = "none"; });
-
-        panel.appendChild(searchInput);
-        panel.appendChild(list);
-        wrapper.appendChild(display);
-        wrapper.appendChild(hiddenInput);
-        wrapper.appendChild(panel);
-        return wrapper;
+        select.addEventListener("change", onSelect);
+        return select;
     }
 
     function updateValueArea() {
