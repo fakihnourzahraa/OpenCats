@@ -679,7 +679,7 @@ private function exportPipeline()
         $this->_template->assign('careerPortalEnabled', $careerPortalEnabled);
         $this->_template->assign('privledgedUser', $privledgedUser);
         $this->_template->assign('sessionCookie', $_SESSION['CATS']->getCookie());
- $candidates = new Candidates($this->_siteID);
+        $candidates = new Candidates($this->_siteID);
         
         $sourcesRS = $candidates->getPossibleSources();
         $this->_template->assign('sourcesRS', $sourcesRS);
@@ -1659,8 +1659,7 @@ $this->_template->display('./modules/joborders/Show.tpl');
         $this->_template->assign('onlyScheduleEvent', false);
         $this->_template->assign('isFinishedMode', false);
         $this->_template->assign('isJobOrdersMode', true);
-        $this->_template->assign('statusChangeTemplatesMap', $statusChangeTemplatesMap);
-        
+
         if (!eval(Hooks::get('JO_ADD_ACTIVITY_CHANGE_STATUS'))) return;
 
         $this->_template->display(
@@ -1779,7 +1778,7 @@ $this->_template->display('./modules/joborders/Show.tpl');
         $this->_template->assign('emailDisabled', $emailDisabled);
         $this->_template->assign('isFinishedMode', false);
         $this->_template->assign('isJobOrdersMode', true);
-
+        $this->_template->assign('statusChangeTemplatesMap', $statusChangeTemplatesMap);
         if (!eval(Hooks::get('JO_ADD_ACTIVITY_CHANGE_STATUS'))) return;
 
         $this->_template->display(
