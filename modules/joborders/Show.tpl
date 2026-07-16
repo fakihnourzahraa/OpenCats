@@ -13,16 +13,6 @@ use OpenCATS\UI\QuickActionMenu;
 <?php endif; ?>
 
 <script type="text/javascript">
-    filterDropDownRegistry['University'] = [
-        <?php foreach ($this->universitiesRS as $i => $u): ?>
-            { value: '<?php echo addslashes($u['shortName']); ?>', label: '<?php echo addslashes($u['shortName']); ?>' }<?php echo ($i < count($this->universitiesRS) - 1) ? ',' : ''; ?>
-        <?php endforeach; ?>
-    ];
-    filterDropDownRegistry['Nationality'] = [
-        <?php foreach ($this->nationalitiesRS as $i => $n): ?>
-            { value: '<?php echo addslashes($n['optionValue']); ?>', label: '<?php echo addslashes($n['optionLabel']); ?>' }<?php echo ($i < count($this->nationalitiesRS) - 1) ? ',' : ''; ?>
-        <?php endforeach; ?>
-    ];
     filterDropDownRegistry['Source'] = [
         <?php foreach ($this->sourcesRS as $i => $s): ?>
             { value: '<?php echo addslashes($s['name']); ?>', label: '<?php echo addslashes($s['name']); ?>' }<?php echo ($i < count($this->sourcesRS) - 1) ? ',' : ''; ?>
@@ -34,16 +24,6 @@ use OpenCATS\UI\QuickActionMenu;
         <?php endforeach; ?>
     ];
     
-    filterIsInRegistry['University'] = [
-        <?php if (!empty($this->pipelineUniversitiesIsIn)): foreach ($this->pipelineUniversitiesIsIn as $i => $u): ?>
-            { value: '<?php echo addslashes($u['val']); ?>', label: '<?php echo addslashes($u['val']); ?>' }<?php echo ($i < count($this->pipelineUniversitiesIsIn) - 1) ? ',' : ''; ?>
-        <?php endforeach; endif; ?>
-    ];
-    filterIsInRegistry['Nationality'] = [
-        <?php if (!empty($this->pipelineNationalitiesIsIn)): foreach ($this->pipelineNationalitiesIsIn as $i => $n): ?>
-            { value: '<?php echo addslashes($n['val']); ?>', label: '<?php echo addslashes($n['val']); ?>' }<?php echo ($i < count($this->pipelineNationalitiesIsIn) - 1) ? ',' : ''; ?>
-        <?php endforeach; endif; ?>
-    ];
     filterIsInRegistry['Source'] = [
         <?php if (!empty($this->pipelineSourcesIsIn)): foreach ($this->pipelineSourcesIsIn as $i => $s): ?>
             { value: '<?php echo addslashes($s['val']); ?>', label: '<?php echo addslashes($s['val']); ?>' }<?php echo ($i < count($this->pipelineSourcesIsIn) - 1) ? ',' : ''; ?>
@@ -52,18 +32,9 @@ use OpenCATS\UI\QuickActionMenu;
     filterDateRangeRegistry['Created'] = true;
     filterDateRangeRegistry['Modified'] = true;
     filterDateRangeRegistry['Added'] = true;
-    filterRangeRegistry['GPA'] = true;
+
     filterRangeRegistry['Desired Pay'] = true;
-    
-    filterDropDownRegistry['Interview Stage'] = [
-    {value: 'Applied',              label: 'Applied'},
-    {value: '1st Screening',        label: '1st Screening'},
-    {value: 'Interview 1',          label: 'Interview 1'},
-    {value: 'Interview 2',          label: 'Interview 2'},
-    {value: 'Job offered',          label: 'Job offered'},
-    {value: 'Job offer refused',    label: 'Job offer refused'},
-    {value: 'Job offer accepted',   label: 'Job offer accepted'}
-];
+
 </script>
 <script type="text/javascript">
 function pipelineColumnBox_toggle() {

@@ -426,10 +426,7 @@ private function exportPipeline()
         'webSite'             => array('Web Site',         'webSite'),
         'notes'               => array('Misc Notes',       'notes'),
         'dateAvailable'       => array('Available',        'dateAvailable'),
-        'dateModified'        => array('Modified',         'dateModified'),
-        'gpa'                 => array('GPA',              'gpa'),
-        'nationality'         => array('Nationality',      'nationality'),
-        'universityShortName' => array('University',       'universityShortName'),
+        'dateModified'        => array('Modified',         'dateModified')
     );
     /* Add extra field definitions to column map */
     $extraFieldDefs = $pipelines->getExtraFieldDefinitions();
@@ -687,43 +684,10 @@ private function exportPipeline()
         $sourcesRS = $candidates->getPossibleSources();
         $this->_template->assign('sourcesRS', $sourcesRS);
         $db = DatabaseConnection::getInstance();
-$pipelineUniversitiesIsIn = $db->getAllAssoc(sprintf(
-    "SELECT DISTINCT candidate.university AS val
-    FROM candidate
-    INNER JOIN candidate_joborder ON candidate_joborder.candidate_id = candidate.candidate_id
-    WHERE candidate_joborder.joborder_id = %d
-    AND candidate_joborder.site_id = %d
-    AND candidate.university IS NOT NULL AND candidate.university != ''
-    ORDER BY candidate.university ASC",
-    $jobOrderID, $this->_siteID
-));
-        $this->_template->assign('pipelineUniversitiesIsIn', $pipelineUniversitiesIsIn);
-        $pipelineNationalitiesIsIn = $db->getAllAssoc(sprintf(
-            "SELECT DISTINCT candidate.nationality AS val
-            FROM candidate
-            INNER JOIN candidate_joborder ON candidate_joborder.candidate_id = candidate.candidate_id
-            WHERE candidate_joborder.joborder_id = %d
-            AND candidate_joborder.site_id = %d
-            AND candidate.nationality IS NOT NULL AND candidate.nationality != ''
-            ORDER BY candidate.nationality ASC",
-            $jobOrderID, $this->_siteID
-        ));
-        $this->_template->assign('pipelineNationalitiesIsIn', $pipelineNationalitiesIsIn);
-        $pipelineSourcesIsIn = $db->getAllAssoc(sprintf(
-            "SELECT DISTINCT candidate.source AS val
-            FROM candidate
-            INNER JOIN candidate_joborder ON candidate_joborder.candidate_id = candidate.candidate_id
-            WHERE candidate_joborder.joborder_id = %d
-            AND candidate_joborder.site_id = %d
-            AND candidate.source IS NOT NULL AND candidate.source != ''
-            ORDER BY candidate.source ASC",
-            $jobOrderID, $this->_siteID
-        ));
+
+        
         $this->_template->assign('pipelineSourcesIsIn', $pipelineSourcesIsIn);
-        $universitiesRS = $candidates->getPossibleDropDownOptions('university', 'university_id', 'canonical_name', 'short_name');
-        $nationalitiesRS = $candidates->getPossibleDropDownOptions('nationality', 'name', 'name', null, 'sort_order ASC, name ASC');
-        $this->_template->assign('universitiesRS', $universitiesRS);
-        $this->_template->assign('nationalitiesRS', $nationalitiesRS);
+
         $statusesRS = $candidates->getPossibleDropDownOptions(
             'candidate_joborder_status',
             'short_description',

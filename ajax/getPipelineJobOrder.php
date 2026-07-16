@@ -158,11 +158,7 @@ $columnMap = array(
     'Available'        => 'dateAvailable',
     'Modified'         => 'dateModified',
     'Added'            => 'dateCreated',
-    'GPA'              => 'gpa',
     'Created'          => 'candidateDateCreated',
-    'University'       => 'universityShortName',
-    'Nationality'      => 'nationality',
-    'Interview Stage'  => 'interviewStage',
     'Status'  => 'statusDescription',
 );
 $allPipelineColumns = array(
@@ -193,10 +189,6 @@ $allPipelineColumns = array(
     'dateAvailable'       => 'Available',
     'dateModified'        => 'Modified',
     'candidateDateCreated'         => 'Created',
-    'gpa'                 => 'GPA',
-    'nationality'         => 'Nationality',
-    'interviewStage'         => 'Interview Stage',
-    'universityShortName' => 'University',
     'jobOrderStatus'      => 'Job Order Status',
     'action'              => 'Action',
 );
@@ -252,8 +244,7 @@ $hardcodedCols = array(
     'dateCreatedInt','addedByAbbrName','status','lastActivity',
     'candidateEmail','candidateEmail2','phoneHome','phoneCell','phoneWork',
     'keySkills','currentEmployer','currentPay','desiredPay','canRelocate',
-    'source','webSite','notes','dateAvailable','dateModified', 'candidateDateCreated',
-    'gpa','nationality','interviewStage','universityShortName','jobOrderStatus','action',
+    'source','webSite','notes','dateAvailable','dateModified', 'candidateDateCreated', 'jobOrderStatus','action',
 );
 $visibleColCount = 3;
 foreach ($allPipelineColumns as $k => $v) {
@@ -277,18 +268,7 @@ if ($filterString !== '')
                 $col = isset($columnMap[$col]) ? $columnMap[$col] : $col;
 $pipelinesRS = array_filter($pipelinesRS, function($row) use ($col, $op, $val) {
     $fieldValue = isset($row[$col]) ? $row[$col] : '';
-    if ($col === 'gpa') {
-        if ($op === '=e') return $fieldValue === '' || $fieldValue === null;
-        $fieldValue = (float) $fieldValue;
-        $val = (float) $val;
-        switch ($op) {
-            case '==': return $fieldValue == $val;
-            case '=>':  return $fieldValue >= $val;
-            case '=<':  return $fieldValue <= $val;
-            case '=e': return $fieldValue === '' || $fieldValue === null;
-            default:    return true;
-        }
-    }
+
     if ($col === 'dateCreated' || $col === 'candidateDateCreated' || $col == 'dateModified') {
         if ($op === '=e') return $fieldValue === '' || $fieldValue === null;
         $fieldValue = DateTime::createFromFormat('m-d-y', $fieldValue);
@@ -535,26 +515,6 @@ if (!eval(Hooks::get('JO_AJAX_GET_PIPELINE'))) return;
             <a href="javascript:void(0);" onclick="PipelineJobOrder_populate(<?php echo($jobOrderID); ?>, <?php echo($page); ?>, <?php echo($entriesPerPage); ?>, <?php printSortLink('candidateDateCreated'); ?>, <?php if ($isPopup) echo(1); else echo(0); ?>, 'ajaxPipelineTable', '<?php echo($_SESSION['CATS']->getCookie()); ?>', 'ajaxPipelineTableIndicator', '<?php echo($indexFile); ?>');">Created</a>
         </th>
         <?php endif; ?>
-        <?php if (in_array('gpa', $visibleCols)): ?>
-        <th align="left" width="50" nowrap="nowrap">
-            <a href="javascript:void(0);" onclick="PipelineJobOrder_populate(<?php echo($jobOrderID); ?>, <?php echo($page); ?>, <?php echo($entriesPerPage); ?>, <?php printSortLink('gpa'); ?>, <?php if ($isPopup) echo(1); else echo(0); ?>, 'ajaxPipelineTable', '<?php echo($_SESSION['CATS']->getCookie()); ?>', 'ajaxPipelineTableIndicator', '<?php echo($indexFile); ?>');">GPA</a>
-        </th>
-        <?php endif; ?>
-        <?php if (in_array('nationality', $visibleCols)): ?>
-        <th align="left" width="80" nowrap="nowrap">
-            <a href="javascript:void(0);" onclick="PipelineJobOrder_populate(<?php echo($jobOrderID); ?>, <?php echo($page); ?>, <?php echo($entriesPerPage); ?>, <?php printSortLink('nationality'); ?>, <?php if ($isPopup) echo(1); else echo(0); ?>, 'ajaxPipelineTable', '<?php echo($_SESSION['CATS']->getCookie()); ?>', 'ajaxPipelineTableIndicator', '<?php echo($indexFile); ?>');">Nationality</a>
-        </th>
-        <?php endif; ?>
-        <?php if (in_array('interviewStage', $visibleCols)): ?>
-        <th align="left" width="80" nowrap="nowrap">
-            <a href="javascript:void(0);" onclick="PipelineJobOrder_populate(<?php echo($jobOrderID); ?>, <?php echo($page); ?>, <?php echo($entriesPerPage); ?>, <?php printSortLink('interviewStage'); ?>, <?php if ($isPopup) echo(1); else echo(0); ?>, 'ajaxPipelineTable', '<?php echo($_SESSION['CATS']->getCookie()); ?>', 'ajaxPipelineTableIndicator', '<?php echo($indexFile); ?>');">Interview Stage</a>
-        </th>
-        <?php endif; ?>
-        <?php if (in_array('universityShortName', $visibleCols)): ?>
-        <th align="left" width="100" nowrap="nowrap">
-            <a href="javascript:void(0);" onclick="PipelineJobOrder_populate(<?php echo($jobOrderID); ?>, <?php echo($page); ?>, <?php echo($entriesPerPage); ?>, <?php printSortLink('universityShortName'); ?>, <?php if ($isPopup) echo(1); else echo(0); ?>, 'ajaxPipelineTable', '<?php echo($_SESSION['CATS']->getCookie()); ?>', 'ajaxPipelineTableIndicator', '<?php echo($indexFile); ?>');">University</a>
-        </th>
-        <?php endif; ?>
         <?php if (in_array('jobOrderStatus', $visibleCols)): ?>
         <th align="left" width="80" nowrap="nowrap">
             <a href="javascript:void(0);" onclick="PipelineJobOrder_populate(<?php echo($jobOrderID); ?>, <?php echo($page); ?>, <?php echo($entriesPerPage); ?>, <?php printSortLink('jobOrderStatus'); ?>, <?php if ($isPopup) echo(1); else echo(0); ?>, 'ajaxPipelineTable', '<?php echo($_SESSION['CATS']->getCookie()); ?>', 'ajaxPipelineTableIndicator', '<?php echo($indexFile); ?>');">Job Order Status</a>
@@ -698,18 +658,6 @@ if (!eval(Hooks::get('JO_AJAX_GET_PIPELINE'))) return;
             <?php endif; ?>
             <?php if (in_array('candidateDateCreated', $visibleCols)): ?>
             <td valign="top" nowrap="nowrap"><?php echo htmlspecialchars($pipelinesData['candidateDateCreated']); ?></td>
-            <?php endif; ?>
-            <?php if (in_array('gpa', $visibleCols)): ?>
-            <td valign="top" nowrap="nowrap"><?php echo htmlspecialchars($pipelinesData['gpa']); ?></td>
-            <?php endif; ?>
-            <?php if (in_array('nationality', $visibleCols)): ?>
-            <td valign="top" nowrap="nowrap"><?php echo htmlspecialchars($pipelinesData['nationality']); ?></td>
-            <?php endif; ?>
-            <?php if (in_array('interviewStage', $visibleCols)): ?>
-            <td valign="top" nowrap="nowrap"><?php echo htmlspecialchars($pipelinesData['interviewStage']); ?></td>
-            <?php endif; ?>
-            <?php if (in_array('universityShortName', $visibleCols)): ?>
-            <td valign="top" nowrap="nowrap"><?php echo htmlspecialchars($pipelinesData['universityShortName']); ?></td>
             <?php endif; ?>
             <?php if (in_array('jobOrderStatus', $visibleCols)): ?>
             <td valign="top" nowrap="nowrap"><?php echo htmlspecialchars($pipelinesData['jobOrderStatus']); ?></td>

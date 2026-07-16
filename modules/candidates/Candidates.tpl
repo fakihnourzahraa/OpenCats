@@ -3,6 +3,27 @@
 <?php TemplateUtility::printHeaderBlock(); ?>
 <?php TemplateUtility::printTabs($this->active); ?>
 <?php $md5InstanceName = md5($this->dataGrid->getInstanceName());?>
+<script type="text/javascript">
+
+    filterDropDownRegistry['Source'] = [
+        <?php foreach ($this->sourcesRS as $i => $s): ?>
+            { value: '<?php echo addslashes($s['name']); ?>', label: '<?php echo addslashes($s['name']); ?>' }<?php echo ($i < count($this->sourcesRS) - 1) ? ',' : ''; ?>
+        <?php endforeach; ?>
+    ];
+    filterDropDownRegistry['Interview Stage'] = [
+    {value: 'Applied',              label: 'Applied'},
+    {value: '1st Screening',        label: '1st Screening'},
+    {value: 'Interview 1',          label: 'Interview 1'},
+    {value: 'Interview 2',          label: 'Interview 2'},
+    {value: 'Job offered',          label: 'Job offered'},
+    {value: 'Job offer refused',    label: 'Job offer refused'},
+    {value: 'Job offer accepted',   label: 'Job offer accepted'}
+];
+
+    filterDateRangeRegistry['Created'] = true;
+    filterDateRangeRegistry['Modified'] = true;
+    filterRangeRegistry['Desired Pay'] = true;
+</script>
     <style type="text/css">
     div.addCandidateButton { background: #4172E3 url(images/nodata/candidatesButton.jpg); cursor: pointer; width: 337px; height: 67px; }
     div.addCandidateButton:hover { background: #4172E3 url(images/nodata/candidateButton-o.jpg); cursor: pointer; width: 337px; height: 67px; }
@@ -120,6 +141,7 @@
 
             <?php $this->dataGrid->drawFilterArea(); ?>
             <?php $this->dataGrid->draw();  ?>
+
 
             <div style="display:block;">
                 <span style="float:left;">

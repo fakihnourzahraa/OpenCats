@@ -215,10 +215,7 @@ class PipelineExportDataGrid extends PipelineCandidatesDataGrid
         'webSite'             => 'Web Site',
         'notes'               => 'Misc Notes',
         'dateAvailable'       => 'Available',
-        'dateModified'        => 'Modified',
-        'gpa'                 => 'GPA',
-        'nationality'         => 'Nationality',
-        'universityShortName' => 'University',
+        'dateModified'        => 'Modified'
     );
     protected function buildColumns()
     {

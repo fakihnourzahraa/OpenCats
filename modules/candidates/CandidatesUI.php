@@ -564,6 +564,10 @@ class CandidatesUI extends UserInterface
         $this->_template->assign('topLog', $topLog);
         $this->_template->assign('tagsRS', $tagsRS);
 
+        $sourcesRS = $candidates->getPossibleSources();
+        $this->_template->assign('sourcesRS', $sourcesRS);
+        
+
         if (!eval(Hooks::get('CANDIDATE_LIST_BY_VIEW'))) return;
 
         $this->_template->display('./modules/candidates/Candidates.tpl');
@@ -663,6 +667,8 @@ class CandidatesUI extends UserInterface
         {
             $data['titleClass'] = 'jobTitleCold';
         }
+
+        $data['university'] = !empty($data['universityShortName']) ? $data['universityShortName'] : '';
 
         $attachments = new Attachments($this->_siteID);
         $attachmentsRS = $attachments->getAll(
@@ -1810,6 +1816,22 @@ class CandidatesUI extends UserInterface
         {
             $allowEventReminders = false;
         }
+        $statusChangeTemplatesMap = array();
+        foreach ($statusRS as $status)
+        {
+            $perStatusRS = $emailTemplates->getByTag(
+                'EMAIL_TEMPLATE_STATUSCHANGE_' . $status['statusID']
+            );
+            if (!empty($perStatusRS) && !empty($perStatusRS['textReplaced']))
+            {
+                $text = str_replace($stringsToFind, $replacementStrings, $perStatusRS['textReplaced']);
+            }
+            else
+            {
+                $text = $statusChangeTemplate;
+            }
+            $statusChangeTemplatesMap[$status['statusID']] = $text;
+        }
 
         $this->_template->assign('candidateID', $candidateID);
         $this->_template->assign('pipelineRS', $pipelineRS);
@@ -1820,6 +1842,7 @@ class CandidatesUI extends UserInterface
         $this->_template->assign('onlyScheduleEvent', $onlyScheduleEvent);
         $this->_template->assign('isFinishedMode', false);
         $this->_template->assign('isJobOrdersMode', false);
+        $this->_template->assign('statusChangeTemplatesMap', $statusChangeTemplatesMap);
         $this->_template->display(
             './modules/candidates/AddActivityScheduleEventModal.tpl'
         );
