@@ -32,6 +32,14 @@
         statusTriggersEmailMap[<?php echo((int) $statusData['statusID']); ?>] = <?php echo((int) $statusData['triggersEmail']); ?>;
     <?php endforeach; ?>
 
+    var statusChangeTemplatesMap = <?php echo json_encode($this->statusChangeTemplatesMap); ?>;
+
+    function CS_updateOriginalTemplate(statusID)
+    {
+        if (statusChangeTemplatesMap && statusChangeTemplatesMap[statusID] !== undefined) {
+            document.getElementById('origionalCustomMessage').value = statusChangeTemplatesMap[statusID];
+        }
+    }
     function CS_getRegardingID()
     {
         var regardingSelect = document.getElementById('regardingID');
@@ -103,7 +111,7 @@
         var emailIsDisabled = document.getElementById('emailIsDisabled');
         var selectedStatusID = parseInt(statusSelect.value, 10);
         var currentStatusID = parseInt(statusByJobOrderID[regardingID], 10);
-
+        CS_updateOriginalTemplate(selectedStatusID);
         if (isNaN(regardingID) || isNaN(selectedStatusID) || selectedStatusID <= 0 || selectedStatusID === currentStatusID)
         {
             CS_clearEmail();

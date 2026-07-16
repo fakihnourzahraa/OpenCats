@@ -202,11 +202,18 @@ define('MAIL_SENDMAIL_PATH', '/usr/sbin/sendmail');
  * set to 3. If your server requires authentication, set MAIL_SMTP_AUTH to
  * true and configure MAIL_SMTP_USER and MAIL_SMTP_PASS.
  */
-define('MAIL_SMTP_HOST', 'localhost');
+// define('MAIL_SMTP_HOST', 'localhost');
+// define('MAIL_SMTP_PORT', 587);
+// define('MAIL_SMTP_AUTH', true);
+// define('MAIL_SMTP_USER', 'user');
+// define('MAIL_SMTP_PASS', 'password');
+// //Options: '', 'ssl' or 'tls'
+// define('MAIL_SMTP_SECURE', "tls");
+define('MAIL_SMTP_HOST', "smtp.gmail.com");
 define('MAIL_SMTP_PORT', 587);
 define('MAIL_SMTP_AUTH', true);
-define('MAIL_SMTP_USER', 'user');
-define('MAIL_SMTP_PASS', 'password');
+define('MAIL_SMTP_USER', "fakihnour2005@gmail.com");
+define('MAIL_SMTP_PASS', "jtcrpmnnarqgyear");
 //Options: '', 'ssl' or 'tls'
 define('MAIL_SMTP_SECURE', "tls");
 
