@@ -573,11 +573,12 @@ filter.DropDownFilter = function(defaultValue, filterCounter, filterAreaID, sele
 
 filter.DropDownFilter.prototype = Object.create(filter.Filter.prototype);
 
+
 filter.DropDownFilter.prototype.render = function() {
     var me = this;
     var columnName = getFilterColumnNameFromOptionValue(this.defaultValue);
     var filterDiv = document.createElement("div");
-    
+
     var selectColumn = this.createFieldSelect(this.defaultValue, this.filterAreaID, this.filterCounter, this.selectableColumns);
     selectColumn.addEventListener("change", this.createSelectAreaChangeHandler(
         selectColumn, this.filterCounter, this.filterAreaID, this.selectableColumns, this.instanceName
@@ -589,17 +590,22 @@ filter.DropDownFilter.prototype.render = function() {
         className: "inputbox",
         style: "width: 120px"
     });
-    operatorSelect.appendChild(this.createOption("==", "is in"));
-    operatorSelect.appendChild(this.createOption("=e", "is empty"));
 
+    var isPipeline = (typeof window.isPipelineFilterPage !== 'undefined' && window.isPipelineFilterPage === true);
+    if (isPipeline) {
+        operatorSelect.appendChild(this.createOption("=in", "is in"));
+    } else {
+        operatorSelect.appendChild(this.createOption("==", "is equal to"));
+    }
+    operatorSelect.appendChild(this.createOption("=e", "is empty"));
 
     filterDiv.appendChild(operatorSelect);
 
-var valueArea = document.createElement("div");
+    var valueArea = document.createElement("div");
     valueArea.style.cssText = "display:inline-block; vertical-align:middle;";
     filterDiv.appendChild(valueArea);
 
-function buildValueWidget(options, onSelect) {
+    function buildValueWidget(options, onSelect) {
         var select = document.createElement("select");
         select.id = me.filterAreaID + me.filterCounter + "value";
         select.className = "inputbox";
@@ -625,9 +631,9 @@ function buildValueWidget(options, onSelect) {
         valueArea.innerHTML = "";
         var op = operatorSelect.value;
         if (op === "=e") {
-        applyDropDownFilter(me.filterAreaID, me.filterCounter, me.instanceName, columnName);
-        return;
-    }
+            applyDropDownFilter(me.filterAreaID, me.filterCounter, me.instanceName, columnName);
+            return;
+        }
         var options = op === "=in"
             ? (filterIsInRegistry[columnName] || [])
             : (filterDropDownRegistry[columnName] || []);
@@ -642,6 +648,7 @@ function buildValueWidget(options, onSelect) {
     filterDiv.style.float = "left";
     return filterDiv;
 }
+
 
 function applyDropDownFilter(filterAreaID, filterCounter, instanceName, columnName) {
     var filterArea = document.getElementById("filterArea" + instanceName);

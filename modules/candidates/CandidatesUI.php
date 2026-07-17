@@ -668,8 +668,6 @@ class CandidatesUI extends UserInterface
             $data['titleClass'] = 'jobTitleCold';
         }
 
-        $data['university'] = !empty($data['universityShortName']) ? $data['universityShortName'] : '';
-
         $attachments = new Attachments($this->_siteID);
         $attachmentsRS = $attachments->getAll(
             DATA_ITEM_CANDIDATE, $candidateID

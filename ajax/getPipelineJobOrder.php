@@ -376,6 +376,15 @@ if (!eval(Hooks::get('JO_AJAX_GET_PIPELINE'))) return;
 
 ?>
 
+<?php
+$jsSortBy    = addslashes($sortBy);
+$jsSortDir   = addslashes($sortDirection);
+$jsIndexFile = addslashes($indexFile);
+$jsFilter    = addslashes($filterString);
+$jsCookie    = addslashes($_SESSION['CATS']->getCookie());
+$jsIsPopup   = $isPopup ? 1 : 0;
+?>
+
 <?php echo(TemplateUtility::getRatingsArrayJS()); ?>
 
 <script type="text/javascript">
@@ -396,6 +405,38 @@ if (!eval(Hooks::get('JO_AJAX_GET_PIPELINE'))) return;
 </script>
     <table class="notsortable" id="pipelineTable" width="100%">
     <tr>
+        <th style="width:10px; border-right:1px solid gray;" align="center">
+            <div style="width:10px; position:relative;">
+                <a href="javascript:void(0);" id="pipelineColumnIcon" onclick="pipelineColumnBox_toggle(); return false;">
+                    <img src="images/tab_add.gif" border="0" alt="" />
+                </a>
+                <div class="ajaxSearchResults" id="pipelineColumnBox" onclick="event.stopPropagation();"
+                     style="display:none; position:absolute; left:0; top:16px; width:180px; z-index:10000; text-align:left;">
+                    <span style="font-weight:bold; color:#000000;">Show Columns:</span><br/><br/>
+                    <?php foreach ($allPipelineColumns as $colKey => $colLabel): ?>
+                        <?php if ($colKey === 'action' && $isPopup) continue; ?>
+                        <?php $isVis = in_array($colKey, $visibleCols); ?>
+                        <span style="font-weight:normal;">
+                            <a href="javascript:void(0);"
+                               onclick="pipelineToggleColumn('<?php echo htmlspecialchars($colKey); ?>',
+                                        '<?php echo $isVis ? 'remove' : 'add'; ?>');">
+                                <img src="images/<?php echo $isVis ? 'checkbox' : 'checkbox_blank'; ?>.gif" border="0" alt="" />
+                                &nbsp;&nbsp;&nbsp;&nbsp;<?php echo htmlspecialchars($colLabel); ?>
+                            </a>
+                        </span><br/>
+                    <?php endforeach; ?>
+                    <br/>
+                    <span style="font-weight:bold;">
+                        <a href="javascript:void(0);" onclick="pipelineToggleColumn('', 'reset');">
+                            <img src="images/checkbox_blank.gif" border="0" alt="" />
+                            &nbsp;&nbsp;&nbsp;&nbsp;Reset to Default Columns
+                        </a>
+                    </span><br/>
+                </div>
+            </div>
+        </th>
+
+
         <th></th>
         <th></th>
         <th align="left" width="32" nowrap="nowrap"></th>

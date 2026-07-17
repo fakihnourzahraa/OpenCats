@@ -2315,8 +2315,8 @@ class CandidatesDataGrid extends DataGrid
 
             if (!isset($this->_classColumns[$fieldName]))
             {
-                $columnDefinition = $candidates->extraFields->getDataGridDefinition($index, $data, $this->_db);
-
+                $pipelineJobOrderID = isset($this->_pipelineJobOrderID) ? $this->_pipelineJobOrderID : null;
+                $columnDefinition = $candidates->extraFields->getDataGridDefinition($index, $data, $this->_db, $pipelineJobOrderID);
                 /* Return false for extra fields that should not be columns. */
                 if ($columnDefinition !== false)
                 {

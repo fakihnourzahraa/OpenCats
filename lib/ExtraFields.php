@@ -745,7 +745,7 @@ class ExtraFields
      * @param handle database handle
      * @return array datagrid class entry
      */
-    public function getDataGridDefinition($uniqueIndex, $data, $db)
+    public function getDataGridDefinition($uniqueIndex, $data, $db, $pipelineJobOrderID = null)
     {
         switch ($this->_dataItemType)
         {
@@ -841,8 +841,10 @@ class ExtraFields
                 $tokens[] = '=<';
                 break;
 
-            case 'dropdown':
+           case 'dropdown':
+             error_log('DEBUG pipelineJobOrderID = ' . var_export($pipelineJobOrderID, true) . ' for field ' . $data['fieldName']);
                 $tokens[] = '=in';
+
                 if (!empty($data['extraFieldOptions'])) {
                     $rawOptions = explode(',', $data['extraFieldOptions']);
                 } else {
@@ -863,6 +865,30 @@ class ExtraFields
                     $opt = urldecode(trim($opt));
                     return $opt !== '' ? ['value' => $opt, 'label' => $opt] : null;
                 }, $rawOptions)));
+
+                /* Pipeline-scoped ("is in") values — only present when this definition
+                * is being built for a specific job order's pipeline grid. */
+                if ($pipelineJobOrderID !== null && $this->_dataItemType == DATA_ITEM_CANDIDATE) {
+                    $isInSQL = sprintf(
+                        "SELECT DISTINCT extra_field.value AS val
+                        FROM extra_field
+                        INNER JOIN candidate_joborder ON candidate_joborder.candidate_id = extra_field.data_item_id
+                        WHERE extra_field.field_name = %s
+                        AND extra_field.site_id = %s
+                        AND extra_field.data_item_type = %s
+                        AND candidate_joborder.joborder_id = %s
+                        AND extra_field.value != ''",
+                        $db->makeQueryString($data['fieldName']),
+                        $this->_siteID,
+                        $this->_dataItemType,
+                        $db->makeQueryInteger($pipelineJobOrderID)
+                    );
+                    $isInRS = $db->getAllAssoc($isInSQL);
+                    $definition['filterIsInOptions'] = array_values(array_filter(array_map(function($row) {
+                        $val = urldecode(trim($row['val']));
+                        return $val !== '' ? ['value' => $val, 'label' => $val] : null;
+                    }, $isInRS)));
+                }
                 break;
 
             case 'default':

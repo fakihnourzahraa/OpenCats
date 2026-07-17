@@ -13,6 +13,7 @@ use OpenCATS\UI\QuickActionMenu;
 <?php endif; ?>
 
 <script type="text/javascript">
+  window.isPipelineFilterPage = true;
     filterDropDownRegistry['Source'] = [
         <?php foreach ($this->sourcesRS as $i => $s): ?>
             { value: '<?php echo addslashes($s['name']); ?>', label: '<?php echo addslashes($s['name']); ?>' }<?php echo ($i < count($this->sourcesRS) - 1) ? ',' : ''; ?>
@@ -27,6 +28,11 @@ use OpenCATS\UI\QuickActionMenu;
     filterIsInRegistry['Source'] = [
         <?php if (!empty($this->pipelineSourcesIsIn)): foreach ($this->pipelineSourcesIsIn as $i => $s): ?>
             { value: '<?php echo addslashes($s['val']); ?>', label: '<?php echo addslashes($s['val']); ?>' }<?php echo ($i < count($this->pipelineSourcesIsIn) - 1) ? ',' : ''; ?>
+        <?php endforeach; endif; ?>
+    ];
+    filterIsInRegistry['Status'] = [
+        <?php if (!empty($this->pipelineStatusesIsIn)): foreach ($this->pipelineStatusesIsIn as $i => $s): ?>
+            { value: '<?php echo addslashes($s['val']); ?>', label: '<?php echo addslashes($s['label']); ?>' }<?php echo ($i < count($this->pipelineStatusesIsIn) - 1) ? ',' : ''; ?>
         <?php endforeach; endif; ?>
     ];
     filterDateRangeRegistry['Created'] = true;
@@ -487,7 +493,7 @@ document.addEventListener('click', pipelineColumnBox_close);
                          var opLen = (f.substr(eqPos, 3) === '=d>' || f.substr(eqPos, 3) === '=d<' || f.substr(eqPos, 3) === '=in') ? 3 : 2;
 var op = f.substring(eqPos, eqPos + opLen);
 var val = decodeURIComponent(f.substring(eqPos + opLen));
-var opNames = {'==':'is equal to','=~':'contains','=>':'is greater than','=<':'is less than','=d>':'from','=d<':'to','=e':'is empty'};
+var opNames = {'==':'is equal to','=~':'contains','=>':'is greater than','=<':'is less than','=d>':'from','=d<':'to','=in':'is in','=e':'is empty'};
                             var span = document.createElement('span');
                             span.className = 'filterArea';
                             span.innerHTML = '<a href="javascript:void(0);" onclick="this.parentNode.style.display=\'none\'; removeColumnFromFilter(\'' + pipelineDataGridFilterID + '\', \'' + col + '\'); submitFilter' + md5 + '();">'

@@ -685,7 +685,14 @@ private function exportPipeline()
         $this->_template->assign('sourcesRS', $sourcesRS);
         $db = DatabaseConnection::getInstance();
 
-        
+        $pipelineSourcesIsIn = $db->getAllAssoc(
+    "SELECT DISTINCT candidate.source AS val
+     FROM candidate
+     INNER JOIN candidate_joborder ON candidate_joborder.candidate_id = candidate.candidate_id
+     WHERE candidate_joborder.joborder_id = " . (int) $jobOrderID . "
+       AND candidate.source IS NOT NULL AND candidate.source != ''
+     ORDER BY candidate.source ASC"
+);
         $this->_template->assign('pipelineSourcesIsIn', $pipelineSourcesIsIn);
 
         $statusesRS = $candidates->getPossibleDropDownOptions(
@@ -697,7 +704,28 @@ private function exportPipeline()
             'is_enabled = 1 AND candidate_joborder_status_id != 0'
         );
         $this->_template->assign('statusesRS', $statusesRS);
+$pipelineStatusCodes = $db->getAllAssoc(
+    "SELECT DISTINCT candidate_joborder.status AS val
+     FROM candidate_joborder
+     WHERE candidate_joborder.joborder_id = " . (int) $jobOrderID
+);
 
+$statusLabelMap = array();
+foreach ($statusesRS as $s)
+{
+    $statusLabelMap[$s['optionValue']] = $s['optionLabel'];
+}
+
+$pipelineStatusesIsIn = array();
+foreach ($pipelineStatusCodes as $row)
+{
+    $val = $row['val'];
+    $pipelineStatusesIsIn[] = array(
+        'val'   => $val,
+        'label' => isset($statusLabelMap[$val]) ? $statusLabelMap[$val] : $val,
+    );
+}
+$this->_template->assign('pipelineStatusesIsIn', $pipelineStatusesIsIn);
         if (!eval(Hooks::get('JO_SHOW'))) return;
 
        // $this->_template->display('./modules/joborders/Show.tpl');
@@ -715,7 +743,7 @@ if ($dataGridProperties == array())
         'filter'        => $savedPipelineFilter !== '' ? $savedPipelineFilter : 'First+Name=~', );
     
     }
-$dataGrid = new PipelineCandidatesDataGrid($this->_siteID, $dataGridProperties, 0);
+$dataGrid = new PipelineCandidatesDataGrid($this->_siteID, $dataGridProperties, $jobOrderID);
 $this->_template->assign('dataGrid', $dataGrid);
 $this->_template->assign('userID', $_SESSION['CATS']->getUserID());
 $this->_template->assign('savedPipelineFilter', $savedPipelineFilter);

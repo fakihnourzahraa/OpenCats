@@ -159,11 +159,13 @@ class PipelineCandidatesDataGrid extends CandidatesDataGrid
 {
     public function __construct($siteID, $parameters, $misc)
     {
+  $this->_pipelineJobOrderID = is_numeric($misc) ? (int) $misc : null;
+
         /* Pager configuration. */
         $this->_tableWidth = new Width(100, '%');
         $this->_defaultAlphabeticalSortBy = 'lastName';
         $this->ajaxMode = false;
-        $this->showExportCheckboxes = true; //BOXES WILL NOT APPEAR UNLESS SQL ROW exportID IS RETURNED!
+        $this->showExportCheckboxes = true;
         $this->showActionArea = true;
         $this->showChooseColumnsBox = true;
         $this->allowResizing = true;
@@ -182,12 +184,12 @@ class PipelineCandidatesDataGrid extends CandidatesDataGrid
         );
         parent::__construct(
             'joborders:PipelineCandidatesDataGrid',
-            $siteID, $parameters, $misc
+            $siteID, $parameters, 0   // always 0 — preserves existing instance name/md5
         );
         $this->_classColumns['Added'] = array(
-    'pagerWidth'  => 60,
-    'filterTypes' => '=d>=d<==',
-);
+            'pagerWidth'  => 60,
+            'filterTypes' => '=d>=d<==',
+        );
     }
 }
 class PipelineExportDataGrid extends PipelineCandidatesDataGrid

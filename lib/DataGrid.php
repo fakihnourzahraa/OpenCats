@@ -995,6 +995,12 @@ class DataGrid
                     filterDropDownRegistry[' . json_encode($columnName) . '] = ' .
                     json_encode($data['filterDropDownOptions']) . '; }';
             }
+            if (isset($data['filterIsInOptions'])) {
+                echo 'if (!filterIsInRegistry[' . json_encode($columnName) . '] ||
+                    !filterIsInRegistry[' . json_encode($columnName) . '].length) {
+                    filterIsInRegistry[' . json_encode($columnName) . '] = ' .
+                    json_encode($data['filterIsInOptions']) . '; }';
+            }
         }
         echo '</script>';
 
