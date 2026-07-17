@@ -390,16 +390,12 @@ $jsIsPopup   = $isPopup ? 1 : 0;
 <script type="text/javascript">
     PipelineJobOrder_setLimitDefaultVars('<?php echo($sortBy); ?>', '<?php echo($sortDirection); ?>');
     var s = '';
-    s += 'Showing entries <?php echo($minEntry + 1); ?> through <?php echo($maxEntry); ?> of <?php echo(count($pipelinesRS)) ?>: ';
     <?php if ($minEntry != 0): ?>
         s += '&nbsp;&nbsp;<a href="javascript:void(0);" onclick="PipelineJobOrder_populate(<?php echo($jobOrderID); ?>, <?php echo($page - 1); ?>, <?php echo($entriesPerPage); ?>, <?php printSortLink($sortBy, "\'", false); ?>, <?php if ($isPopup) echo(1); else echo(0); ?>, \'ajaxPipelineTable\', \'<?php echo($_SESSION['CATS']->getCookie()); ?>\', \'ajaxPipelineTableIndicator\', \'<?php echo($indexFile); ?>\');">&lt; Previous Page</a>';
     <?php endif; ?>
     <?php if ($maxEntry < count($pipelinesRS)): ?>
         s += '&nbsp;&nbsp;<a href="javascript:void(0);" onclick="PipelineJobOrder_populate(<?php echo($jobOrderID); ?>, <?php echo($page + 1); ?>, <?php echo($entriesPerPage); ?>, <?php printSortLink($sortBy, "\'", false); ?>, <?php if ($isPopup) echo(1); else echo(0); ?>, \'ajaxPipelineTable\', \'<?php echo($_SESSION['CATS']->getCookie()); ?>\', \'ajaxPipelineTableIndicator\', \'<?php echo($indexFile); ?>\');">Next Page &gt;</a>';
     <?php endif; ?>
-	<?php if (count($pipelinesRS) <= 15): ?>
-        document.getElementById('ajaxPipelineControl').style.display='none';
-	<?php endif; ?>
 
     document.getElementById('ajaxPipelineNavigation').innerHTML = s;
 </script>

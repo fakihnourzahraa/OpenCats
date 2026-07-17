@@ -842,7 +842,6 @@ class ExtraFields
                 break;
 
            case 'dropdown':
-             error_log('DEBUG pipelineJobOrderID = ' . var_export($pipelineJobOrderID, true) . ' for field ' . $data['fieldName']);
                 $tokens[] = '=in';
 
                 if (!empty($data['extraFieldOptions'])) {

@@ -585,7 +585,7 @@ document.addEventListener('DOMContentLoaded', function() {
             function exportFromPipeline() {
                 var ids = getSelected_candidates();
                 if (ids.length > 0) {
-                    window.location.href = '<?php echo(CATSUtility::getIndexName()); ?>?m=joborders&a=exportPipeline&jobOrderID=<?php echo($this->data['jobOrderID']); ?>&candidateIDs=' + urlEncode(serializeArray(ids));
+                    window.location.href = '<?php echo(CATSUtility::getIndexName()); ?>?m=joborders&a=exportPipeline&jobOrderID=<?php echo($this->data['jobOrderID']); ?>&candidateIDs=' + (serializeArray(ids));
                 } else {
                     alert('No data selected');
                 }

@@ -370,7 +370,7 @@ private function exportPipeline()
     $siteID       = $this->_siteID;
     $jobOrderID   = $this->getTrimmedInput('jobOrderID', $_GET);
     $candidateIDs = isset($_GET['candidateIDs'])
-        ? array_map('intval', unserialize(urldecode($_GET['candidateIDs'])))
+        ? array_map('intval', (array) json_decode(urldecode($_GET['candidateIDs']), true))
         : array();
     if (!$jobOrderID || empty($candidateIDs)) die('Invalid input.');
     $pipelines   = new Pipelines($siteID);
