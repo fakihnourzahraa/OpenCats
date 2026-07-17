@@ -717,6 +717,13 @@ class DataGrid
                     continue;
                 }
 
+                $dataColumnName = urldecode(substr($data, 0, $eqPos));
+
+                if ($columnName != $dataColumnName)
+                {
+                    continue;
+                }
+
                 foreach ($operators as $op)
                 {
                     if (substr($data, $eqPos, strlen($op)) === $op)
@@ -725,18 +732,10 @@ class DataGrid
                     }
                 }
                 return urldecode(substr($data, $eqPos + 2));
-
-                $dataColumnName = urldecode(substr($data, 0, $eqPos));
-
-                if ($columnName != $dataColumnName)
-                {
-                    continue;
-                }
             }
         }
         return '';
     }
-
     /**
      * Returns the current operator of a filter column (or empty string if no filter is set)
      *

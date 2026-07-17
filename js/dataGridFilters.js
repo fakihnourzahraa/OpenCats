@@ -136,6 +136,131 @@ filter.DefaultFilter = function(defaultValue, filterCounter, filterAreaID, selec
 
 filter.DefaultFilter.prototype = Object.create(filter.Filter.prototype);
 
+filter.DefaultFilter.prototype.createQuickSearchInput = function() {
+    var wrapper = document.createElement("div");
+    wrapper.style.cssText = "display:inline-block; position:relative; vertical-align:middle;";
+
+    var input = document.createElement("input");
+    input.className = "inputbox";
+    input.style.width = "180px";
+    input.autocomplete = "off";
+
+    var panel = document.createElement("div");
+    panel.style.cssText = "display:none; position:absolute; z-index:9999; background:#fff; border:1px solid #999; width:260px; max-height:220px; overflow-y:auto; box-shadow:2px 2px 4px rgba(0,0,0,0.2);";
+
+    var debounceTimer = null;
+
+    function fireChange() {
+        var evt;
+        try { evt = new Event("change"); } catch (e) {
+            evt = document.createEvent("Event");
+            evt.initEvent("change", true, true);
+        }
+        input.dispatchEvent(evt);
+    }
+
+    function esc(s) {
+        var d = document.createElement("div");
+        d.textContent = s || "";
+        return d.innerHTML;
+    }
+
+    function renderResults(results) {
+        panel.innerHTML = "";
+        if (!results || !results.length) {
+            panel.style.display = "none";
+            return;
+        }
+        for (var i = 0; i < results.length; i++) {
+            (function(r) {
+                var name = (r.firstName || "") + " " + (r.lastName || "");
+                var sub  = r.email1 || r.phoneHome || r.phoneCell || "";
+
+                var item = document.createElement("div");
+                item.style.cssText = "padding:4px 8px; cursor:pointer;";
+                item.innerHTML = "<div>" + esc(name.trim()) + "</div>" +
+                    (sub ? "<div style='font-size:11px;color:#666;'>" + esc(sub) + "</div>" : "");
+
+                item.addEventListener("mouseenter", function() { this.style.background = "#eee"; });
+                item.addEventListener("mouseleave", function() { this.style.background = ""; });
+                item.addEventListener("mousedown", function(e) {
+                    e.preventDefault();
+                    input.value = name.trim();
+                    panel.style.display = "none";
+                    fireChange();
+                });
+                panel.appendChild(item);
+            })(results[i]);
+        }
+        panel.style.display = "block";
+    }
+
+    input.addEventListener("input", function() {
+        var term = input.value;
+        if (debounceTimer) clearTimeout(debounceTimer);
+
+        if (term.trim() === "") {
+            panel.style.display = "none";
+            return;
+        }
+
+        debounceTimer = setTimeout(function() {
+            var url = "index.php?m=home&a=quickSearchCandidatesJSON&quickSearchFor=" + encodeURIComponent(term);
+            fetch(url, { credentials: "same-origin" })
+                .then(function(resp) { return resp.json(); })
+                .then(function(data) { renderResults(data); })
+                .catch(function() { panel.style.display = "none"; });
+        }, 250);
+    });
+
+    document.addEventListener("click", function(e) {
+        if (!wrapper.contains(e.target) && !panel.contains(e.target)) {
+            panel.style.display = "none";
+        }
+    });
+
+    var rect;
+    input.addEventListener("focus", function() {
+        rect = input.getBoundingClientRect();
+        panel.style.left = (rect.left + window.scrollX) + "px";
+        panel.style.top  = (rect.bottom + window.scrollY) + "px";
+    });
+
+    wrapper.appendChild(input);
+    document.body.appendChild(panel);   // escapes overflow-clipped ancestors
+
+    wrapper.inputEl = input;
+    wrapper.panelEl = panel;
+    return wrapper;
+};
+
+// filter.DefaultFilter.prototype.createOperatorSelect = function(currentValue, filterAreaID, filterCounter) {
+//     var operatorSelect = this.createElement("select", {
+//         id: filterAreaID + filterCounter + "operator",
+//         className: "inputbox",
+//         style: "width: 120px"
+//     });
+//     var possibleTypes = getFilterColumnTypesFromOptionValue(currentValue);
+//     for (var i = 0; i < possibleTypes.length;)
+//     {
+//         var possibleType;
+//         if (possibleTypes.substr(i, 3) === "=d>" || possibleTypes.substr(i, 3) === "=d<" || possibleTypes.substr(i, 3) === "=in" || possibleTypes.substr(i, 3) == "=bt") {
+//             possibleType = possibleTypes.substr(i, 3);
+//             i += 3;
+//         } else {
+//             possibleType = possibleTypes.substr(i, 2);
+//             i += 2;
+//         }
+//         var names = filter.getNames();
+//         if (names[possibleType]) {
+//             operatorSelect.appendChild(
+//                 this.createOption(possibleType, names[possibleType])
+//             );
+//         }
+//     }
+//     return operatorSelect;
+// }
+
 filter.DefaultFilter.prototype.createOperatorSelect = function(currentValue, filterAreaID, filterCounter) {
     var operatorSelect = this.createElement("select", {
         id: filterAreaID + filterCounter + "operator",
@@ -293,6 +418,13 @@ filter.DefaultFilter.prototype.render = function() {
     };
 
     var updateValueArea = function() {
+        // valueArea.innerHTML = "";
+        // var op  = operatorSelect.value;
+        // var col = getColumn();
+        if (valueArea._qsPanel && valueArea._qsPanel.parentNode) {
+            valueArea._qsPanel.parentNode.removeChild(valueArea._qsPanel);
+            valueArea._qsPanel = null;
+        }
         valueArea.innerHTML = "";
         var op  = operatorSelect.value;
         var col = getColumn();
@@ -336,13 +468,19 @@ filter.DefaultFilter.prototype.render = function() {
             return;
         }
 
-        /* Everything else: a single typed value. */
-        var input = document.createElement("input");
-        input.id = me.filterAreaID + me.filterCounter + "value";
-        input.className = "inputbox";
-        input.style.width = "180px";
-        input.addEventListener("change", applyFilter);
-        valueArea.appendChild(input);
+        // /* Everything else: a single typed value. */
+        // var input = document.createElement("input");
+        // input.id = me.filterAreaID + me.filterCounter + "value";
+        // input.className = "inputbox";
+        // input.style.width = "180px";
+        // input.addEventListener("change", applyFilter);
+        // valueArea.appendChild(input);
+        /* Everything else: quick-search-backed value input. */
+        var qsWidget = me.createQuickSearchInput();
+        qsWidget.inputEl.id = me.filterAreaID + me.filterCounter + "value";
+        qsWidget.inputEl.addEventListener("change", applyFilter);
+        valueArea._qsPanel = qsWidget.panelEl;
+        valueArea.appendChild(qsWidget);
     };
 
     operatorSelect.addEventListener("change", updateValueArea);
