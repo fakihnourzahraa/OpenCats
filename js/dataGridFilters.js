@@ -595,7 +595,7 @@ filter.DropDownFilter.prototype.render = function() {
     if (isPipeline) {
         operatorSelect.appendChild(this.createOption("=in", "is in"));
     } else {
-        operatorSelect.appendChild(this.createOption("==", "is equal to"));
+        operatorSelect.appendChild(this.createOption("==", "is in"));
     }
     operatorSelect.appendChild(this.createOption("=e", "is empty"));
 
