@@ -151,7 +151,7 @@
                                     }
                                     
                                     //TODO: Document me.
-                                    function addRowToTable<?php echo($index); ?>(rowName, rowTypeName, rowIndex)
+                                    function addRowToTable<?php echo($index); ?>(rowName, rowTypeName, rowFilterTypeName, rowIndex)
                                     {
                                         tbl = document.getElementById('extraFieldsTable<?php echo($index); ?>');
                                         var lastRow = tbl.rows.length;
@@ -175,7 +175,11 @@
                                         
                                         var cellLeft = row.insertCell(2);
                                         var textNode = document.createTextNode(rowTypeName);
-                                        cellLeft.appendChild(textNode);                                            
+                                        cellLeft.appendChild(textNode);    
+
+                                            var cellFilterType = row.insertCell(3);
+    var filterTextNode = document.createTextNode(rowFilterTypeName);
+    cellFilterType.appendChild(filterTextNode);                                        
                                     }
                                     
                                     //TODO: Document me.
@@ -272,7 +276,7 @@
                                     }
                                     
                                     //TODO: Document me.
-                                    function addRow<?php echo($index); ?>(rowName, rowType, rowTypeName, rowFilterType)
+                                    function addRow<?php echo($index); ?>(rowName, rowType, rowTypeName, rowFilterType, rowFilterTypeName)
                                     {
                                         thisIndex = onIndex<?php echo($index); ?>;
                                         onIndex<?php echo($index); ?>++;
@@ -285,7 +289,7 @@
                                         }
                                         }
                                         
-                                        addRowToTable<?php echo($index); ?>(rowName, rowTypeName, thisIndex);
+                                        addRowToTable<?php echo($index); ?>(rowName, rowTypeName, rowFilterTypeName, thisIndex);
                                         
                                         if(<?php foreach($this->extraFieldTypes as $efi => $eft): ?><?php if($eft['hasOptions']): ?>rowType == <?php echo($efi); ?> || <?php endif; ?><?php endforeach; ?> false)
                                         {
@@ -416,10 +420,17 @@
                                         if(document.getElementById('addFieldName<?php echo($index); ?>').value == '') return;
                                             var checks = document.getElementsByClassName('addFieldFilterCheck<?php echo($index); ?>');
                                             var selected = [];
+                                             var selectedNames = [];
                                             for (var i = 0; i < checks.length; i++) {
-                                                if (checks[i].checked) selected.push(checks[i].value);
+                                                if (checks[i].checked)
+                                                {
+                                                selected.push(checks[i].value);
+                                                selectedNames.push(checks[i].parentNode.textContent.trim());}
                                             }
-                                            if (selected.length === 0) selected.push('default');
+                                            if (selected.length === 0)
+                                            {selected.push('default');
+                                             selectedNames.push('Default (Text)');
+                                             }
 
                                             var typeSelect = document.getElementById('addFieldSelect<?php echo($index); ?>');
 
@@ -427,7 +438,8 @@
                                             document.getElementById('addFieldName<?php echo($index); ?>').value, 
                                             typeSelect.value,
                                             typeSelect.options[typeSelect.selectedIndex].text,
-                                            selected.join('|')
+                                            selected.join('|'),
+                                            selectedNames.join(', ')
                                         );
                                         onHideAddArea<?php echo($index); ?>();                             
                                     }
