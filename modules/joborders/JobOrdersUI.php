@@ -369,12 +369,13 @@ private function exportPipeline()
 {
     $siteID       = $this->_siteID;
     $jobOrderID   = $this->getTrimmedInput('jobOrderID', $_GET);
-    $candidateIDs = isset($_GET['candidateIDs'])
-        ? array_map('intval', (array) json_decode(urldecode($_GET['candidateIDs']), true))
-        : array();
-    if (!$jobOrderID || empty($candidateIDs)) die('Invalid input.');
+    $exportAll    = isset($_GET['exportAll']) && $_GET['exportAll'] == '1';
+
+    if (!$jobOrderID) die('Invalid input.');
+
     $pipelines   = new Pipelines($siteID);
     $pipelinesRS = $pipelines->getJobOrderPipeline($jobOrderID);
+
     /* Build addedByAbbrName */
     foreach ($pipelinesRS as $i => $row)
     {
@@ -382,6 +383,7 @@ private function exportPipeline()
             $row['addedByFirstName'], $row['addedByLastName'], LAST_NAME_MAXLEN
         );
     }
+
     /* Merge extra field values into rows */
     $allCandidateIDs = array_map(function($r) { return $r['candidateID']; }, $pipelinesRS);
     $extraFieldsByCandidate = $pipelines->getExtraFieldsForPipelineCandidates($allCandidateIDs);
@@ -396,10 +398,41 @@ private function exportPipeline()
             }
         }
     }
-    /* Filter to selected candidates only */
-    $pipelinesRS = array_values(array_filter($pipelinesRS, function($row) use ($candidateIDs) {
-        return in_array((int)$row['candidateID'], $candidateIDs);
-    }));
+
+    if ($exportAll)
+    {
+        $filterString = isset($_GET['filterString']) ? urldecode($_GET['filterString']) : '';
+
+        /* Same $columnMap the AJAX endpoint uses to resolve display names to row keys. */
+        $columnMap = array(
+            'First Name'       => 'firstName',
+            // ... all the other static entries, copied verbatim from getPipelineJobOrder.php ...
+            'Nationality'      => 'nationality',
+        );
+        $extraFieldDefs = $pipelines->getExtraFieldDefinitions();
+        if ($extraFieldDefs) {
+            foreach ($extraFieldDefs as $def) {
+                $columnMap[$def['field_name']] = $def['field_name'];
+            }
+        }
+
+        $pipelinesRS = $pipelines->filterPipelineRows($pipelinesRS, $filterString, $columnMap);
+
+        if (empty($pipelinesRS)) die('No matching candidates.');
+    }
+    else
+    {
+        $candidateIDs = isset($_GET['candidateIDs'])
+            ? array_map('intval', (array) json_decode(urldecode($_GET['candidateIDs']), true))
+            : array();
+
+        if (empty($candidateIDs)) die('Invalid input.');
+
+        $pipelinesRS = array_values(array_filter($pipelinesRS, function($row) use ($candidateIDs) {
+            return in_array((int)$row['candidateID'], $candidateIDs);
+        }));
+    }
+
     /* Base column map */
     $allCols = array(
         'firstName'           => array('First Name',       'firstName'),

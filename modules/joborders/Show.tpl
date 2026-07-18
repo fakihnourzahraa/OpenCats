@@ -579,7 +579,7 @@ document.addEventListener('DOMContentLoaded', function() {
             </p>
 
             <div id="ajaxPipelineTable"></div>
-            <input type="checkbox" name="select_all" onclick="selectAll_candidates(this)" title="Select all candidates" /> <a href="javascript:void(0);" onclick="exportFromPipeline()" title="Export selected candidates">Export</a>&nbsp;&nbsp;&nbsp;&nbsp;
+            <input type="checkbox" name="select_all" onclick="selectAll_candidates(this)" title="Select all candidates" /> <a href="javascript:void(0);" onclick="exportFromPipeline()" title="Export selected candidates">Export</a>&nbsp;|&nbsp;<a href="javascript:void(0);" onclick="exportAllFromPipeline()" title="Export all candidates matching the current filter">All</a>&nbsp;&nbsp;&nbsp;&nbsp;
             <script type="text/javascript">
 
             function exportFromPipeline() {
@@ -589,6 +589,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 } else {
                     alert('No data selected');
                 }
+            }
+
+            function exportAllFromPipeline() {
+                var filterAreaEl = document.getElementById(pipelineDataGridFilterID);
+                var filterString = filterAreaEl ? filterAreaEl.value : '';
+                window.location.href = '<?php echo(CATSUtility::getIndexName()); ?>?m=joborders&a=exportPipeline&jobOrderID=<?php echo($this->data['jobOrderID']); ?>&exportAll=1&filterString=' + encodeURIComponent(filterString);
             }
 
 

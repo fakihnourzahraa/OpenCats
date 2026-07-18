@@ -56,9 +56,18 @@ $sortDirection  = trim(htmlspecialchars($_REQUEST['sortDirection']));
 $indexFile      = trim(htmlspecialchars($_REQUEST['indexFile']));
 $isPopup        = $_REQUEST['isPopup'] == 1 ? true : false;
 
-$filterValue    = isset($_REQUEST['filterValue'])    ? trim($_REQUEST['filterValue'])    : '';
-$filterColumn   = isset($_REQUEST['filterColumn'])   ? trim($_REQUEST['filterColumn'])   : 'firstName';
-$filterOperator = isset($_REQUEST['filterOperator']) ? trim($_REQUEST['filterOperator']) : '=~';
+# nour: trim these htmlspecialchars
+// $filterValue    = isset($_REQUEST['filterValue'])    ? trim($_REQUEST['filterValue'])    : '';
+
+// # default filter type and operator
+// $filterColumn   = isset($_REQUEST['filterColumn'])   ? trim($_REQUEST['filterColumn'])   : 'firstName';
+// $filterOperator = isset($_REQUEST['filterOperator']) ? trim($_REQUEST['filterOperator']) : '=~';
+
+$filterValue    = isset($_REQUEST['filterValue'])    ? trim(htmlspecialchars($_REQUEST['filterValue']))    : '';
+
+# default filter type and operator
+$filterColumn   = isset($_REQUEST['filterColumn'])   ? trim(htmlspecialchars($_REQUEST['filterColumn']))   : 'firstName';
+$filterOperator = isset($_REQUEST['filterOperator']) ? trim(htmlspecialchars($_REQUEST['filterOperator'])) : '=~';
 
 
 $_SESSION['CATS']->setPipelineEntriesPerPage($entriesPerPage);
@@ -118,9 +127,13 @@ foreach ($pipelinesRS as $rowIndex => $row)
     );
 
     }
-$candidateIDs = array_map(function($row) {
+
+# 
+$candidateIDs = array_map(function($row)
+{
     return $row['candidateID'];
 }, $pipelinesRS);
+
 $extraFieldsByCandidate = $pipelines->getExtraFieldsForPipelineCandidates($candidateIDs);
 foreach ($pipelinesRS as $idx => $row)
 {
@@ -216,7 +229,7 @@ $defaultVisibleCols = array(
     'lastActivity',
     'action',
 );
-/* Handle column toggle requests */
+// Handle column toggle requests
 if (isset($_REQUEST['setColumn'])) {
     $toggleCol    = trim($_REQUEST['setColumn']);
     $toggleAction = isset($_REQUEST['colAction']) ? trim($_REQUEST['colAction']) : '';
@@ -251,62 +264,9 @@ foreach ($allPipelineColumns as $k => $v) {
     if ($k === 'action' && $isPopup) continue;
     if (in_array($k, $visibleCols)) $visibleColCount++;
 }
-if ($filterString !== '')
-{
-    $pipelineFilters = array_filter(explode(',', $filterString));
-    foreach ($pipelineFilters as $filterItem)
-    {
-        $operators = array('=d>', '=d<','=in', '=~', '==', '=>', '=<', '=e');
-        foreach ($operators as $op)
-        {
-            $pos = strpos($filterItem, $op);
-            if ($pos !== false)
-            {
-                $col = urldecode(substr($filterItem, 0, $pos));
-                
-                $val = strtolower(urldecode(substr($filterItem, $pos + strlen($op))));
-                $col = isset($columnMap[$col]) ? $columnMap[$col] : $col;
-$pipelinesRS = array_filter($pipelinesRS, function($row) use ($col, $op, $val) {
-    $fieldValue = isset($row[$col]) ? $row[$col] : '';
 
-    if ($col === 'dateCreated' || $col === 'candidateDateCreated' || $col == 'dateModified') {
-        if ($op === '=e') return $fieldValue === '' || $fieldValue === null;
-        $fieldValue = DateTime::createFromFormat('m-d-y', $fieldValue);
-        $valDate    = DateTime::createFromFormat('m-d-y', $val);
-        if (!$fieldValue || !$valDate) return true;
-        switch ($op) {
-            case '==':  return $fieldValue == $valDate;
-            case '=d>': return $fieldValue >= $valDate;
-            case '=d<': return $fieldValue <= $valDate;
-            case '=e':  return $fieldValue === '' || $fieldValue === null;
-        }
-    }
-    if ($op === '=d>' || $op === '=d<')
-    {
-        if ($fieldValue === '' || $fieldValue === null) return false;
-        $fieldDate = DateTime::createFromFormat('m-d-y', $fieldValue);
-        $valDate   = DateTime::createFromFormat('m-d-y', $val);
-        if (!$fieldDate || !$valDate) return true;
-        return $op === '=d>' ? $fieldDate >= $valDate : $fieldDate <= $valDate;
-    }
-    $fieldValue = strtolower($fieldValue);
-    $val = strtolower($val);
-    switch ($op) {
-        case '=in':
-        case '==': return $fieldValue == $val;
-        case '=~': return strpos($fieldValue, $val) !== false;
-        case '=>':  return $fieldValue >= $val;
-        case '=<':  return $fieldValue <= $val;
-        case '=e': return $fieldValue === '' || $fieldValue === null;
-        default:    return true;
-    }
-});
-                $pipelinesRS = array_values($pipelinesRS);
-                break;
-            }
-        }
-    }
-}
+$pipelinesRS = $pipelines->filterPipelineRows($pipelinesRS, $filterString, $columnMap);
+
 
 /* Sort the data. */
 if ($sortBy !== '' && $sortBy !== 'undefined')
@@ -386,7 +346,7 @@ $jsIsPopup   = $isPopup ? 1 : 0;
 ?>
 
 <?php echo(TemplateUtility::getRatingsArrayJS()); ?>
-
+<!--  -->
 <script type="text/javascript">
     PipelineJobOrder_setLimitDefaultVars('<?php echo($sortBy); ?>', '<?php echo($sortDirection); ?>');
     var s = '';

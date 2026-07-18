@@ -891,6 +891,80 @@ public function getExtraFieldDefinitions()
     return $rs ? $rs : array();
 }
 
+/**
+ * Applies a pipeline filter string (same format used by the job order
+ * pipeline UI) to an already-fetched pipeline result set.
+ *
+ * @param array  $pipelinesRS  Rows from getJobOrderPipeline() (optionally with extra fields merged in)
+ * @param string $filterString Raw filter string, e.g. "First+Name=~john,Status==5"
+ * @param array  $columnMap    Maps display column names to row array keys
+ * @return array Filtered, re-indexed result set
+ */
+public function filterPipelineRows($pipelinesRS, $filterString, $columnMap)
+{
+    if ($filterString === '')
+    {
+        return $pipelinesRS;
+    }
+
+    $pipelineFilters = array_filter(explode(',', $filterString));
+    foreach ($pipelineFilters as $filterItem)
+    {
+        $operators = array('=d>', '=d<', '=in', '=~', '==', '=>', '=<', '=e');
+        foreach ($operators as $op)
+        {
+            $pos = strpos($filterItem, $op);
+            if ($pos !== false)
+            {
+                $col = urldecode(substr($filterItem, 0, $pos));
+                $val = strtolower(urldecode(substr($filterItem, $pos + strlen($op))));
+                $col = isset($columnMap[$col]) ? $columnMap[$col] : $col;
+
+                $pipelinesRS = array_filter($pipelinesRS, function($row) use ($col, $op, $val) {
+                    $fieldValue = isset($row[$col]) ? $row[$col] : '';
+
+                    if ($col === 'dateCreated' || $col === 'candidateDateCreated' || $col == 'dateModified') {
+                        if ($op === '=e') return $fieldValue === '' || $fieldValue === null;
+                        $fieldValue = DateTime::createFromFormat('m-d-y', $fieldValue);
+                        $valDate    = DateTime::createFromFormat('m-d-y', $val);
+                        if (!$fieldValue || !$valDate) return true;
+                        switch ($op) {
+                            case '==':  return $fieldValue == $valDate;
+                            case '=d>': return $fieldValue >= $valDate;
+                            case '=d<': return $fieldValue <= $valDate;
+                            case '=e':  return $fieldValue === '' || $fieldValue === null;
+                        }
+                    }
+                    if ($op === '=d>' || $op === '=d<')
+                    {
+                        if ($fieldValue === '' || $fieldValue === null) return false;
+                        $fieldDate = DateTime::createFromFormat('m-d-y', $fieldValue);
+                        $valDate   = DateTime::createFromFormat('m-d-y', $val);
+                        if (!$fieldDate || !$valDate) return true;
+                        return $op === '=d>' ? $fieldDate >= $valDate : $fieldDate <= $valDate;
+                    }
+                    $fieldValue = strtolower($fieldValue);
+                    $val = strtolower($val);
+                    switch ($op) {
+                        case '=in':
+                        case '==': return $fieldValue == $val;
+                        case '=~': return strpos($fieldValue, $val) !== false;
+                        case '=>':  return $fieldValue >= $val;
+                        case '=<':  return $fieldValue <= $val;
+                        case '=e': return $fieldValue === '' || $fieldValue === null;
+                        default:    return true;
+                    }
+                });
+                $pipelinesRS = array_values($pipelinesRS);
+                break;
+            }
+        }
+    }
+
+    return $pipelinesRS;
+}
+
 }
 
 ?>
+
