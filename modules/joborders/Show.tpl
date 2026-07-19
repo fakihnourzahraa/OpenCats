@@ -471,6 +471,9 @@ document.addEventListener('click', pipelineColumnBox_close);
             <br />
 
             <p class="note">Candidate in Job Order</p>
+            <span style="float:right;">
+    <?php $this->dataGrid->drawShowFilterControl(); ?>
+</span><br><br>
           <?php $this->dataGrid->drawFilterArea(); ?>
             <script type="text/javascript">
             var pipelineDataGridFilterID =
@@ -535,10 +538,7 @@ var opNames = {'==':'is equal to','=~':'contains','=>':'is greater than','=<':'i
             };
             </script>
              <script type="text/javascript">
-document.addEventListener('DOMContentLoaded', function() {
-    var filterArea = document.getElementById(
-        'filterResultsArea<?php echo md5('joborders:PipelineCandidatesDataGrid'); ?>'
-    );
+
     if (filterArea) filterArea.style.display = '';
     var originalShowNewFilter = showNewFilter;
     showNewFilter = function(counter, tableID, arrayKeys, md5) {
