@@ -891,15 +891,6 @@ public function getExtraFieldDefinitions()
     return $rs ? $rs : array();
 }
 
-/**
- * Applies a pipeline filter string (same format used by the job order
- * pipeline UI) to an already-fetched pipeline result set.
- *
- * @param array  $pipelinesRS  Rows from getJobOrderPipeline() (optionally with extra fields merged in)
- * @param string $filterString Raw filter string, e.g. "First+Name=~john,Status==5"
- * @param array  $columnMap    Maps display column names to row array keys
- * @return array Filtered, re-indexed result set
- */
 public function filterPipelineRows($pipelinesRS, $filterString, $columnMap)
 {
     if ($filterString === '')
@@ -967,4 +958,3 @@ public function filterPipelineRows($pipelinesRS, $filterString, $columnMap)
 }
 
 ?>
-
