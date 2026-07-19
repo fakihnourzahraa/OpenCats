@@ -1,3 +1,4 @@
+
 <?php
 /*
  * CATS
@@ -149,9 +150,6 @@ foreach ($pipelinesRS as $idx => $row)
 $filterString = isset($_REQUEST['filterString']) ? trim($_REQUEST['filterString']) : '';
 $_SESSION['pipelineFilter'][$jobOrderID] = $filterString;
 $columnMap = array(
-    'First Name'       => 'firstName',
-    'Last Name'        => 'lastName',
-    'State'            => 'state',
     'City'             => 'city',
     'Zip'              => 'zip',
     'Address'          => 'address',
@@ -170,22 +168,12 @@ $columnMap = array(
     'Misc Notes'       => 'notes',
     'Available'        => 'dateAvailable',
     'Modified'         => 'dateModified',
-    'Added'            => 'dateCreated',
-    'Created'          => 'candidateDateCreated',
-    'Status'  => 'statusDescription',
+    'Created'          => 'candidateDateCreated'
 );
 $allPipelineColumns = array(
-    'match'               => 'Match',
-    'firstName'           => 'First Name',
-    'lastName'            => 'Last Name',
-    'state'               => 'Loc',
     'city'                => 'City',
     'zip'                 => 'Zip',
     'address'             => 'Address',
-    'dateCreatedInt'      => 'Added',
-    'addedByAbbrName'     => 'Entered By',
-    'status'              => 'Status',
-    'lastActivity'        => 'Last Activity',
     'candidateEmail'      => 'E-Mail',
     'candidateEmail2'     => '2nd E-Mail',
     'phoneHome'           => 'Home Phone',
@@ -203,7 +191,7 @@ $allPipelineColumns = array(
     'dateModified'        => 'Modified',
     'candidateDateCreated'         => 'Created',
     'jobOrderStatus'      => 'Job Order Status',
-    'action'              => 'Action',
+    'action'              => 'Action'
 );
 $extraFieldDefs = $pipelines->getExtraFieldDefinitions();
 if ($extraFieldDefs) {
@@ -238,7 +226,7 @@ if (isset($_REQUEST['setColumn'])) {
     }
     if ($toggleAction === 'reset') {
         $_SESSION['pipelineCols'][$siteID] = $defaultVisibleCols;
-    } elseif ($toggleAction === 'remove' && array_key_exists($toggleCol, $allPipelineColumns)) {
+    } elseif ($toggleAction === 'remove' && $toggleCol !== 'action' && array_key_exists($toggleCol, $allPipelineColumns)) {
         $_SESSION['pipelineCols'][$siteID] = array_values(
             array_diff($_SESSION['pipelineCols'][$siteID], array($toggleCol))
         );
@@ -347,18 +335,24 @@ $jsIsPopup   = $isPopup ? 1 : 0;
 
 <?php echo(TemplateUtility::getRatingsArrayJS()); ?>
 <!--  -->
+
 <script type="text/javascript">
     PipelineJobOrder_setLimitDefaultVars('<?php echo($sortBy); ?>', '<?php echo($sortDirection); ?>');
     var s = '';
+    s += 'Showing entries <?php echo($minEntry + 1); ?> through <?php echo($maxEntry); ?> of <?php echo(count($pipelinesRS)) ?>: ';
     <?php if ($minEntry != 0): ?>
         s += '&nbsp;&nbsp;<a href="javascript:void(0);" onclick="PipelineJobOrder_populate(<?php echo($jobOrderID); ?>, <?php echo($page - 1); ?>, <?php echo($entriesPerPage); ?>, <?php printSortLink($sortBy, "\'", false); ?>, <?php if ($isPopup) echo(1); else echo(0); ?>, \'ajaxPipelineTable\', \'<?php echo($_SESSION['CATS']->getCookie()); ?>\', \'ajaxPipelineTableIndicator\', \'<?php echo($indexFile); ?>\');">&lt; Previous Page</a>';
     <?php endif; ?>
     <?php if ($maxEntry < count($pipelinesRS)): ?>
         s += '&nbsp;&nbsp;<a href="javascript:void(0);" onclick="PipelineJobOrder_populate(<?php echo($jobOrderID); ?>, <?php echo($page + 1); ?>, <?php echo($entriesPerPage); ?>, <?php printSortLink($sortBy, "\'", false); ?>, <?php if ($isPopup) echo(1); else echo(0); ?>, \'ajaxPipelineTable\', \'<?php echo($_SESSION['CATS']->getCookie()); ?>\', \'ajaxPipelineTableIndicator\', \'<?php echo($indexFile); ?>\');">Next Page &gt;</a>';
     <?php endif; ?>
+	<?php if (count($pipelinesRS) <= 15): ?>
+        document.getElementById('ajaxPipelineControl').style.display='none';
+	<?php endif; ?>
 
     document.getElementById('ajaxPipelineNavigation').innerHTML = s;
 </script>
+
     <table class="notsortable" id="pipelineTable" width="100%">
     <tr>
         <th style="width:10px; border-right:1px solid gray;" align="center">
@@ -370,7 +364,7 @@ $jsIsPopup   = $isPopup ? 1 : 0;
                      style="display:none; position:absolute; left:0; top:16px; width:180px; z-index:10000; text-align:left;">
                     <span style="font-weight:bold; color:#000000;">Show Columns:</span><br/><br/>
                     <?php foreach ($allPipelineColumns as $colKey => $colLabel): ?>
-                        <?php if ($colKey === 'action' && $isPopup) continue; ?>
+                        <?php if ($colKey === 'action') continue; ?>
                         <?php $isVis = in_array($colKey, $visibleCols); ?>
                         <span style="font-weight:normal;">
                             <a href="javascript:void(0);"
@@ -394,7 +388,6 @@ $jsIsPopup   = $isPopup ? 1 : 0;
 
 
         <th></th>
-        <th></th>
         <th align="left" width="32" nowrap="nowrap"></th>
         <th align="left" width="62" nowrap="nowrap">
             <a href="javascript:void(0);" onclick="PipelineJobOrder_populate(<?php echo($jobOrderID); ?>, <?php echo($page); ?>, <?php echo($entriesPerPage); ?>, <?php printSortLink('ratingValue'); ?>, <?php if ($isPopup) echo(1); else echo(0); ?>, 'ajaxPipelineTable', '<?php echo($_SESSION['CATS']->getCookie()); ?>', 'ajaxPipelineTableIndicator', '<?php echo($indexFile); ?>');">
@@ -416,6 +409,18 @@ $jsIsPopup   = $isPopup ? 1 : 0;
                 Loc
             </a>
         </th>
+
+          <?php if (in_array('city', $visibleCols)): ?>
+        <th align="left" width="100" nowrap="nowrap">City</th>
+        <?php endif; ?>
+
+        <?php if (in_array('zip', $visibleCols)): ?>
+        <th align="left" width="60" nowrap="nowrap">Zip</th>
+        <?php endif; ?>
+
+        <?php if (in_array('address', $visibleCols)): ?>
+        <th align="left" width="120" nowrap="nowrap">Address</th>
+        <?php endif; ?>
         <th align="left" width="60" nowrap="nowrap">
             <a href="javascript:void(0);" onclick="PipelineJobOrder_populate(<?php echo($jobOrderID); ?>, <?php echo($page); ?>, <?php echo($entriesPerPage); ?>, <?php printSortLink('dateCreatedInt'); ?>, <?php if ($isPopup) echo(1); else echo(0); ?>, 'ajaxPipelineTable', '<?php echo($_SESSION['CATS']->getCookie()); ?>', 'ajaxPipelineTableIndicator', '<?php echo($indexFile); ?>');">
                 Added
@@ -517,13 +522,14 @@ $jsIsPopup   = $isPopup ? 1 : 0;
             <a href="javascript:void(0);" onclick="PipelineJobOrder_populate(<?php echo($jobOrderID); ?>, <?php echo($page); ?>, <?php echo($entriesPerPage); ?>, <?php printSortLink('jobOrderStatus'); ?>, <?php if ($isPopup) echo(1); else echo(0); ?>, 'ajaxPipelineTable', '<?php echo($_SESSION['CATS']->getCookie()); ?>', 'ajaxPipelineTableIndicator', '<?php echo($indexFile); ?>');">Job Order Status</a>
         </th>
         <?php endif; ?>
-        <?php foreach ($allPipelineColumns as $colKey => $colLabel): ?>
-                <?php if (in_array($colKey, $hardcodedCols)) continue; ?>
-                <?php if (!in_array($colKey, $visibleCols)) continue; ?>
-                <th align="left" nowrap="nowrap"><?php echo htmlspecialchars($colLabel); ?></th>
-            <?php endforeach; ?>
-            <?php if (!$isPopup && in_array('action', $visibleCols)): ?>
-        <th align="center">Action</th>
+<?php foreach ($allPipelineColumns as $colKey => $colLabel): ?>
+    <?php if (in_array($colKey, $hardcodedCols)) continue; ?>
+    <?php if (!in_array($colKey, $visibleCols)) continue; ?>
+    <th align="left" width="90" nowrap="nowrap"><?php echo htmlspecialchars($colLabel); ?></th>
+<?php endforeach; ?>
+
+<?php if (!$isPopup): ?>
+<th align="center">Action</th>
 <?php endif; ?>
     </tr>
 

@@ -406,8 +406,29 @@ private function exportPipeline()
         /* Same $columnMap the AJAX endpoint uses to resolve display names to row keys. */
         $columnMap = array(
             'First Name'       => 'firstName',
-            // ... all the other static entries, copied verbatim from getPipelineJobOrder.php ...
-            'Nationality'      => 'nationality',
+            'Last Name'        => 'lastName',
+            'State'            => 'state',
+            'City'             => 'city',
+            'Zip'              => 'zip',
+            'Address'          => 'address',
+            'E-Mail'           => 'candidateEmail',
+            '2nd E-Mail'       => 'candidateEmail2',
+            'Home Phone'       => 'phoneHome',
+            'Cell Phone'       => 'phoneCell',
+            'Work Phone'       => 'phoneWork',
+            'Key Skills'       => 'keySkills',
+            'Current Employer' => 'currentEmployer',
+            'Current Pay'      => 'currentPay',
+            'Desired Pay'      => 'desiredPay',
+            'Can Relocate'     => 'canRelocate',
+            'Source'           => 'source',
+            'Web Site'         => 'webSite',
+            'Misc Notes'       => 'notes',
+            'Available'        => 'dateAvailable',
+            'Modified'         => 'dateModified',
+            'Added'            => 'dateCreated',
+            'Created'          => 'candidateDateCreated',
+            'Status'  => 'statusDescription',
         );
         $extraFieldDefs = $pipelines->getExtraFieldDefinitions();
         if ($extraFieldDefs) {
