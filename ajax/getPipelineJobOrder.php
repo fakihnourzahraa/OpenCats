@@ -150,6 +150,9 @@ foreach ($pipelinesRS as $idx => $row)
 $filterString = isset($_REQUEST['filterString']) ? trim($_REQUEST['filterString']) : '';
 $_SESSION['pipelineFilter'][$jobOrderID] = $filterString;
 $columnMap = array(
+    'First Name'       => 'firstName',
+    'Last Name'        => 'lastName',
+    'State'            => 'state',
     'City'             => 'city',
     'Zip'              => 'zip',
     'Address'          => 'address',
@@ -168,12 +171,22 @@ $columnMap = array(
     'Misc Notes'       => 'notes',
     'Available'        => 'dateAvailable',
     'Modified'         => 'dateModified',
-    'Created'          => 'candidateDateCreated'
+    'Added'            => 'dateCreated',
+    'Created'          => 'candidateDateCreated',
+    'Status'  => 'statusDescription',
 );
 $allPipelineColumns = array(
+    'match'               => 'Match',
+    'firstName'           => 'First Name',
+    'lastName'            => 'Last Name',
+    'state'               => 'Loc',
     'city'                => 'City',
     'zip'                 => 'Zip',
     'address'             => 'Address',
+    'dateCreatedInt'      => 'Added',
+    'addedByAbbrName'     => 'Entered By',
+    'status'              => 'Status',
+    'lastActivity'        => 'Last Activity',
     'candidateEmail'      => 'E-Mail',
     'candidateEmail2'     => '2nd E-Mail',
     'phoneHome'           => 'Home Phone',
@@ -191,7 +204,7 @@ $allPipelineColumns = array(
     'dateModified'        => 'Modified',
     'candidateDateCreated'         => 'Created',
     'jobOrderStatus'      => 'Job Order Status',
-    'action'              => 'Action'
+    'action'              => 'Action',
 );
 $extraFieldDefs = $pipelines->getExtraFieldDefinitions();
 if ($extraFieldDefs) {
@@ -364,7 +377,7 @@ $jsIsPopup   = $isPopup ? 1 : 0;
                      style="display:none; position:absolute; left:0; top:16px; width:180px; z-index:10000; text-align:left;">
                     <span style="font-weight:bold; color:#000000;">Show Columns:</span><br/><br/>
                     <?php foreach ($allPipelineColumns as $colKey => $colLabel): ?>
-                        <?php if ($colKey === 'action') continue; ?>
+                    <?php if (in_array($colKey, $defaultVisibleCols)) continue; ?>
                         <?php $isVis = in_array($colKey, $visibleCols); ?>
                         <span style="font-weight:normal;">
                             <a href="javascript:void(0);"
