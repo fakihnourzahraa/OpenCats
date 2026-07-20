@@ -47,7 +47,6 @@ include_once(LEGACY_ROOT . '/lib/Questionnaire.php');
 include_once(LEGACY_ROOT . '/lib/CommonErrors.php');
 include_once(LEGACY_ROOT . '/lib/JobOrderTypes.php');
 include_once(LEGACY_ROOT . '/lib/JobOrderStatuses.php');
-include_once(LEGACY_ROOT . '/modules/joborders/dataGrids.php');
 
 
 class JobOrdersUI extends UserInterface
@@ -359,167 +358,9 @@ class JobOrdersUI extends UserInterface
                 }
                 $this->listByView();
                 break;
-            
-            case 'exportPipeline':
-                $this->exportPipeline();
-                break;
-        }
-    }
-private function exportPipeline()
-{
-    $siteID       = $this->_siteID;
-    $jobOrderID   = $this->getTrimmedInput('jobOrderID', $_GET);
-    $exportAll    = isset($_GET['exportAll']) && $_GET['exportAll'] == '1';
-
-    if (!$jobOrderID) die('Invalid input.');
-
-    $pipelines   = new Pipelines($siteID);
-    $pipelinesRS = $pipelines->getJobOrderPipeline($jobOrderID);
-
-    /* Build addedByAbbrName */
-    foreach ($pipelinesRS as $i => $row)
-    {
-        $pipelinesRS[$i]['addedByAbbrName'] = StringUtility::makeInitialName(
-            $row['addedByFirstName'], $row['addedByLastName'], LAST_NAME_MAXLEN
-        );
-    }
-
-    /* Merge extra field values into rows */
-    $allCandidateIDs = array_map(function($r) { return $r['candidateID']; }, $pipelinesRS);
-    $extraFieldsByCandidate = $pipelines->getExtraFieldsForPipelineCandidates($allCandidateIDs);
-    foreach ($pipelinesRS as $idx => $row)
-    {
-        $cid = $row['candidateID'];
-        if (isset($extraFieldsByCandidate[$cid]))
-        {
-            foreach ($extraFieldsByCandidate[$cid] as $fieldName => $value)
-            {
-                $pipelinesRS[$idx][$fieldName] = $value;
-            }
         }
     }
 
-    if ($exportAll)
-    {
-        $filterString = isset($_GET['filterString']) ? urldecode($_GET['filterString']) : '';
-
-        /* Same $columnMap the AJAX endpoint uses to resolve display names to row keys. */
-        $columnMap = array(
-            'First Name'       => 'firstName',
-            'Last Name'        => 'lastName',
-            'State'            => 'state',
-            'City'             => 'city',
-            'Zip'              => 'zip',
-            'Address'          => 'address',
-            'E-Mail'           => 'candidateEmail',
-            '2nd E-Mail'       => 'candidateEmail2',
-            'Home Phone'       => 'phoneHome',
-            'Cell Phone'       => 'phoneCell',
-            'Work Phone'       => 'phoneWork',
-            'Key Skills'       => 'keySkills',
-            'Current Employer' => 'currentEmployer',
-            'Current Pay'      => 'currentPay',
-            'Desired Pay'      => 'desiredPay',
-            'Can Relocate'     => 'canRelocate',
-            'Source'           => 'source',
-            'Web Site'         => 'webSite',
-            'Misc Notes'       => 'notes',
-            'Available'        => 'dateAvailable',
-            'Modified'         => 'dateModified',
-            'Added'            => 'dateCreated',
-            'Created'          => 'candidateDateCreated',
-            'Status'  => 'statusDescription',
-        );
-        $extraFieldDefs = $pipelines->getExtraFieldDefinitions();
-        if ($extraFieldDefs) {
-            foreach ($extraFieldDefs as $def) {
-                $columnMap[$def['field_name']] = $def['field_name'];
-            }
-        }
-
-        $pipelinesRS = $pipelines->filterPipelineRows($pipelinesRS, $filterString, $columnMap);
-
-        if (empty($pipelinesRS)) die('No matching candidates.');
-    }
-    else
-    {
-        $candidateIDs = isset($_GET['candidateIDs'])
-            ? array_map('intval', (array) json_decode(urldecode($_GET['candidateIDs']), true))
-            : array();
-
-        if (empty($candidateIDs)) die('Invalid input.');
-
-        $pipelinesRS = array_values(array_filter($pipelinesRS, function($row) use ($candidateIDs) {
-            return in_array((int)$row['candidateID'], $candidateIDs);
-        }));
-    }
-
-    /* Base column map */
-    $allCols = array(
-        'firstName'           => array('First Name',       'firstName'),
-        'lastName'            => array('Last Name',        'lastName'),
-        'state'               => array('Loc',              'state'),
-        'city'                => array('City',             'city'),
-        'zip'                 => array('Zip',              'zip'),
-        'address'             => array('Address',          'address'),
-        'dateCreatedInt'      => array('Added',            'dateCreated'),
-        'addedByAbbrName'     => array('Entered By',       'addedByAbbrName'),
-        // 'status'              => array('Status',           'status'),
-        'lastActivity'        => array('Last Activity',    'lastActivity'),
-        'candidateEmail'      => array('E-Mail',           'candidateEmail'),
-        'candidateEmail2'     => array('2nd E-Mail',       'candidateEmail2'),
-        'phoneHome'           => array('Home Phone',       'phoneHome'),
-        'phoneCell'           => array('Cell Phone',       'phoneCell'),
-        'phoneWork'           => array('Work Phone',       'phoneWork'),
-        'keySkills'           => array('Key Skills',       'keySkills'),
-        'currentEmployer'     => array('Current Employer', 'currentEmployer'),
-        'currentPay'          => array('Current Pay',      'currentPay'),
-        'desiredPay'          => array('Desired Pay',      'desiredPay'),
-        'canRelocate'         => array('Can Relocate',     'canRelocate'),
-        'source'              => array('Source',           'source'),
-        'webSite'             => array('Web Site',         'webSite'),
-        'notes'               => array('Misc Notes',       'notes'),
-        'dateAvailable'       => array('Available',        'dateAvailable'),
-        'dateModified'        => array('Modified',         'dateModified')
-    );
-    /* Add extra field definitions to column map */
-    $extraFieldDefs = $pipelines->getExtraFieldDefinitions();
-    if ($extraFieldDefs)
-    {
-        foreach ($extraFieldDefs as $def)
-        {
-            $fn = $def['field_name'];
-            $allCols[$fn] = array($fn, $fn);
-        }
-    }
-    /* Build export columns from visible session cols */
-    $visibleCols = isset($_SESSION['pipelineCols'][$siteID])
-        ? $_SESSION['pipelineCols'][$siteID]
-        : array('firstName', 'lastName', 'state', 'dateCreatedInt', 'addedByAbbrName', 'status', 'lastActivity');
-    $exportCols = array();
-    foreach ($visibleCols as $key)
-    {
-        if (isset($allCols[$key])) $exportCols[$key] = $allCols[$key];
-    }
-    header('Content-Disposition: attachment; filename="export.csv"');
-    header('Content-Type: text/x-csv; charset=utf-8');
-    $out = fopen('php://output', 'w');
-    fputcsv($out, array_column($exportCols, 0));
-    foreach ($pipelinesRS as $row)
-    {
-        $cells = array();
-        foreach ($exportCols as $key => $def)
-        {
-            $val = isset($row[$def[1]]) ? $row[$def[1]] : '';
-            if ($key === 'canRelocate')  $val = ($val == 1 ? 'Yes' : 'No');
-            if ($key === 'lastActivity') $val = strip_tags($val);
-            $cells[] = $val;
-        }
-        fputcsv($out, $cells);
-    }
-    fclose($out);
-    die();
-}
 
     /*
      * Called by handleRequest() to process loading the list / main page.
@@ -733,76 +574,11 @@ private function exportPipeline()
         $this->_template->assign('careerPortalEnabled', $careerPortalEnabled);
         $this->_template->assign('privledgedUser', $privledgedUser);
         $this->_template->assign('sessionCookie', $_SESSION['CATS']->getCookie());
-        $candidates = new Candidates($this->_siteID);
-        
-        $sourcesRS = $candidates->getPossibleSources();
-        $this->_template->assign('sourcesRS', $sourcesRS);
-        $db = DatabaseConnection::getInstance();
 
-        $pipelineSourcesIsIn = $db->getAllAssoc(
-    "SELECT DISTINCT candidate.source AS val
-     FROM candidate
-     INNER JOIN candidate_joborder ON candidate_joborder.candidate_id = candidate.candidate_id
-     WHERE candidate_joborder.joborder_id = " . (int) $jobOrderID . "
-       AND candidate.source IS NOT NULL AND candidate.source != ''
-     ORDER BY candidate.source ASC"
-);
-        $this->_template->assign('pipelineSourcesIsIn', $pipelineSourcesIsIn);
-
-        $statusesRS = $candidates->getPossibleDropDownOptions(
-            'candidate_joborder_status',
-            'short_description',
-            'short_description',
-            null,
-            'candidate_joborder_status_id ASC',
-            'is_enabled = 1 AND candidate_joborder_status_id != 0'
-        );
-        $this->_template->assign('statusesRS', $statusesRS);
-$pipelineStatusCodes = $db->getAllAssoc(
-    "SELECT DISTINCT candidate_joborder.status AS val
-     FROM candidate_joborder
-     WHERE candidate_joborder.joborder_id = " . (int) $jobOrderID
-);
-
-$statusLabelMap = array();
-foreach ($statusesRS as $s)
-{
-    $statusLabelMap[$s['optionValue']] = $s['optionLabel'];
-}
-
-$pipelineStatusesIsIn = array();
-foreach ($pipelineStatusCodes as $row)
-{
-    $val = $row['val'];
-    $pipelineStatusesIsIn[] = array(
-        'val'   => $val,
-        'label' => isset($statusLabelMap[$val]) ? $statusLabelMap[$val] : $val,
-    );
-}
-$this->_template->assign('pipelineStatusesIsIn', $pipelineStatusesIsIn);
         if (!eval(Hooks::get('JO_SHOW'))) return;
 
-       // $this->_template->display('./modules/joborders/Show.tpl');
-    $savedPipelineFilter = isset($_SESSION['pipelineFilter'][$jobOrderID])
-    ? $_SESSION['pipelineFilter'][$jobOrderID]
-    : '';
- 
-$dataGridProperties = DataGrid::getRecentParamaters('joborders:PipelineCandidatesDataGrid');
-if ($dataGridProperties == array())
-{
-    $dataGridProperties = array(
-        'rangeStart'    => 0,
-        'maxResults'    => 15,
-        'filterVisible' => true,
-        'filter'        => $savedPipelineFilter !== '' ? $savedPipelineFilter : 'First+Name=~', );
-    
+        $this->_template->display('./modules/joborders/Show.tpl');
     }
-$dataGrid = new PipelineCandidatesDataGrid($this->_siteID, $dataGridProperties, $jobOrderID);
-$this->_template->assign('dataGrid', $dataGrid);
-$this->_template->assign('userID', $_SESSION['CATS']->getUserID());
-$this->_template->assign('savedPipelineFilter', $savedPipelineFilter);
-$this->_template->display('./modules/joborders/Show.tpl');
-}
 
     /*
      * Called by handleRequest() to render the add popup.
@@ -1834,23 +1610,7 @@ $this->_template->display('./modules/joborders/Show.tpl');
             $replacementStrings,
             $statusChangeTemplate
         );
-	
-        $statusChangeTemplatesMap = array();
-        foreach ($statusRS as $status)
-        {
-            $perStatusRS = $emailTemplates->getByTag(
-                'EMAIL_TEMPLATE_STATUSCHANGE_' . $status['statusID']
-            );
-            if (!empty($perStatusRS) && !empty($perStatusRS['textReplaced']))
-            {
-                $text = str_replace($stringsToFind, $replacementStrings, $perStatusRS['textReplaced']);
-            }
-            else
-            {
-                $text = $statusChangeTemplate;
-            }
-            $statusChangeTemplatesMap[$status['statusID']] = $text;
-        }
+
         $this->_template->assign('candidateID', $candidateID);
         $this->_template->assign('pipelineData', $pipelineData);
         $this->_template->assign('statusRS', $statusRS);
@@ -1860,7 +1620,7 @@ $this->_template->display('./modules/joborders/Show.tpl');
         $this->_template->assign('emailDisabled', $emailDisabled);
         $this->_template->assign('isFinishedMode', false);
         $this->_template->assign('isJobOrdersMode', true);
-        $this->_template->assign('statusChangeTemplatesMap', $statusChangeTemplatesMap);
+
         if (!eval(Hooks::get('JO_ADD_ACTIVITY_CHANGE_STATUS'))) return;
 
         $this->_template->display(

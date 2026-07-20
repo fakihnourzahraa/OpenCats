@@ -564,10 +564,6 @@ class CandidatesUI extends UserInterface
         $this->_template->assign('topLog', $topLog);
         $this->_template->assign('tagsRS', $tagsRS);
 
-        $sourcesRS = $candidates->getPossibleSources();
-        $this->_template->assign('sourcesRS', $sourcesRS);
-        
-
         if (!eval(Hooks::get('CANDIDATE_LIST_BY_VIEW'))) return;
 
         $this->_template->display('./modules/candidates/Candidates.tpl');
@@ -1942,23 +1938,6 @@ class CandidatesUI extends UserInterface
 
         if (!eval(Hooks::get('CANDIDATE_ADD_ACTIVITY_CHANGE_STATUS'))) return;
 
-        $statusChangeTemplatesMap = array();
-        foreach ($statusRS as $status)
-        {
-            $perStatusRS = $emailTemplates->getByTag(
-                'EMAIL_TEMPLATE_STATUSCHANGE_' . $status['statusID']
-            );
-            if (!empty($perStatusRS) && !empty($perStatusRS['textReplaced']))
-            {
-                $text = str_replace($stringsToFind, $replacementStrings, $perStatusRS['textReplaced']);
-            }
-            else
-            {
-                $text = $statusChangeTemplate;
-            }
-            $statusChangeTemplatesMap[$status['statusID']] = $text;
-        }
-
         $this->_template->assign('candidateID', $candidateID);
         $this->_template->assign('pipelineRS', $pipelineRS);
         $this->_template->assign('pipelineData', $pipelineData);
@@ -1969,8 +1948,6 @@ class CandidatesUI extends UserInterface
         $this->_template->assign('emailDisabled', $emailDisabled);
         $this->_template->assign('isFinishedMode', false);
         $this->_template->assign('isJobOrdersMode', false);
-
-        $this->_template->assign('statusChangeTemplatesMap', $statusChangeTemplatesMap);
         $this->_template->display(
             './modules/candidates/ChangeStatusModal.tpl'
         );

@@ -706,36 +706,25 @@ class DataGrid
         if (isset($this->_parameters['filter']))
         {
             $filterStrings = explode(',', $this->_parameters['filter']);
-            
-            $operators = array('=d>', '=d<', '=in', '=bt', '=~', '==', '=>', '=<', '=#', '=@', '=e');
-            
+
             foreach ($filterStrings as $index => $data)
             {
-                $eqPos = strpos($data, '=');
-                if ($eqPos === false)
+                if (strpos($data, '=') === false)
                 {
                     continue;
                 }
 
-                $dataColumnName = urldecode(substr($data, 0, $eqPos));
+                $dataColumnName = urldecode(substr($data, 0, strpos($data, '=')));
 
-                if ($columnName != $dataColumnName)
+                if ($columnName == $dataColumnName)
                 {
-                    continue;
+                    return urldecode(substr($data, strpos($data, '=') + 2));
                 }
-
-                foreach ($operators as $op)
-                {
-                    if (substr($data, $eqPos, strlen($op)) === $op)
-                    {
-                        return urldecode(substr($data, $eqPos + strlen($op)));
-                    }
-                }
-                return urldecode(substr($data, $eqPos + 2));
             }
         }
         return '';
     }
+
     /**
      * Returns the current operator of a filter column (or empty string if no filter is set)
      *
@@ -864,8 +853,7 @@ class DataGrid
         $filtersApplied = false;
         foreach ($this->_classColumns as $index => $data)
         {
-            $filterValue = $this->getFilterValue($index);
-            if (!$filtersApplied && $this->getFilterValue($index) || $this->getFilterOperator($index) == '=e')
+            if (!$filtersApplied && $this->getFilterValue($index))
             {
                 $filtersApplied = true;
             }
@@ -885,8 +873,8 @@ class DataGrid
         foreach ($this->_classColumns as $index => $data)
         {
             $filterValue = $this->getFilterValue($index);
-            $filterOperator = $this->getFilterOperator($index);
-            if ($filterValue != '' || $filterOperator == '=e')
+
+            if ($filterValue != '')
             {
                 $counterFilters++;
 
@@ -896,6 +884,7 @@ class DataGrid
                     unset ($filterableColumns[array_search($index, $filterableColumns)]);
                 }
 
+                $filterOperator = $this->getFilterOperator($index);
                 $filterOperatorHuman = '';
                 switch ($filterOperator)
                 {
@@ -917,18 +906,8 @@ class DataGrid
 
                     case '=#':
                         $filterOperatorHuman = ' has element';
-                        break;                  
-                    case '=d>':
-                        $filterOperatorHuman = ' from';
-                        break;
-                    case '=d<':
-                        $filterOperatorHuman = ' to';
-                        break;
-                    case '=e':
-                        $filterOperatorHuman = ' is empty';
                         break;
                 }
-                //note: =d> and =d< operator descriptions get overriden
 
                 echo '<span class="filterArea">';
                 echo '<a href="javascript:void(0);" onclick="this.parentNode.style.display=\'none\'; ', $this->getJSRemoveFilter($index), '">';
@@ -961,44 +940,14 @@ class DataGrid
             {
                 if (isset($this->_classColumns[$value]['filterTypes']))
                 {
-                    $types = $this->_classColumns[$value]['filterTypes'];
-                    if (strpos($types, '=e') === false) {
-                        $types .= '=e';
-                    }
-                    $filterableColumns[$index] .= '!@!' . $types;
+                    $filterableColumns[$index] .= '!@!' . $this->_classColumns[$value]['filterTypes'];
                 }
                 else
                 {
-                    $filterableColumns[$index] .= '!@!' . '===~=e';
+                    $filterableColumns[$index] .= '!@!' . '===~';
                 }
             }
         }
-
-        echo '<script type="text/javascript">';
-        foreach ($this->_classColumns as $columnName => $data) {
-            if (!isset($data['filterTypes'])) continue;
-            $types = $data['filterTypes'];
-            $isDate = (strpos($types, '=d>') !== false || strpos($types, '=d<') !== false);
-            if ($isDate) {
-                echo 'if (!filterDateRangeRegistry[' . json_encode($columnName) . ']) {
-                    filterDateRangeRegistry[' . json_encode($columnName) . '] = true; }';
-            }
-
-            if (isset($data['filterDropDownOptions'])) {
-                echo 'if (!filterDropDownRegistry[' . json_encode($columnName) . '] ||
-                      !filterDropDownRegistry[' . json_encode($columnName) . '].length) {
-                    filterDropDownRegistry[' . json_encode($columnName) . '] = ' .
-                    json_encode($data['filterDropDownOptions']) . '; }';
-            }
-            if (isset($data['filterIsInOptions'])) {
-                echo 'if (!filterIsInRegistry[' . json_encode($columnName) . '] ||
-                    !filterIsInRegistry[' . json_encode($columnName) . '].length) {
-                    filterIsInRegistry[' . json_encode($columnName) . '] = ' .
-                    json_encode($data['filterIsInOptions']) . '; }';
-            }
-        }
-        echo '</script>';
-
         $template = new Template();
         $template->assign('md5InstanceName', $md5InstanceName);
         $template->assign('arrayKeysString', json_encode(array_values($filterableColumns)));
@@ -1190,17 +1139,8 @@ class DataGrid
                 }
 
                 $columnName = urldecode(substr($data, 0, strpos($data, '=')));
-                 $eqPos = strpos($data, '=');
-                                 $operatorLength = 2;
-                $threeCharOps = array('=d>', '=d<', '=in', '=bt');
-                if (in_array(substr($data, $eqPos, 3), $threeCharOps))
-                {
-                    $operatorLength = 3;
-                }
-                
-                $argument = urldecode(substr($data, $eqPos + $operatorLength));
-               // $argument = urldecode(substr($data, strpos($data, '=') + 2));
-              $op = substr($data, $eqPos, $operatorLength);
+                $argument = urldecode(substr($data, strpos($data, '=') + 2));
+
                 /* Is this a valid column? */
                 if (!isset($this->_classColumns[$columnName]))
                 {
@@ -1213,7 +1153,7 @@ class DataGrid
                     continue;
                 }
 
-                if ($argument == '' && $op !== '=e')
+                if ($argument == '')
                 {
                     continue;
                 }
@@ -1249,18 +1189,6 @@ class DataGrid
                 {
                     $argument = trim($argument);
 
-
-
-                    if (strpos($data, '=in') !== false)
-                    {
-                        if (isset($this->_classColumns[$columnName]['filter']))
-                        {
-                            $whereSQL_or[] = $this->_classColumns[$columnName]['filter'] . ' = ' . $db->makeQueryString($argument);
-                        }
-                    }
-
-
-                    
                     /* Is equal to (==) */
                     if (strpos($data, '==') !== false)
                     {
@@ -1309,12 +1237,12 @@ class DataGrid
                     {
                         if (isset($this->_classColumns[$columnName]['filter']))
                         {
-                            $whereSQL_or[] = $this->_classColumns[$columnName]['filter'] . ' <= ' . $db->makeQueryDouble($argument) .' ';
+                            $whereSQL_or[] = $this->_classColumns[$columnName]['filter'] . ' <= ' . $db->makeQueryInteger($argument) .' ';
                         }
 
                         if (isset($this->_classColumns[$columnName]['filterHaving']))
                         {
-                            $havingSQL_or[] = $this->_classColumns[$columnName]['filterHaving'] . ' <= ' . $db->makeQueryDouble($argument)  .' ';
+                            $havingSQL_or[] = $this->_classColumns[$columnName]['filterHaving'] . ' <= ' . $db->makeQueryInteger($argument)  .' ';
                         }
                     }
 
@@ -1323,12 +1251,12 @@ class DataGrid
                     {
                         if (isset($this->_classColumns[$columnName]['filter']))
                         {
-                            $whereSQL_or[] = $this->_classColumns[$columnName]['filter'] . ' >= ' . $db->makeQueryDouble($argument) .' ';
+                            $whereSQL_or[] = $this->_classColumns[$columnName]['filter'] . ' >= ' . $db->makeQueryInteger($argument) .' ';
                         }
 
                         if (isset($this->_classColumns[$columnName]['filterHaving']))
                         {
-                            $havingSQL_or[] = $this->_classColumns[$columnName]['filterHaving'] . ' >= ' . $db->makeQueryDouble($argument)  .' ';
+                            $havingSQL_or[] = $this->_classColumns[$columnName]['filterHaving'] . ' >= ' . $db->makeQueryInteger($argument)  .' ';
                         }
                     }
 
@@ -1396,28 +1324,6 @@ class DataGrid
                         // TODO:  Actual geographic search?
                     }
 
-                    if (strpos($data, '=d<') !== false)
-                    {
-                        if (isset($this->_classColumns[$columnName]['filter']))
-                        {
-                            $whereSQL_or[] = $this->_classColumns[$columnName]['filter'] . ' <= STR_TO_DATE(' . $db->makeQueryString($argument) . ', \'%m-%d-%y\') ';
-                        }
-                    }
-                    if (strpos($data, '=d>') !== false)
-                    {
-                        if (isset($this->_classColumns[$columnName]['filter']))
-                        {
-                            $whereSQL_or[] = $this->_classColumns[$columnName]['filter'] . ' >= STR_TO_DATE(' . $db->makeQueryString($argument) . ', \'%m-%d-%y\') ';
-                        }
-                    }
-                    if (strpos($data, '=e') !== false)
-                    {
-                        if (isset($this->_classColumns[$columnName]['filter']))
-                        {
-                            $whereSQL_or[] = '(' . $this->_classColumns[$columnName]['filter'] . ' IS NULL OR '
-                                . $this->_classColumns[$columnName]['filter'] . " = '')";
-                        }
-                    }
                 }
                 if (count($whereSQL_or) > 0)
                 {
@@ -1542,9 +1448,9 @@ class DataGrid
 
         /* Figure out what columns we can export. */
         $exportableColumns = array();
-        foreach ($this->_currentColumns as $index => $colData)
+        foreach ($this->_classColumns as $index => $data)
         {
-            $exportableColumns[] = array('name' => $colData['name'], 'data' => $colData['data']);
+            $exportableColumns[] = array('name' => $index, 'data' => $data);
         }
         $this->_currentColumns = $exportableColumns;
 
@@ -2873,6 +2779,8 @@ echo ('<script type="text/javascript">setTableWidth("table'.$md5InstanceName.'",
         return $this->_tableWidth->asString($makeLargerThanDisplayableArea);
     }
  }
+
+
 
 
  ?>

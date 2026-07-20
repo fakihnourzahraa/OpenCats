@@ -1494,12 +1494,6 @@ class SettingsUI extends UserInterface
         $jobOrdersRS = $jobOrders->extraFields->getSettings();
 
         $extraFieldTypes = $candidates->extraFields->getValuesTypes();
-        $this->extraFieldFilters = [
-            'default'  => ['name' => 'Default (Text)'],
-            'date'     => ['name' => 'Date Range'],
-            'range'    => ['name' => 'Range'],
-            'dropdown' => ['name' => 'Dropdown'],
-        ];
 
         $this->_template->assign('extraFieldSettingsCandidatesRS', $candidatesRS);
         $this->_template->assign('extraFieldSettingsContactsRS', $contactsRS);
@@ -1507,7 +1501,6 @@ class SettingsUI extends UserInterface
         $this->_template->assign('extraFieldSettingsJobOrdersRS', $jobOrdersRS);
         $this->_template->assign('extraFieldTypes', $extraFieldTypes);
         $this->_template->assign('active', $this);
-              $this->_template->assign('extraFieldFilters', $this->extraFieldFilters);
         $this->_template->display('./modules/settings/CustomizeExtraFields.tpl');
     }
 
@@ -1532,17 +1525,9 @@ class SettingsUI extends UserInterface
             switch ($args[0])
             {
                 case 'ADDFIELD':
-                    $args = explode(' ', $command, 5);
-                    $extraFields = new ExtraFields($this->_siteID, intval(urldecode($args[1])));
-                    $filterType = isset($args[4]) ? urldecode($args[4]) : 'default';
-                    $validFilters = array('default', 'date', 'range', 'dropdown');
-                    $filterParts = array_values(array_intersect(
-                        array_filter(explode('|', $filterType)),
-                        $validFilters
-                    ));
-                    if (empty($filterParts)) $filterParts = array('default');
-                    $filterType = implode(',', $filterParts);
-                    $extraFields->define(urldecode($args[3]), urldecode($args[2]), $filterType);
+                    $args = explode(' ', $command, 4);
+                    $extraFields = new ExtraFields($this->_siteID, intval($args[1]));
+                    $extraFields->define(urldecode($args[3]), intval($args[2]));
                     break;
 
                 case 'DELETEFIELD':
@@ -1582,16 +1567,6 @@ class SettingsUI extends UserInterface
                     $extraFields = new ExtraFields($this->_siteID, intval($args[1]));
                     $extraFields->renameColumn(urldecode($args2[0]), urldecode($args2[1]));
                     break;
-                case 'CHANGEFILTER':
-                    $args = explode(' ', $command, 3);
-                    $args2 = explode(':', $args[2]);
-
-                    $extraFields = new ExtraFields($this->_siteID, intval($args[1]));
-                    $extraFields->setFilterType(
-                        urldecode($args2[0]),
-                        isset($args2[1]) ? urldecode($args2[1]) : 'default'
-                    );
-                    break;
             }
         }
 
@@ -1603,38 +1578,9 @@ class SettingsUI extends UserInterface
     {
         $emailTemplates = new EmailTemplates($this->_siteID);
         $emailTemplatesRS = $emailTemplates->getAll();
-        $emailTemplatesRS = array_values(array_filter($emailTemplatesRS, function($tpl) {
-            return strpos($tpl['emailTemplateTag'], 'EMAIL_TEMPLATE_STATUSCHANGE_') !== 0;
-        }));
-        $pipelines = new Pipelines($this->_siteID);
-        $candidateStatusesRS = $pipelines->getStatusesForPicking();
-        $statusChangeFallbackText = '';
-        $statusChangePossibleVariables = '';
-        foreach ($emailTemplatesRS as $tpl) {
-            if ($tpl['emailTemplateTag'] === 'EMAIL_TEMPLATE_STATUSCHANGE') {
-                $statusChangeFallbackText      = $tpl['text'];
-                $statusChangePossibleVariables = $tpl['possibleVariables'];
-                break;
-            }
-        }
-        $emailTemplates = new EmailTemplates($this->_siteID);
-        $allTemplatesRS = $emailTemplates->getAll();
-        $emailTemplatesRS = array_values(array_filter($allTemplatesRS, function($tpl) {
-            return strpos($tpl['emailTemplateTag'], 'EMAIL_TEMPLATE_STATUSCHANGE_') !== 0;
-        }));
-        $statusChangeTemplatesRS = array();
-        foreach ($allTemplatesRS as $tpl) {
-            if (strpos($tpl['emailTemplateTag'], 'EMAIL_TEMPLATE_STATUSCHANGE_') === 0) {
-                $sid = (int) substr($tpl['emailTemplateTag'], strlen('EMAIL_TEMPLATE_STATUSCHANGE_'));
-                $statusChangeTemplatesRS[$sid] = $tpl;
-            }
-        }
+
         if (!eval(Hooks::get('SETTINGS_EMAIL_TEMPLATES'))) return;
-	
-        $this->_template->assign('candidateStatusesRS',        $candidateStatusesRS);
-        $this->_template->assign('statusChangeTemplatesRS',     $statusChangeTemplatesRS);
-        $this->_template->assign('statusChangeFallbackText',    $statusChangeFallbackText);
-        $this->_template->assign('statusChangePossibleVariables', $statusChangePossibleVariables);
+
         $this->_template->assign('active', $this);
         $this->_template->assign('subActive', 'Administration');
         $this->_template->assign('emailTemplatesRS', $emailTemplatesRS);
@@ -1644,10 +1590,11 @@ class SettingsUI extends UserInterface
     //FIXME: Document me.
     private function onEmailTemplates()
     {
-        $isStatusSub = !empty($_POST['isStatusSubTemplate']);
-        if (!$isStatusSub && !$this->isRequiredIDValid('templateID', $_POST)) {
+        if (!$this->isRequiredIDValid('templateID', $_POST))
+        {
             CommonErrors::fatal(COMMONERROR_BADINDEX, $this, 'Invalid template ID.');
         }
+
         if (!isset($_POST['templateID']))
         {
             CommonErrors::fatal(COMMONERROR_MISSINGFIELDS, $this, 'Required fields are missing.');
@@ -1683,17 +1630,8 @@ class SettingsUI extends UserInterface
         }
 
         $emailTemplates = new EmailTemplates($this->_siteID);
-       // $emailTemplates->update($templateID, $templateTitle, $text, $disabled);
-        $genericTpl = $emailTemplates->getByTag('EMAIL_TEMPLATE_STATUSCHANGE');
-        $statusChangePossibleVariables = $genericTpl['possibleVariables'] ?? '';
-       
-        if ($isStatusSub && (int)$templateID === 0) {
-            $statusID = (int) $_POST['statusID'];
-            $tag      = 'EMAIL_TEMPLATE_STATUSCHANGE_' . $statusID;
-            $emailTemplates->add($text, $tag, $tag, $this->_siteID, $statusChangePossibleVariables);
-        } else {
-            $emailTemplates->update($templateID, $templateTitle, $text, $disabled);
-        }
+        $emailTemplates->update($templateID, $templateTitle, $text, $disabled);
+
         CATSUtility::transferRelativeURI('m=settings&a=emailTemplates');
     }
 

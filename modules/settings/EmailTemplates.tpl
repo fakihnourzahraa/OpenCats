@@ -18,48 +18,17 @@
             <p class="note">E-Mail Templates</p>
 
             <script type="text/javascript">
-                <?php
-                    $statusChangeMainID=0;
-                    foreach ($this->emailTemplatesRS as $_tpl)
-                    {
-                        if ($_tpl['emailTemplateTag'] == 'EMAIL_TEMPLATE_STATUSCHANGE')
-                        {
-                            $statusChangeMainID = (int) $_tpl['emailTemplateID'];
-                            break;
-                        }
-                    }
-                ?>
-
-                var STATUS_CHANGE_TEMPLATE_ID = <?php echo $statusChangeMainID; ?>;
                 $(document).ready(function() { 
                     $("select option:last").attr("selected", "selected");
-                    showTemplate(document.getElementById('titleSelect').value);
+                    showLastTemplate();
                 });
-
-
-                function hideAllStatusSubForms()
-                {
-                    <?php foreach ($this->candidateStatusesRS as $status): ?>
-                        var _el = document.getElementById('editTableStatus_<?php echo (int) $status['statusID']; ?>');
-                        if (_el) _el.style.display = 'none';
-                    <?php endforeach; ?>
-                }
-
-
-
                 function showTemplate(templateID)
                 {
                     <?php foreach ($this->emailTemplatesRS as $data): ?>
                         document.getElementById('editTable<?php echo($data['emailTemplateID']); ?>').style.display = 'none';
                     <?php endforeach; ?>
-                    hideAllStatusSubForms();
-                    document.getElementById('statusSubSelectorRow').style.display = 'none';
-                    document.getElementById('statusSubSelect').value = '';
                     document.getElementById('editTable' + templateID).style.display = '';
-                    if (parseInt(templateID) === STATUS_CHANGE_TEMPLATE_ID)
-                        document.getElementById('statusSubSelectorRow').style.display = '';
                 }
-
                 function showLastTemplate()
                 {
                     <?php foreach ($this->emailTemplatesRS as $data): ?>
@@ -67,19 +36,6 @@
                     <?php endforeach; ?>
                     <?php $templateID = end($this->emailTemplatesRS)['emailTemplateID'];?>
                     document.getElementById('editTable' + <?php echo $templateID; ?>).style.display = '';
-                }
-                 function showStatusSubTemplate(statusID)
-                {
-                    /* Collapse the generic form and all per-status forms. */
-                    document.getElementById('editTable' + STATUS_CHANGE_TEMPLATE_ID).style.display = 'none';
-                    hideAllStatusSubForms();
-
-                if (statusID === '') {
-                        document.getElementById('editTable' + STATUS_CHANGE_TEMPLATE_ID).style.display = '';
-                        return;
-                    }
-                    var target = document.getElementById('editTableStatus_' + statusID);
-                    if (target) target.style.display = '';
                 }
                 function insertAtCursor(myField, myValue)
                 {
@@ -150,26 +106,6 @@
                                     <input type="button" class="button" value="New">-->
                                 </td>
                             </tr>
-                             <tr id="statusSubSelectorRow" style="display:none;">
-                                <td style="width:210px;">
-                                    <div style="font-weight:bold;">
-                                        Status:
-                                    </div>
-                                </td>
-                                <td>
-                                    <select id="statusSubSelect" style="width:550px;" onchange="showStatusSubTemplate(this.value);">
-                                        <option value="">Generic </option>
-                                        <?php foreach ($this->candidateStatusesRS as $status): ?>
-                                            <option value="<?php echo((int) $status['statusID']);?>">
-                                                <?php echo(htmlspecialchars($status['status'])); ?>
-                                            </option>
-                                        <?php endforeach; ?>
-                                    </select>
-                                    <span style="color:#666; font-size:0.85em;">
-                                        &nbsp;<br>If no template is saved for a status, the generic template above is used.
-                                    </span>
-                                </td>
-                                </tr>
                         </table>
                     </td>
                 </tr>
@@ -266,109 +202,6 @@
                                 </table>
                             </form>
                         <?php endforeach; ?>
-                                                                        <?php foreach ($this->candidateStatusesRS as $status):
-                            $statusID       = (int) $status['statusID'];
-                            $statusLabel    = htmlspecialchars($status['status']);
-                            /* Either the saved per-status row, or null if it hasn't been created yet. */
-                            $statusTpl      = isset($this->statusChangeTemplatesRS[$statusID])
-                                                ? $this->statusChangeTemplatesRS[$statusID]
-                                                : null;
-                            $tplDBID        = $statusTpl ? (int) $statusTpl['emailTemplateID'] : 0;
-                            $tplText        = $statusTpl ? $statusTpl['text'] : $this->statusChangeFallbackText;
-                            $tplDisabled    = $statusTpl ? (int) $statusTpl['disabled'] : 0;
-                            /*
-                             * The generateInsertAtCursor* functions key their JS element references on
-                             * $data['emailTemplateID'], so we pass a synthetic string ID here.
-                             * The string 'Status_N' is valid in an HTML id attribute and in
-                             * getElementById(), and is guaranteed not to clash with numeric IDs.
-                             */
-                            $syntheticID    = 'Status_' . $statusID;
-                            $subData        = array(
-                                'emailTemplateID'   => $syntheticID,
-                                'possibleVariables' => $this->statusChangePossibleVariables,
-                            );
-                        ?>
-                        <form action="<?php echo(CATSUtility::getIndexName()); ?>?m=settings&amp;a=emailTemplates" method="post">
-                            <input type="hidden" name="postback"            value="postback" />
-                            <!-- templateID = 0 when the row doesn't exist yet; controller INSERTs in that case. -->
-                            <input type="hidden" name="templateID"          value="<?php echo $tplDBID; ?>" />
-                            <!-- statusID lets the controller build/look up the correct tag. -->
-                            <input type="hidden" name="statusID"            value="<?php echo $statusID; ?>" />
-                            <input type="hidden" name="isStatusSubTemplate" value="1" />
-                            <table id="editTableStatus_<?php echo $statusID; ?>" class="editTable" width="850" style="display:none;">
-                                <tr>
-                                    <td colspan="2" style="padding:6px 0 2px 0;">
-                                        <strong>Status-specific template: <?php echo $statusLabel; ?></strong>
-                                        <?php if (!$statusTpl): ?>
-                                            <span style="color:#888; font-size:0.85em; margin-left:8px;">
-                                                (not yet saved — showing generic fallback as starting point)
-                                            </span>
-                                        <?php endif; ?>
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td class="tdVertical" style="width:150px;">
-                                        Message:
-                                    </td>
-                                    <td class="tdData">
-                                        <table>
-                                            <tr style="vertical-align:top;">
-                                                <td>
-                                                    <textarea
-                                                        class="inputbox"
-                                                        name="messageText"
-                                                        <?php if ($tplDisabled == 1) echo('disabled'); ?>
-                                                        id="messageText<?php echo $syntheticID; ?>"
-                                                        style="width:450px; height:280px;"
-                                                    ><?php echo htmlspecialchars($tplText); ?></textarea>
-                                                    <input type="hidden"
-                                                        name="messageTextOrigional"
-                                                        id="messageTextOrigional<?php echo $syntheticID; ?>"
-                                                        value="<?php echo htmlspecialchars($tplText); ?>">
-                                                    <br /><br />
-                                                    <input
-                                                        type="checkbox"
-                                                        name="useThisTemplate"
-                                                        id="useThisTemplate<?php echo $syntheticID; ?>"
-                                                        <?php if ($tplDisabled == 0) echo('checked'); ?>
-                                                        onclick="if (this.checked) {document.getElementById('messageText<?php echo $syntheticID; ?>').disabled=false;} else {document.getElementById('messageText<?php echo $syntheticID; ?>').disabled=true;}"
-                                                    > Use this Template / Feature<br />
-                                                </td>
-                                                <td style="text-align:center;">
-                                                    <div style="font-weight:bold;">Insert Formatting:</div>
-                                                    <?php generateInsertAtCursorLink($subData, 'Bold',      '<B></B>'); ?>
-                                                    <?php generateInsertAtCursorLink($subData, 'Italics',   '<I></I>'); ?>
-                                                    <?php generateInsertAtCursorLink($subData, 'Underline', '<U></U>'); ?>
-                                                    <br />
-                                                    <div style="font-weight:bold;">Insert Mail Merge Fields:</div>
-                                                    <?php generateInsertAtCursorLink($subData, 'Current Date/Time',                '%DATETIME%'); ?>
-                                                    <?php generateInsertAtCursorLink($subData, 'Site Name',                        '%SITENAME%'); ?>
-                                                    <?php generateInsertAtCursorLink($subData, 'Recruiter/Current User Name',      '%USERFULLNAME%'); ?>
-                                                    <?php generateInsertAtCursorLink($subData, 'Recruiter/Current User E-Mail Link', '%USERMAIL%'); ?>
-                                                    <?php generateInsertAtCursorLinkConditional($subData, 'Previous Candidate Status', '%CANDPREVSTATUS%'); ?>
-                                                    <?php generateInsertAtCursorLinkConditional($subData, 'Current Candidate Status',  '%CANDSTATUS%'); ?>
-                                                    <?php generateInsertAtCursorLinkConditional($subData, 'Candidate Owner',           '%CANDOWNER%'); ?>
-                                                    <?php generateInsertAtCursorLinkConditional($subData, 'Candidate First Name',      '%CANDFIRSTNAME%'); ?>
-                                                    <?php generateInsertAtCursorLinkConditional($subData, 'Candidate Full Name',       '%CANDFULLNAME%'); ?>
-                                                    <?php generateInsertAtCursorLinkConditional($subData, 'Job Order Title',           '%JBODTITLE%'); ?>
-                                                    <?php generateInsertAtCursorLinkConditional($subData, 'Job Order Company',         '%JBODCLIENT%'); ?>
-                                                </td>
-                                            </tr>
-                                        </table>
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td class="tdVertical" style="width:150px;"></td>
-                                    <td>
-                                        <input type="submit" class="button" value="Save Template">
-                                        <input type="reset"  class="button" value="Reset Template"
-                                            onclick="document.getElementById('messageText<?php echo $syntheticID; ?>').disabled=<?php echo ($tplDisabled == 0) ? 'false' : 'true'; ?>;">
-                                    </td>
-                                </tr>
-                            </table>
-                        </form>
-                        <?php endforeach; ?>
-                .
                     </td>
                 </tr>
             </table>

@@ -62,8 +62,7 @@ class ExtraFields
                 extra_field_settings.extra_field_settings_id AS extraFieldSettingsID,
                 extra_field_settings.extra_field_type as extraFieldType,
                 extra_field_settings.extra_field_options as extraFieldOptions,
-                extra_field_settings.site_id AS siteID,
-                extra_field_settings.filter_type AS filterType
+                extra_field_settings.site_id AS siteID
             FROM
                 extra_field_settings
             WHERE
@@ -86,7 +85,7 @@ class ExtraFields
      * @param integer field type (check constants.php)
      * @return boolean query response
      */
-    public function define($fieldName, $fieldType, $filterType = 'default')
+    public function define($fieldName, $fieldType)
     {
         $sql = sprintf(
             "INSERT INTO extra_field_settings (
@@ -94,22 +93,19 @@ class ExtraFields
                 site_id,
                 date_created,
                 data_item_type,
-                extra_field_type,
-                filter_type
+                extra_field_type
              )
              VALUES (
                 %s,
                 %s,
                 NOW(),
                 %s,
-                %s,
                 %s
              )",
              $this->_db->makeQueryString($fieldName),
              $this->_siteID,
              $this->_dataItemType,
-             $this->_db->makeQueryInteger($fieldType),
-             $this->_db->makeQueryString($filterType),
+             $this->_db->makeQueryInteger($fieldType)
         );
         $this->_db->query($sql);
         
@@ -426,44 +422,6 @@ class ExtraFields
         $rs = $this->_db->query($sql);   
     }
 
-    
-    /**
-     * Changes the filter type(s) of an existing extra field.
-     *
-     * @param string field name
-     * @param string filter type(s), pipe-separated
-     * @return void
-     */
-    public function setFilterType($fieldName, $filterType)
-    {
-        $validFilters = array('default', 'date', 'range', 'dropdown');
-        $filterParts = array_values(array_intersect(
-            array_filter(explode('|', $filterType)),
-            $validFilters
-        ));
-        if (empty($filterParts))
-        {
-            $filterParts = array('default');
-        }
-        $sql = sprintf(
-            "UPDATE
-                extra_field_settings
-            SET
-                extra_field_settings.filter_type = %s
-            WHERE
-                extra_field_settings.site_id = %s
-            AND
-                extra_field_settings.data_item_type = %s
-            AND
-                extra_field_settings.field_name = %s",
-            $this->_db->makeQueryString(implode(',', $filterParts)),
-            $this->_siteID,
-            $this->_dataItemType,
-            $this->_db->makeQueryString($fieldName)
-        );
-        $this->_db->query($sql);
-    }
-
     /**
      * Returns all extra fields fields for a company.
      *
@@ -745,7 +703,7 @@ class ExtraFields
      * @param handle database handle
      * @return array datagrid class entry
      */
-    public function getDataGridDefinition($uniqueIndex, $data, $db, $pipelineJobOrderID = null)
+    public function getDataGridDefinition($uniqueIndex, $data, $db)
     {
         switch ($this->_dataItemType)
         {
@@ -766,141 +724,78 @@ class ExtraFields
                 $column = 'company.company_id';
                 break;
         }
-
-        $join = 'LEFT JOIN extra_field AS extra_field' . $uniqueIndex . ' '
-            . 'ON ' . $column . ' = extra_field' . $uniqueIndex . '.data_item_id '
-            . 'AND extra_field' . $uniqueIndex . '.field_name = ' . $db->makeQueryString($data['fieldName']) . ' '
-            . 'AND extra_field' . $uniqueIndex . '.data_item_type = ' . $this->_dataItemType;
-
+        
         switch ($data['extraFieldType'])
         {
             case EXTRA_FIELD_CHECKBOX:
-                $definition = array(
-                    'select'         => 'extra_field'.$uniqueIndex.'.value AS extra_field_value'.$uniqueIndex,
-                    'join'           => $join,
-                    'pagerRender'    => 'return ($rsData[\'extra_field_value'.$uniqueIndex.'\'] == \'Yes\' ? \'Yes\' : \'No\');',
-                    'exportRender'   => 'return ($rsData[\'extra_field_value'.$uniqueIndex.'\'] == \'Yes\' ? \'Yes\' : \'No\');',
-                    'sortableColumn' => 'extra_field_value'.$uniqueIndex,
-                    'pagerWidth'     => 45,
-                    'filter'         => 'IF (extra_field'.$uniqueIndex.'.value = "Yes", "Yes", "No")',
-                );
-                break;
+               return array('select'       => 'extra_field'.$uniqueIndex.'.value AS extra_field_value'.$uniqueIndex,
+                          'join'         => 'LEFT JOIN extra_field AS extra_field' . $uniqueIndex . ' '.
+                                            'ON '.$column.' = extra_field' . $uniqueIndex . '.data_item_id '.
+                                            'AND extra_field' . $uniqueIndex . '.field_name = ' . $db->makeQueryString($data['fieldName']) . ' '.
+                                            'AND extra_field' . $uniqueIndex . '.data_item_type = ' . $this->_dataItemType,
+                          'pagerRender'          => 'return ($rsData[\'extra_field_value' . $uniqueIndex . '\'] == \'Yes\' ? \'Yes\' : \'No\');',
+                          'exportRender'          => 'return ($rsData[\'extra_field_value' . $uniqueIndex . '\'] == \'Yes\' ? \'Yes\' : \'No\');',
+                          'sortableColumn'         => 'extra_field_value' . $uniqueIndex,
+                          'pagerWidth'  => 45,
+                          'filter' => 'IF (extra_field'.$uniqueIndex.'.value = "Yes", "Yes", "No")');
+            break;
             
             case EXTRA_FIELD_DATE:
-                $pagerRender = 'if (isset($_SESSION[\'CATS\']) && $_SESSION[\'CATS\']->isLoggedIn() && $_SESSION[\'CATS\']->isDateDMY()) { $dateParts = explode(\'-\', $rsData[\'extra_field_value'.$uniqueIndex.'\']); if (count($dateParts) > 2) { $t = $dateParts[0]; $dateParts[0] = $dateParts[1]; $dateParts[1] = $t; } return implode(\'-\', $dateParts); } else { return $rsData[\'extra_field_value'.$uniqueIndex.'\']; }';
-                $definition = array(
-                    'select'         => 'extra_field'.$uniqueIndex.'.value AS extra_field_value'.$uniqueIndex,
-                    'join'           => $join,
-                    'pagerRender'    => $pagerRender,
-                    'exportRender'   => $pagerRender,
-                    'sortableColumn' => 'extra_field_value'.$uniqueIndex,
-                    'pagerWidth'     => 110,
-                    'filter'         => 'extra_field'.$uniqueIndex.'.value',
-                );
-                break;
-
+                return array('select'  => 'extra_field'.$uniqueIndex.'.value AS extra_field_value'.$uniqueIndex,
+                          'join'    => 'LEFT JOIN extra_field AS extra_field' . $uniqueIndex . ' '.
+                                       'ON '.$column.' = extra_field' . $uniqueIndex . '.data_item_id '.
+                                       'AND extra_field' . $uniqueIndex . '.field_name = ' . $db->makeQueryString($data['fieldName']) . ' '.
+                                       'AND extra_field' . $uniqueIndex . '.data_item_type = ' . $this->_dataItemType,
+                          'pagerRender'     => 'if (isset($_SESSION[\'CATS\']) && $_SESSION[\'CATS\']->isLoggedIn() && $_SESSION[\'CATS\']->isDateDMY())
+                                        {
+                                              $dateParts = explode(\'-\',  $rsData[\'extra_field_value' . $uniqueIndex . '\']);
+                                              if (count($dateParts) > 2)
+                                              {
+                                                    $t = $dateParts[0];
+                                                    $dateParts[0] = $dateParts[1];
+                                                    $dateParts[1] = $t;
+                                              }
+                                              $date = implode(\'-\', $dateParts);
+                                              return $date;
+                                        }
+                                        else
+                                        {
+                                             return $rsData[\'extra_field_value' . $uniqueIndex . '\'];
+                                        }',
+                          'exportRender'     => 'if (isset($_SESSION[\'CATS\']) && $_SESSION[\'CATS\']->isLoggedIn() && $_SESSION[\'CATS\']->isDateDMY())
+                                        {
+                                              $dateParts = explode(\'-\',  $rsData[\'extra_field_value' . $uniqueIndex . '\']);
+                                              if (count($dateParts) > 2)
+                                              {
+                                                    $t = $dateParts[0];
+                                                    $dateParts[0] = $dateParts[1];
+                                                    $dateParts[1] = $t;
+                                              }
+                                              $date = implode(\'-\', $dateParts);
+                                              return $date;
+                                        }
+                                        else
+                                        {
+                                             return $rsData[\'extra_field_value' . $uniqueIndex . '\'];
+                                        }',
+                          'sortableColumn'       => 'extra_field_value' . $uniqueIndex,
+                          'pagerWidth' => 110,
+                          'filter' => 'extra_field'.$uniqueIndex.'.value');
+            
             case EXTRA_FIELD_TEXT:
             default:
-                $definition = array(
-                    'select'         => 'extra_field'.$uniqueIndex.'.value AS extra_field_value'.$uniqueIndex,
-                    'join'           => $join,
-                    'pagerRender'    => 'return htmlspecialchars($rsData[\'extra_field_value'.$uniqueIndex.'\']);',
-                    'sortableColumn' => 'extra_field_value'.$uniqueIndex,
-                    'pagerWidth'     => 110,
-                    'filter'         => 'extra_field'.$uniqueIndex.'.value',
-                );
-                break;
+                return array('select'  => 'extra_field'.$uniqueIndex.'.value AS extra_field_value'.$uniqueIndex,
+                          'join'    => 'LEFT JOIN extra_field AS extra_field' . $uniqueIndex . ' '.
+                                       'ON '.$column.' = extra_field' . $uniqueIndex . '.data_item_id '.
+                                       'AND extra_field' . $uniqueIndex . '.field_name = ' . $db->makeQueryString($data['fieldName']) . ' '.
+                                       'AND extra_field' . $uniqueIndex . '.data_item_type = ' . $this->_dataItemType,
+                          'pagerRender'     => 'return htmlspecialchars($rsData[\'extra_field_value' . $uniqueIndex . '\']);',
+                          'sortableColumn'    => 'extra_field_value' . $uniqueIndex,
+                          'pagerWidth'   => 110,
+                          'filter' => 'extra_field'.$uniqueIndex.'.value',
+                          'filterTypes'   => '===>=<=~');
+            break;
         }
-
-    $filterTypeRaw = isset($data['filterType']) ? (string)$data['filterType'] : 'default';
-
-    $filterTypes   = array_values(array_filter(array_map('trim', explode(',', $filterTypeRaw))));
-    if (empty($filterTypes))
-    {
-        $filterTypes = array('default');
-    }
-
-
-    $tokens = array();
-
-    foreach ($filterTypes as $filterType)
-    {
-        switch ($filterType)
-        {
-            case 'date':
-                $tokens[] = '=bt';
-                $tokens[] = '=d>';
-                $tokens[] = '=d<';
-                $definition['filter'] = 'STR_TO_DATE(extra_field' . $uniqueIndex . '.value, \'%m-%d-%y\')';
-                break;
-
-            case 'range':
-                $tokens[] = '=bt';
-                $tokens[] = '==';
-                $tokens[] = '=>';
-                $tokens[] = '=<';
-                break;
-
-           case 'dropdown':
-                $tokens[] = '=in';
-
-                if (!empty($data['extraFieldOptions'])) {
-                    $rawOptions = explode(',', $data['extraFieldOptions']);
-                } else {
-                    $distinctSQL = sprintf(
-                        "SELECT DISTINCT value FROM extra_field 
-                        WHERE field_name = %s 
-                        AND site_id = %s 
-                        AND data_item_type = %s 
-                        AND value != ''",
-                        $db->makeQueryString($data['fieldName']),
-                        $this->_siteID,
-                        $this->_dataItemType
-                    );
-                    $distinctRS = $db->getAllAssoc($distinctSQL);
-                    $rawOptions = array_column($distinctRS, 'value');
-                }
-                $definition['filterDropDownOptions'] = array_values(array_filter(array_map(function($opt) {
-                    $opt = urldecode(trim($opt));
-                    return $opt !== '' ? ['value' => $opt, 'label' => $opt] : null;
-                }, $rawOptions)));
-
-                /* Pipeline-scoped ("is in") values — only present when this definition
-                * is being built for a specific job order's pipeline grid. */
-                if ($pipelineJobOrderID !== null && $this->_dataItemType == DATA_ITEM_CANDIDATE) {
-                    $isInSQL = sprintf(
-                        "SELECT DISTINCT extra_field.value AS val
-                        FROM extra_field
-                        INNER JOIN candidate_joborder ON candidate_joborder.candidate_id = extra_field.data_item_id
-                        WHERE extra_field.field_name = %s
-                        AND extra_field.site_id = %s
-                        AND extra_field.data_item_type = %s
-                        AND candidate_joborder.joborder_id = %s
-                        AND extra_field.value != ''",
-                        $db->makeQueryString($data['fieldName']),
-                        $this->_siteID,
-                        $this->_dataItemType,
-                        $db->makeQueryInteger($pipelineJobOrderID)
-                    );
-                    $isInRS = $db->getAllAssoc($isInSQL);
-                    $definition['filterIsInOptions'] = array_values(array_filter(array_map(function($row) {
-                        $val = urldecode(trim($row['val']));
-                        return $val !== '' ? ['value' => $val, 'label' => $val] : null;
-                    }, $isInRS)));
-                }
-                break;
-
-            case 'default':
-            default:
-                $tokens[] = '==';
-                $tokens[] = '=~';
-                break;
-        }
-    }
-
-    $definition['filterTypes'] = implode('', array_unique($tokens));
-
-    return $definition;
     }
     
     /**
