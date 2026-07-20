@@ -896,7 +896,6 @@ class DataGrid
                     unset ($filterableColumns[array_search($index, $filterableColumns)]);
                 }
 
-//                $filterOperator = $this->getFilterOperator($index);
                 $filterOperatorHuman = '';
                 switch ($filterOperator)
                 {
@@ -929,7 +928,7 @@ class DataGrid
                         $filterOperatorHuman = ' is empty';
                         break;
                 }
-                                //note: =d> and =d< operator descriptions get overriden
+                //note: =d> and =d< operator descriptions get overriden
 
                 echo '<span class="filterArea">';
                 echo '<a href="javascript:void(0);" onclick="this.parentNode.style.display=\'none\'; ', $this->getJSRemoveFilter($index), '">';
@@ -967,7 +966,6 @@ class DataGrid
                         $types .= '=e';
                     }
                     $filterableColumns[$index] .= '!@!' . $types;
-                   // $filterableColumns[$index] .= '!@!' . $this->_classColumns[$value]['filterTypes'];
                 }
                 else
                 {
@@ -985,10 +983,7 @@ class DataGrid
                 echo 'if (!filterDateRangeRegistry[' . json_encode($columnName) . ']) {
                     filterDateRangeRegistry[' . json_encode($columnName) . '] = true; }';
             }
-            if (!$isDate && (strpos($types, '=>') !== false || strpos($types, '=<') !== false)) {
-                echo 'if (!filterRangeRegistry[' . json_encode($columnName) . ']) {
-                    filterRangeRegistry[' . json_encode($columnName) . '] = true; }';
-            }
+
             if (isset($data['filterDropDownOptions'])) {
                 echo 'if (!filterDropDownRegistry[' . json_encode($columnName) . '] ||
                       !filterDropDownRegistry[' . json_encode($columnName) . '].length) {
@@ -2878,8 +2873,6 @@ echo ('<script type="text/javascript">setTableWidth("table'.$md5InstanceName.'",
         return $this->_tableWidth->asString($makeLargerThanDisplayableArea);
     }
  }
-
-
 
 
  ?>

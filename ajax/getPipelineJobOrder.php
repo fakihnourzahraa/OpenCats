@@ -57,13 +57,6 @@ $sortDirection  = trim(htmlspecialchars($_REQUEST['sortDirection']));
 $indexFile      = trim(htmlspecialchars($_REQUEST['indexFile']));
 $isPopup        = $_REQUEST['isPopup'] == 1 ? true : false;
 
-# nour: trim these htmlspecialchars
-// $filterValue    = isset($_REQUEST['filterValue'])    ? trim($_REQUEST['filterValue'])    : '';
-
-// # default filter type and operator
-// $filterColumn   = isset($_REQUEST['filterColumn'])   ? trim($_REQUEST['filterColumn'])   : 'firstName';
-// $filterOperator = isset($_REQUEST['filterOperator']) ? trim($_REQUEST['filterOperator']) : '=~';
-
 $filterValue    = isset($_REQUEST['filterValue'])    ? trim(htmlspecialchars($_REQUEST['filterValue']))    : '';
 
 # default filter type and operator
@@ -129,7 +122,8 @@ foreach ($pipelinesRS as $rowIndex => $row)
 
     }
 
-# 
+
+# to get extra fields
 $candidateIDs = array_map(function($row)
 {
     return $row['candidateID'];
@@ -149,6 +143,8 @@ foreach ($pipelinesRS as $idx => $row)
 }
 $filterString = isset($_REQUEST['filterString']) ? trim($_REQUEST['filterString']) : '';
 $_SESSION['pipelineFilter'][$jobOrderID] = $filterString;
+
+#for filtering, tied to pipelinesRS
 $columnMap = array(
     'First Name'       => 'firstName',
     'Last Name'        => 'lastName',
@@ -175,6 +171,7 @@ $columnMap = array(
     'Created'          => 'candidateDateCreated',
     'Status'  => 'statusDescription',
 );
+# show columns
 $allPipelineColumns = array(
     'match'               => 'Match',
     'firstName'           => 'First Name',
@@ -337,17 +334,8 @@ if (!eval(Hooks::get('JO_AJAX_GET_PIPELINE'))) return;
 
 ?>
 
-<?php
-$jsSortBy    = addslashes($sortBy);
-$jsSortDir   = addslashes($sortDirection);
-$jsIndexFile = addslashes($indexFile);
-$jsFilter    = addslashes($filterString);
-$jsCookie    = addslashes($_SESSION['CATS']->getCookie());
-$jsIsPopup   = $isPopup ? 1 : 0;
-?>
-
 <?php echo(TemplateUtility::getRatingsArrayJS()); ?>
-<!--  -->
+
 
 <script type="text/javascript">
     PipelineJobOrder_setLimitDefaultVars('<?php echo($sortBy); ?>', '<?php echo($sortDirection); ?>');
@@ -370,9 +358,11 @@ $jsIsPopup   = $isPopup ? 1 : 0;
     <tr>
         <th style="width:10px; border-right:1px solid gray;" align="center">
             <div style="width:10px; position:relative;">
+                <!-- columns icon -->
                 <a href="javascript:void(0);" id="pipelineColumnIcon" onclick="pipelineColumnBox_toggle(); return false;">
                     <img src="images/tab_add.gif" border="0" alt="" />
                 </a>
+                <!-- dropdown -->
                 <div class="ajaxSearchResults" id="pipelineColumnBox" onclick="event.stopPropagation();"
                      style="display:none; position:absolute; left:0; top:16px; width:180px; z-index:10000; text-align:left;">
                     <span style="font-weight:bold; color:#000000;">Show Columns:</span><br/><br/>

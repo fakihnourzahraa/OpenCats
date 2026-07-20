@@ -39,7 +39,6 @@ use OpenCATS\UI\QuickActionMenu;
     filterDateRangeRegistry['Modified'] = true;
     filterDateRangeRegistry['Added'] = true;
 
-    filterRangeRegistry['Desired Pay'] = true;
 
 </script>
 <script type="text/javascript">
