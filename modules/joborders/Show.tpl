@@ -19,7 +19,7 @@ use OpenCATS\UI\QuickActionMenu;
             { value: '<?php echo addslashes($s['name']); ?>', label: '<?php echo addslashes($s['name']); ?>' }<?php echo ($i < count($this->sourcesRS) - 1) ? ',' : ''; ?>
         <?php endforeach; ?>
     ];
-    filterDropDownRegistry['Status'] = [
+    filterDropDownRegistry['Recent Status'] = [
         <?php foreach ($this->statusesRS as $i => $s): ?>
             { value: '<?php echo addslashes($s['optionValue']); ?>', label: '<?php echo addslashes($s['optionLabel']); ?>' }<?php echo ($i < count($this->statusesRS) - 1) ? ',' : ''; ?>
         <?php endforeach; ?>
@@ -30,7 +30,7 @@ use OpenCATS\UI\QuickActionMenu;
             { value: '<?php echo addslashes($s['val']); ?>', label: '<?php echo addslashes($s['val']); ?>' }<?php echo ($i < count($this->pipelineSourcesIsIn) - 1) ? ',' : ''; ?>
         <?php endforeach; endif; ?>
     ];
-    filterIsInRegistry['Status'] = [
+    filterIsInRegistry['Recent Status'] = [
         <?php if (!empty($this->pipelineStatusesIsIn)): foreach ($this->pipelineStatusesIsIn as $i => $s): ?>
             { value: '<?php echo addslashes($s['val']); ?>', label: '<?php echo addslashes($s['label']); ?>' }<?php echo ($i < count($this->pipelineStatusesIsIn) - 1) ? ',' : ''; ?>
         <?php endforeach; endif; ?>
@@ -473,7 +473,7 @@ document.addEventListener('click', pipelineColumnBox_close);
             <p class="note">Candidate in Job Order</p>
             <span style="float:right;">
     <?php $this->dataGrid->drawShowFilterControl(); ?>
-</span><br><br>
+</span><br>
           <?php $this->dataGrid->drawFilterArea(); ?>
             <script type="text/javascript">
             var pipelineDataGridFilterID =

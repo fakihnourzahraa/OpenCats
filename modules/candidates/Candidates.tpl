@@ -5,12 +5,13 @@
 <?php $md5InstanceName = md5($this->dataGrid->getInstanceName());?>
 
 <script type="text/javascript">
+  window.isPipelineFilterPage = true;
     filterDropDownRegistry['Source'] = [
         <?php foreach ($this->sourcesRS as $i => $s): ?>
             { value: '<?php echo addslashes($s['name']); ?>', label: '<?php echo addslashes($s['name']); ?>' }<?php echo ($i < count($this->sourcesRS) - 1) ? ',' : ''; ?>
         <?php endforeach; ?>
     ];
-    filterDropDownRegistry['Status'] = [
+    filterDropDownRegistry['Recent Status'] = [
         <?php foreach ($this->statusesRS as $i => $s): ?>
             { value: '<?php echo addslashes($s['optionValue']); ?>', label: '<?php echo addslashes($s['optionLabel']); ?>' }<?php echo ($i < count($this->statusesRS) - 1) ? ',' : ''; ?>
         <?php endforeach; ?>
@@ -21,7 +22,7 @@
             { value: '<?php echo addslashes($s['val']); ?>', label: '<?php echo addslashes($s['val']); ?>' }<?php echo ($i < count($this->pipelineSourcesIsIn) - 1) ? ',' : ''; ?>
         <?php endforeach; endif; ?>
     ];
-    filterIsInRegistry['Status'] = [
+    filterIsInRegistry['Recent Status'] = [
         <?php if (!empty($this->pipelineStatusesIsIn)): foreach ($this->pipelineStatusesIsIn as $i => $s): ?>
             { value: '<?php echo addslashes($s['val']); ?>', label: '<?php echo addslashes($s['label']); ?>' }<?php echo ($i < count($this->pipelineStatusesIsIn) - 1) ? ',' : ''; ?>
         <?php endforeach; endif; ?>

@@ -2145,7 +2145,7 @@ class CandidatesDataGrid extends DataGrid
                                      'pagerWidth'   => 140,
                                      'exportable' => false,
                                      'filterHaving'  => 'lastStatus',
-                                     'filterTypes'   => '=~'),
+                                     'filterTypes'   => '=in=~'),
 
             'Recent Status (Extended)' => array('select'  => '(
                                                     SELECT
