@@ -39,8 +39,15 @@
 
 /* Do we need to run the installer? */
 
-include_once('./config.php');
+error_log('INDEX - method: ' . $_SERVER['REQUEST_METHOD']);
+error_log('POST: ' . print_r($_POST, true));
+error_log('RAW INPUT: ' . file_get_contents('php://input'));
+error_log('COOKIES: ' . print_r($_COOKIE, true));
 
+include_once('./config.php');
+error_log('INDEX - method: ' . $_SERVER['REQUEST_METHOD'] 
+    . ' session CATS: ' . (isset($_SESSION['CATS']) ? 'SET' : 'NOT SET')
+    . ' GET a: ' . (isset($_GET['a']) ? $_GET['a'] : 'MISSING'));
 if (!file_exists('INSTALL_BLOCK') && !isset($_POST['performMaintenence']))
 {
     include(LEGACY_ROOT . '/modules/install/notinstalled.php');
@@ -72,6 +79,10 @@ include_once(LEGACY_ROOT . '/lib/TemplateUtility.php'); /* Depends: ModuleUtilit
 
 /* Give the session a unique name to avoid conflicts and start the session. */
 @session_name(CATS_SESSION_NAME);
+if (isset($_POST['cats_session_id']) && !empty($_POST['cats_session_id']))
+{
+    session_id($_POST['cats_session_id']);
+}
 session_start();
 
 /* Try to prevent caching. */

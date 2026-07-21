@@ -56,26 +56,26 @@ define('SSL_ENABLED', false);
  * 'C:\\antiword\\antiword.exe'. Windows Antiword will have problems locating
  * mapping files if you install it anywhere but C:\antiword\.
  */
-define('ANTIWORD_PATH', "\\path\\to\\antiword");
+define('ANTIWORD_PATH', '/usr/bin/antiword');
 define('ANTIWORD_MAP', '8859-1.txt');
 
 /* XPDF / pdftotext settings. Remember to use double backslashes (\) to represent
  * one backslash (\).
  * http://www.foolabs.com/xpdf/
  */
-define('PDFTOTEXT_PATH', "\\path\\to\\pdftotext");
+define('PDFTOTEXT_PATH', '/usr/bin/pdftotext');
 
 /* html2text settings. Remember to use double backslashes (\) to represent
  * one backslash (\). 'html2text' can be found at:
  * http://www.mbayer.de/html2text/
  */
-define('HTML2TEXT_PATH', "\\path\\to\\html2text");
+define('HTML2TEXT_PATH', '/usr/bin/html2text');
 
 /* UnRTF settings. Remember to use double backslashes (\) to represent
  * one backslash (\). 'unrtf' can be found at:
  * http://www.gnu.org/software/unrtf/unrtf.html
  */
-define('UNRTF_PATH', "\\path\\to\unrtf");
+define('UNRTF_PATH', '/usr/bin/unrtf');
 
 /* Temporary directory. Set this to a directory that is writable by the
  * web server. The default should be fine for most systems. Remember to
@@ -202,11 +202,18 @@ define('MAIL_SENDMAIL_PATH', '/usr/sbin/sendmail');
  * set to 3. If your server requires authentication, set MAIL_SMTP_AUTH to
  * true and configure MAIL_SMTP_USER and MAIL_SMTP_PASS.
  */
-define('MAIL_SMTP_HOST', 'localhost');
+// define('MAIL_SMTP_HOST', 'localhost');
+// define('MAIL_SMTP_PORT', 587);
+// define('MAIL_SMTP_AUTH', true);
+// define('MAIL_SMTP_USER', 'user');
+// define('MAIL_SMTP_PASS', 'password');
+// //Options: '', 'ssl' or 'tls'
+// define('MAIL_SMTP_SECURE', "tls");
+define('MAIL_SMTP_HOST', "smtp.gmail.com");
 define('MAIL_SMTP_PORT', 587);
 define('MAIL_SMTP_AUTH', true);
-define('MAIL_SMTP_USER', 'user');
-define('MAIL_SMTP_PASS', 'password');
+define('MAIL_SMTP_USER', "fakihnour2005@gmail.com");
+define('MAIL_SMTP_PASS', "jtcrpmnnarqgyear");
 //Options: '', 'ssl' or 'tls'
 define('MAIL_SMTP_SECURE', "tls");
 

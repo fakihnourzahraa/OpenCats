@@ -3,6 +3,34 @@
 <?php TemplateUtility::printHeaderBlock(); ?>
 <?php TemplateUtility::printTabs($this->active); ?>
 <?php $md5InstanceName = md5($this->dataGrid->getInstanceName());?>
+
+<script type="text/javascript">
+    filterDropDownRegistry['Source'] = [
+        <?php foreach ($this->sourcesRS as $i => $s): ?>
+            { value: '<?php echo addslashes($s['name']); ?>', label: '<?php echo addslashes($s['name']); ?>' }<?php echo ($i < count($this->sourcesRS) - 1) ? ',' : ''; ?>
+        <?php endforeach; ?>
+    ];
+    filterDropDownRegistry['Status'] = [
+        <?php foreach ($this->statusesRS as $i => $s): ?>
+            { value: '<?php echo addslashes($s['optionValue']); ?>', label: '<?php echo addslashes($s['optionLabel']); ?>' }<?php echo ($i < count($this->statusesRS) - 1) ? ',' : ''; ?>
+        <?php endforeach; ?>
+    ];
+    
+    filterIsInRegistry['Source'] = [
+        <?php if (!empty($this->pipelineSourcesIsIn)): foreach ($this->pipelineSourcesIsIn as $i => $s): ?>
+            { value: '<?php echo addslashes($s['val']); ?>', label: '<?php echo addslashes($s['val']); ?>' }<?php echo ($i < count($this->pipelineSourcesIsIn) - 1) ? ',' : ''; ?>
+        <?php endforeach; endif; ?>
+    ];
+    filterIsInRegistry['Status'] = [
+        <?php if (!empty($this->pipelineStatusesIsIn)): foreach ($this->pipelineStatusesIsIn as $i => $s): ?>
+            { value: '<?php echo addslashes($s['val']); ?>', label: '<?php echo addslashes($s['label']); ?>' }<?php echo ($i < count($this->pipelineStatusesIsIn) - 1) ? ',' : ''; ?>
+        <?php endforeach; endif; ?>
+    ];
+    filterDateRangeRegistry['Created'] = true;
+    filterDateRangeRegistry['Modified'] = true;
+    filterDateRangeRegistry['Added'] = true;
+
+</script>
     <style type="text/css">
     div.addCandidateButton { background: #4172E3 url(images/nodata/candidatesButton.jpg); cursor: pointer; width: 337px; height: 67px; }
     div.addCandidateButton:hover { background: #4172E3 url(images/nodata/candidateButton-o.jpg); cursor: pointer; width: 337px; height: 67px; }
@@ -120,6 +148,7 @@
 
             <?php $this->dataGrid->drawFilterArea(); ?>
             <?php $this->dataGrid->draw();  ?>
+
 
             <div style="display:block;">
                 <span style="float:left;">

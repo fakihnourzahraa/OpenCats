@@ -198,6 +198,17 @@
                                     Add, rename, and remove extra text fields from various data types.
                                 </td>
                             </tr>
+                            <tr>
+                            <td>
+                                    <img src="images/bullet_black.gif" alt="" />
+                                    <a href="<?php echo(CATSUtility::getIndexName()); ?>?m=settings&amp;a=customizeEvaluationTemplate">
+                                        Customize Evaluation Template
+                                    </a>
+                                </td>
+                                <td>
+                                    Change your evaluations template based on the job order.
+                                </td>
+                            </tr>
                         </table>
                         <br />
 

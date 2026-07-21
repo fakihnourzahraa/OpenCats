@@ -46,6 +46,7 @@ include_once(LEGACY_ROOT . '/lib/CommonErrors.php');
 include_once(LEGACY_ROOT . '/lib/ImportUtility.php');
 include_once(LEGACY_ROOT . '/lib/Questionnaire.php');
 include_once(LEGACY_ROOT . '/lib/Tags.php');
+include_once(LEGACY_ROOT . '/lib/EvaluationTemplate.php');
 eval(Hooks::get('XML_FEED_SUBMISSION_SETTINGS_HEADERS'));
 
 /* Users.php is included by index.php already. */
@@ -221,6 +222,7 @@ class SettingsUI extends UserInterface
 
     public function handleRequest()
     {
+         error_log('Settings handleRequest - method: ' . $_SERVER['REQUEST_METHOD'] . ' action: ' . $this->getAction() . ' POST keys: ' . implode(',', array_keys($_POST)));
         $action = $this->getAction();
 
         if (!eval(Hooks::get('SETTINGS_HANDLE_REQUEST'))) return;
@@ -464,6 +466,31 @@ class SettingsUI extends UserInterface
                         CommonErrors::fatal(COMMONERROR_PERMISSION, $this, 'Invalid user level for action.');
                     }
                     $this->customizeCalendar();
+                }
+                break;
+            
+            case 'customizeEvaluationTemplate':
+                   error_log('CASE HIT - isPostBack: ' . ($this->isPostBack() ? 'YES' : 'NO') 
+        . ' accessLevel: ' . $this->getUserAccessLevel('settings.customizeEvaluationTemplate.POST')
+        . ' ACCESS_LEVEL_SA: ' . ACCESS_LEVEL_SA);
+        error_log('POST dump: ' . print_r($_POST, true));
+error_log('REQUEST_METHOD: ' . $_SERVER['REQUEST_METHOD']);
+    
+                if ($this->isPostBack())
+                {
+                    if ($this->getUserAccessLevel('settings.customizeEvaluationTemplate.POST') < ACCESS_LEVEL_SA)
+                    {
+                        CommonErrors::fatal(COMMONERROR_PERMISSION, $this, 'Invalid user level for action.');
+                    }
+                    $this->onCustomizeEvaluationTemplate();
+                }
+                else
+                {
+                    if ($this->getUserAccessLevel('settings.customizeEvaluationTemplate.GET') < ACCESS_LEVEL_DEMO)
+                    {
+                        CommonErrors::fatal(COMMONERROR_PERMISSION, $this, 'Invalid user level for action.');
+                    }
+                    $this->customizeEvaluationTemplate();
                 }
                 break;
 
@@ -1494,6 +1521,12 @@ class SettingsUI extends UserInterface
         $jobOrdersRS = $jobOrders->extraFields->getSettings();
 
         $extraFieldTypes = $candidates->extraFields->getValuesTypes();
+        $this->extraFieldFilters = [
+            'default'  => ['name' => 'Default (Text)'],
+            'date'     => ['name' => 'Date Range'],
+            'range'    => ['name' => 'Range'],
+            'dropdown' => ['name' => 'Dropdown'],
+        ];
 
         $this->_template->assign('extraFieldSettingsCandidatesRS', $candidatesRS);
         $this->_template->assign('extraFieldSettingsContactsRS', $contactsRS);
@@ -1501,6 +1534,7 @@ class SettingsUI extends UserInterface
         $this->_template->assign('extraFieldSettingsJobOrdersRS', $jobOrdersRS);
         $this->_template->assign('extraFieldTypes', $extraFieldTypes);
         $this->_template->assign('active', $this);
+              $this->_template->assign('extraFieldFilters', $this->extraFieldFilters);
         $this->_template->display('./modules/settings/CustomizeExtraFields.tpl');
     }
 
@@ -1525,9 +1559,17 @@ class SettingsUI extends UserInterface
             switch ($args[0])
             {
                 case 'ADDFIELD':
-                    $args = explode(' ', $command, 4);
-                    $extraFields = new ExtraFields($this->_siteID, intval($args[1]));
-                    $extraFields->define(urldecode($args[3]), intval($args[2]));
+                    $args = explode(' ', $command, 5);
+                    $extraFields = new ExtraFields($this->_siteID, intval(urldecode($args[1])));
+                    $filterType = isset($args[4]) ? urldecode($args[4]) : 'default';
+                    $validFilters = array('default', 'date', 'range', 'dropdown');
+                    $filterParts = array_values(array_intersect(
+                        array_filter(explode('|', $filterType)),
+                        $validFilters
+                    ));
+                    if (empty($filterParts)) $filterParts = array('default');
+                    $filterType = implode(',', $filterParts);
+                    $extraFields->define(urldecode($args[3]), urldecode($args[2]), $filterType);
                     break;
 
                 case 'DELETEFIELD':
@@ -1567,20 +1609,282 @@ class SettingsUI extends UserInterface
                     $extraFields = new ExtraFields($this->_siteID, intval($args[1]));
                     $extraFields->renameColumn(urldecode($args2[0]), urldecode($args2[1]));
                     break;
+                case 'CHANGEFILTER':
+                    $args = explode(' ', $command, 3);
+                    $args2 = explode(':', $args[2]);
+
+                    $extraFields = new ExtraFields($this->_siteID, intval($args[1]));
+                    $extraFields->setFilterType(
+                        urldecode($args2[0]),
+                        isset($args2[1]) ? urldecode($args2[1]) : 'default'
+                    );
+                    break;
             }
         }
 
         CATSUtility::transferRelativeURI('m=settings&a=customizeExtraFields');
     }
 
+    private function customizeEvaluationTemplate()
+{
+    $jobOrders   = new JobOrders($this->_siteID);
+$jobOrdersRS = $jobOrders->getAll(JOBORDERS_STATUS_ALL);
+
+    $evalTemplate = new EvaluationTemplate($this->_siteID);
+
+    // Build the nested structure keyed by job order ID.
+    // 0 = generic template.
+    $evaluationTemplatesRS = array();
+
+    $stages = $evalTemplate->getFullTemplate(0);
+    if (!empty($stages))
+    {
+        $evaluationTemplatesRS[0] = array('stages' => $stages);
+    }
+
+    foreach ($jobOrdersRS as $jo)
+    {
+        $joID  = (int) $jo['jobOrderID'];
+        $stages = $evalTemplate->getFullTemplate($joID);
+        if (!empty($stages))
+        {
+            $evaluationTemplatesRS[$joID] = array('stages' => $stages);
+        }
+    }
+
+    $this->_template->assign('jobOrdersRS',           $jobOrdersRS);
+    $this->_template->assign('evaluationTemplatesRS', $evaluationTemplatesRS);
+    $this->_template->assign('active',                $this);
+    $this->_template->assign('subActive',             'Administration');
+    $this->_template->display('./modules/settings/CustomizeEvaluationTemplate.tpl');
+}
+private function onCustomizeEvaluationTemplate()
+{
+    $jobOrderID  = isset($_POST['jobOrderID']) ? (int) $_POST['jobOrderID'] : 0;
+    $commandList = isset($_POST['commandList']) ? $_POST['commandList'] : '';
+
+    $evalTemplate = new EvaluationTemplate($this->_siteID);
+
+    // Use getOwnTemplateID — no fallback to generic for specific job orders
+    $templateID = $evalTemplate->getOwnTemplateID($jobOrderID);
+    if (!$templateID)
+    {
+        $templateID = $evalTemplate->addTemplate($jobOrderID);
+    }
+
+    $commands = explode(',', $commandList);
+    foreach ($commands as $commandEncoded)
+    {
+        $command = trim(urldecode($commandEncoded));
+        if ($command === '') continue;
+
+        $args = explode(' ', $command, 4);
+        if (empty($args[0])) continue;
+
+        switch ($args[0])
+        {
+            case 'ADDSTAGE':
+                $stageName = isset($args[1]) ? urldecode($args[1]) : '';
+                if ($stageName === '') break;
+                $position = $evalTemplate->getNextStagePosition($templateID);
+                $evalTemplate->addStage($templateID, $stageName, $position);
+                break;
+
+            case 'DELETESTAGE':
+                $stageName = isset($args[1]) ? urldecode($args[1]) : '';
+                $stageID   = $evalTemplate->getStageIDByName($templateID, $stageName);
+                if ($stageID !== false)
+                    $evalTemplate->deleteStage($stageID);
+                break;
+
+            case 'ADDCRITERIA':
+                if (!isset($args[2])) break;
+                $stageName    = urldecode($args[1]);
+                $criteriaName = urldecode($args[2]);
+                $stageID = $evalTemplate->getStageIDByName($templateID, $stageName);
+                if ($stageID !== false && $criteriaName !== '')
+                {
+                    $position = $evalTemplate->getNextCriteriaPosition($stageID);
+                    $evalTemplate->addCriteria($stageID, $criteriaName, $position);
+                }
+                break;
+
+            case 'DELETECRITERIA':
+                if (!isset($args[2])) break;
+                $stageName    = urldecode($args[1]);
+                $criteriaName = urldecode($args[2]);
+                $stageID = $evalTemplate->getStageIDByName($templateID, $stageName);
+                if ($stageID !== false)
+                {
+                    $criteriaID = $evalTemplate->getCriteriaIDByName($stageID, $criteriaName);
+                    if ($criteriaID !== false)
+                        $evalTemplate->deleteCriteria($criteriaID);
+                }
+                break;
+        }
+    }
+
+    CATSUtility::transferRelativeURI('m=settings&a=customizeEvaluationTemplate');
+}
+
+//     private function customizeEvaluationTemplate()
+// {
+//     $this->_template->assign('jobOrdersRS',           array());
+//     $this->_template->assign('evaluationTemplatesRS', array());
+//     $this->_template->assign('active',                $this);
+//     $this->_template->assign('subActive',             'Administration');
+//     $this->_template->display('./modules/settings/CustomizeEvaluationTemplate.tpl');
+// }
+// private function onCustomizeEvaluationTemplate()
+// {
+//     CATSUtility::transferRelativeURI('m=settings&a=customizeEvaluationTemplate');
+// }
+    // /*
+    //  * Called by handleRequest() to show the customize extra fields template.
+    //  */
+    // private function customizeEvaluationTemplate()
+    // {
+    //     $candidates = new Candidates($this->_siteID);
+    //     $candidatesRS = $candidates->extraFields->getSettings();
+
+    //     // $contacts = new Contacts($this->_siteID);
+    //     // $contactsRS = $contacts->extraFields->getSettings();
+
+    //     // $companies = new Companies($this->_siteID);
+    //     // $companiesRS = $companies->extraFields->getSettings();
+
+    //     $jobOrders = new JobOrders($this->_siteID);
+    //     $jobOrdersRS = $jobOrders->extraFields->getSettings();
+
+    //     $this->_template->assign('extraFieldSettingsCandidatesRS', $candidatesRS);
+
+    //     $this->_template->display('./modules/settings/CustomizeEvaluationTemplate.tpl');
+    // }
+
+    // /*
+    //  * Called by handleRequest() to process the customize extra fields template.
+    //  */
+    // private function onCustomizeEvaluationTemplate()
+    // {
+    //     $extraFieldsMaintScript = $this->getTrimmedInput('commandList', $_POST);
+    //     $extraFieldsMaintScriptArray = explode(',', $extraFieldsMaintScript);
+
+    //     foreach($extraFieldsMaintScriptArray as $index => $commandEncoded)
+    //     {
+    //         $command = urldecode($commandEncoded);
+    //         $args = explode(' ', $command);
+
+    //         if (!isset($args[0]))
+    //         {
+    //             continue;
+    //         }
+
+    //         switch ($args[0])
+    //         {
+    //             case 'ADDFIELD':
+    //                 $args = explode(' ', $command, 5);
+    //                 $extraFields = new ExtraFields($this->_siteID, intval(urldecode($args[1])));
+    //                 $filterType = isset($args[4]) ? urldecode($args[4]) : 'default';
+    //                 $validFilters = array('default', 'date', 'range', 'dropdown');
+    //                 $filterParts = array_values(array_intersect(
+    //                     array_filter(explode('|', $filterType)),
+    //                     $validFilters
+    //                 ));
+    //                 if (empty($filterParts)) $filterParts = array('default');
+    //                 $filterType = implode(',', $filterParts);
+    //                 $extraFields->define(urldecode($args[3]), urldecode($args[2]), $filterType);
+    //                 break;
+
+    //             case 'DELETEFIELD':
+    //                 $args = explode(' ', $command, 3);
+    //                 $extraFields = new ExtraFields($this->_siteID, intval($args[1]));
+    //                 $extraFields->remove(urldecode($args[2]));
+    //                 break;
+
+    //             case 'ADDOPTION':
+    //                 $args = explode(' ', $command, 3);
+    //                 $args2 = explode(':', $args[2]);
+
+    //                 $extraFields = new ExtraFields($this->_siteID, intval($args[1]));
+    //                 $extraFields->addOptionToColumn(urldecode($args2[0]), urldecode($args2[1]));
+    //                 break;
+
+    //             case 'DELETEOPTION':
+    //                 $args = explode(' ', $command, 3);
+    //                 $args2 = explode(':', $args[2]);
+
+    //                 $extraFields = new ExtraFields($this->_siteID, intval($args[1]));
+    //                 $extraFields->deleteOptionFromColumn(urldecode($args2[0]), urldecode($args2[1]));
+    //                 break;
+
+    //             case 'SWAPFIELDS':
+    //                 $args = explode(' ', $command, 3);
+    //                 $args2 = explode(':', $args[2]);
+
+    //                 $extraFields = new ExtraFields($this->_siteID, intval($args[1]));
+    //                 $extraFields->swapColumns(urldecode($args2[0]), urldecode($args2[1]));
+    //                 break;
+
+    //             case 'RENAMEROW':
+    //                 $args = explode(' ', $command, 3);
+    //                 $args2 = explode(':', $args[2]);
+
+    //                 $extraFields = new ExtraFields($this->_siteID, intval($args[1]));
+    //                 $extraFields->renameColumn(urldecode($args2[0]), urldecode($args2[1]));
+    //                 break;
+    //             case 'CHANGEFILTER':
+    //                 $args = explode(' ', $command, 3);
+    //                 $args2 = explode(':', $args[2]);
+
+    //                 $extraFields = new ExtraFields($this->_siteID, intval($args[1]));
+    //                 $extraFields->setFilterType(
+    //                     urldecode($args2[0]),
+    //                     isset($args2[1]) ? urldecode($args2[1]) : 'default'
+    //                 );
+    //                 break;
+    //         }
+    //     }
+
+    //     CATSUtility::transferRelativeURI('m=settings&a=customizeExtraFields');
+    // }
+
     //FIXME: Document me.
     private function emailTemplates()
     {
         $emailTemplates = new EmailTemplates($this->_siteID);
         $emailTemplatesRS = $emailTemplates->getAll();
-
+        $emailTemplatesRS = array_values(array_filter($emailTemplatesRS, function($tpl) {
+            return strpos($tpl['emailTemplateTag'], 'EMAIL_TEMPLATE_STATUSCHANGE_') !== 0;
+        }));
+        $pipelines = new Pipelines($this->_siteID);
+        $candidateStatusesRS = $pipelines->getStatusesForPicking();
+        $statusChangeFallbackText = '';
+        $statusChangePossibleVariables = '';
+        foreach ($emailTemplatesRS as $tpl) {
+            if ($tpl['emailTemplateTag'] === 'EMAIL_TEMPLATE_STATUSCHANGE') {
+                $statusChangeFallbackText      = $tpl['text'];
+                $statusChangePossibleVariables = $tpl['possibleVariables'];
+                break;
+            }
+        }
+        $emailTemplates = new EmailTemplates($this->_siteID);
+        $allTemplatesRS = $emailTemplates->getAll();
+        $emailTemplatesRS = array_values(array_filter($allTemplatesRS, function($tpl) {
+            return strpos($tpl['emailTemplateTag'], 'EMAIL_TEMPLATE_STATUSCHANGE_') !== 0;
+        }));
+        $statusChangeTemplatesRS = array();
+        foreach ($allTemplatesRS as $tpl) {
+            if (strpos($tpl['emailTemplateTag'], 'EMAIL_TEMPLATE_STATUSCHANGE_') === 0) {
+                $sid = (int) substr($tpl['emailTemplateTag'], strlen('EMAIL_TEMPLATE_STATUSCHANGE_'));
+                $statusChangeTemplatesRS[$sid] = $tpl;
+            }
+        }
         if (!eval(Hooks::get('SETTINGS_EMAIL_TEMPLATES'))) return;
-
+	
+        $this->_template->assign('candidateStatusesRS',        $candidateStatusesRS);
+        $this->_template->assign('statusChangeTemplatesRS',     $statusChangeTemplatesRS);
+        $this->_template->assign('statusChangeFallbackText',    $statusChangeFallbackText);
+        $this->_template->assign('statusChangePossibleVariables', $statusChangePossibleVariables);
         $this->_template->assign('active', $this);
         $this->_template->assign('subActive', 'Administration');
         $this->_template->assign('emailTemplatesRS', $emailTemplatesRS);
@@ -1590,11 +1894,10 @@ class SettingsUI extends UserInterface
     //FIXME: Document me.
     private function onEmailTemplates()
     {
-        if (!$this->isRequiredIDValid('templateID', $_POST))
-        {
+        $isStatusSub = !empty($_POST['isStatusSubTemplate']);
+        if (!$isStatusSub && !$this->isRequiredIDValid('templateID', $_POST)) {
             CommonErrors::fatal(COMMONERROR_BADINDEX, $this, 'Invalid template ID.');
         }
-
         if (!isset($_POST['templateID']))
         {
             CommonErrors::fatal(COMMONERROR_MISSINGFIELDS, $this, 'Required fields are missing.');
@@ -1630,8 +1933,17 @@ class SettingsUI extends UserInterface
         }
 
         $emailTemplates = new EmailTemplates($this->_siteID);
-        $emailTemplates->update($templateID, $templateTitle, $text, $disabled);
-
+       // $emailTemplates->update($templateID, $templateTitle, $text, $disabled);
+        $genericTpl = $emailTemplates->getByTag('EMAIL_TEMPLATE_STATUSCHANGE');
+        $statusChangePossibleVariables = $genericTpl['possibleVariables'] ?? '';
+       
+        if ($isStatusSub && (int)$templateID === 0) {
+            $statusID = (int) $_POST['statusID'];
+            $tag      = 'EMAIL_TEMPLATE_STATUSCHANGE_' . $statusID;
+            $emailTemplates->add($text, $tag, $tag, $this->_siteID, $statusChangePossibleVariables);
+        } else {
+            $emailTemplates->update($templateID, $templateTitle, $text, $disabled);
+        }
         CATSUtility::transferRelativeURI('m=settings&a=emailTemplates');
     }
 
