@@ -51,7 +51,7 @@ class EvaluationTemplate
                 $this->_siteID
             ));
         }
-        return $this->_db->getInsertID();
+        return $this->_db->getLastInsertID();
     }
 
     public function getStages($templateID)
@@ -107,7 +107,7 @@ public function addStage($templateID, $stageName, $position)
         (int) $templateID, $this->_siteID,
         $this->_db->escapeString($stageName), (int) $position
     ));
-    $stageID = $this->_db->getInsertID();
+    $stageID = $this->_db->getLastInsertID();
 
     // is_fixed = 1 so these can't be deleted
     $this->_db->query(sprintf(
@@ -160,7 +160,7 @@ public function addStage($templateID, $stageName, $position)
             $this->_db->escapeString($criteriaName),
             (int) $position
         ));
-        return $this->_db->getInsertID();
+        return $this->_db->getLastInsertID();
     }
 
     public function deleteCriteria($criteriaID)
@@ -171,7 +171,27 @@ public function addStage($templateID, $stageName, $position)
             $this->_siteID
         ));
     }
+    public function renameStage($stageID, $newName)
+    {
+        $this->_db->query(sprintf(
+            "UPDATE evaluation_stage SET stage_name = '%s'
+            WHERE stage_id = %s AND site_id = %s",
+            $this->_db->escapeString($newName),
+            (int) $stageID,
+            $this->_siteID
+        ));
+    }
 
+    public function renameCriteria($criteriaID, $newName)
+    {
+        $this->_db->query(sprintf(
+            "UPDATE evaluation_criteria SET criteria_name = '%s'
+            WHERE criteria_id = %s AND site_id = %s",
+            $this->_db->escapeString($newName),
+            (int) $criteriaID,
+            $this->_siteID
+        ));
+    }
     public function getCriteriaIDByName($stageID, $criteriaName)
     {
         $rs = $this->_db->getAssoc(sprintf(

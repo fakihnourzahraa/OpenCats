@@ -39,15 +39,9 @@
 
 /* Do we need to run the installer? */
 
-error_log('INDEX - method: ' . $_SERVER['REQUEST_METHOD']);
-error_log('POST: ' . print_r($_POST, true));
-error_log('RAW INPUT: ' . file_get_contents('php://input'));
-error_log('COOKIES: ' . print_r($_COOKIE, true));
 
 include_once('./config.php');
-error_log('INDEX - method: ' . $_SERVER['REQUEST_METHOD'] 
-    . ' session CATS: ' . (isset($_SESSION['CATS']) ? 'SET' : 'NOT SET')
-    . ' GET a: ' . (isset($_GET['a']) ? $_GET['a'] : 'MISSING'));
+
 if (!file_exists('INSTALL_BLOCK') && !isset($_POST['performMaintenence']))
 {
     include(LEGACY_ROOT . '/modules/install/notinstalled.php');

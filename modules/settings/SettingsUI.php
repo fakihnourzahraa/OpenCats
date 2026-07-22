@@ -222,7 +222,6 @@ class SettingsUI extends UserInterface
 
     public function handleRequest()
     {
-         error_log('Settings handleRequest - method: ' . $_SERVER['REQUEST_METHOD'] . ' action: ' . $this->getAction() . ' POST keys: ' . implode(',', array_keys($_POST)));
         $action = $this->getAction();
 
         if (!eval(Hooks::get('SETTINGS_HANDLE_REQUEST'))) return;
@@ -469,13 +468,7 @@ class SettingsUI extends UserInterface
                 }
                 break;
             
-            case 'customizeEvaluationTemplate':
-                   error_log('CASE HIT - isPostBack: ' . ($this->isPostBack() ? 'YES' : 'NO') 
-        . ' accessLevel: ' . $this->getUserAccessLevel('settings.customizeEvaluationTemplate.POST')
-        . ' ACCESS_LEVEL_SA: ' . ACCESS_LEVEL_SA);
-        error_log('POST dump: ' . print_r($_POST, true));
-error_log('REQUEST_METHOD: ' . $_SERVER['REQUEST_METHOD']);
-    
+            case 'customizeEvaluationTemplate':   
                 if ($this->isPostBack())
                 {
                     if ($this->getUserAccessLevel('settings.customizeEvaluationTemplate.POST') < ACCESS_LEVEL_SA)
@@ -1626,106 +1619,133 @@ error_log('REQUEST_METHOD: ' . $_SERVER['REQUEST_METHOD']);
     }
 
     private function customizeEvaluationTemplate()
-{
-    $jobOrders   = new JobOrders($this->_siteID);
-$jobOrdersRS = $jobOrders->getAll(JOBORDERS_STATUS_ALL);
-
-    $evalTemplate = new EvaluationTemplate($this->_siteID);
-
-    // Build the nested structure keyed by job order ID.
-    // 0 = generic template.
-    $evaluationTemplatesRS = array();
-
-    $stages = $evalTemplate->getFullTemplate(0);
-    if (!empty($stages))
     {
-        $evaluationTemplatesRS[0] = array('stages' => $stages);
-    }
+        $jobOrders   = new JobOrders($this->_siteID);
+        $jobOrdersRS = $jobOrders->getAll(JOBORDERS_STATUS_ALL);
 
-    foreach ($jobOrdersRS as $jo)
-    {
-        $joID  = (int) $jo['jobOrderID'];
-        $stages = $evalTemplate->getFullTemplate($joID);
+        $evalTemplate = new EvaluationTemplate($this->_siteID);
+
+        // Build the nested structure keyed by job order ID.
+        // 0 = generic template.
+        $evaluationTemplatesRS = array();
+
+        $stages = $evalTemplate->getFullTemplate(0);
         if (!empty($stages))
         {
-            $evaluationTemplatesRS[$joID] = array('stages' => $stages);
+            $evaluationTemplatesRS[0] = array('stages' => $stages);
         }
-    }
 
-    $this->_template->assign('jobOrdersRS',           $jobOrdersRS);
-    $this->_template->assign('evaluationTemplatesRS', $evaluationTemplatesRS);
-    $this->_template->assign('active',                $this);
-    $this->_template->assign('subActive',             'Administration');
-    $this->_template->display('./modules/settings/CustomizeEvaluationTemplate.tpl');
-}
-private function onCustomizeEvaluationTemplate()
-{
-    $jobOrderID  = isset($_POST['jobOrderID']) ? (int) $_POST['jobOrderID'] : 0;
-    $commandList = isset($_POST['commandList']) ? $_POST['commandList'] : '';
-
-    $evalTemplate = new EvaluationTemplate($this->_siteID);
-
-    // Use getOwnTemplateID — no fallback to generic for specific job orders
-    $templateID = $evalTemplate->getOwnTemplateID($jobOrderID);
-    if (!$templateID)
-    {
-        $templateID = $evalTemplate->addTemplate($jobOrderID);
-    }
-
-    $commands = explode(',', $commandList);
-    foreach ($commands as $commandEncoded)
-    {
-        $command = trim(urldecode($commandEncoded));
-        if ($command === '') continue;
-
-        $args = explode(' ', $command, 4);
-        if (empty($args[0])) continue;
-
-        switch ($args[0])
+        foreach ($jobOrdersRS as $jo)
         {
-            case 'ADDSTAGE':
-                $stageName = isset($args[1]) ? urldecode($args[1]) : '';
-                if ($stageName === '') break;
-                $position = $evalTemplate->getNextStagePosition($templateID);
-                $evalTemplate->addStage($templateID, $stageName, $position);
-                break;
-
-            case 'DELETESTAGE':
-                $stageName = isset($args[1]) ? urldecode($args[1]) : '';
-                $stageID   = $evalTemplate->getStageIDByName($templateID, $stageName);
-                if ($stageID !== false)
-                    $evalTemplate->deleteStage($stageID);
-                break;
-
-            case 'ADDCRITERIA':
-                if (!isset($args[2])) break;
-                $stageName    = urldecode($args[1]);
-                $criteriaName = urldecode($args[2]);
-                $stageID = $evalTemplate->getStageIDByName($templateID, $stageName);
-                if ($stageID !== false && $criteriaName !== '')
-                {
-                    $position = $evalTemplate->getNextCriteriaPosition($stageID);
-                    $evalTemplate->addCriteria($stageID, $criteriaName, $position);
-                }
-                break;
-
-            case 'DELETECRITERIA':
-                if (!isset($args[2])) break;
-                $stageName    = urldecode($args[1]);
-                $criteriaName = urldecode($args[2]);
-                $stageID = $evalTemplate->getStageIDByName($templateID, $stageName);
-                if ($stageID !== false)
-                {
-                    $criteriaID = $evalTemplate->getCriteriaIDByName($stageID, $criteriaName);
-                    if ($criteriaID !== false)
-                        $evalTemplate->deleteCriteria($criteriaID);
-                }
-                break;
+            $joID  = (int) $jo['jobOrderID'];
+            $stages = $evalTemplate->getFullTemplate($joID);
+            if (!empty($stages))
+            {
+                $evaluationTemplatesRS[$joID] = array('stages' => $stages);
+            }
         }
+
+        $this->_template->assign('jobOrdersRS',           $jobOrdersRS);
+        $this->_template->assign('evaluationTemplatesRS', $evaluationTemplatesRS);
+        $this->_template->assign('active',                $this);
+        $this->_template->assign('subActive',             'Administration');
+        $this->_template->display('./modules/settings/CustomizeEvaluationTemplate.tpl');
     }
 
-    CATSUtility::transferRelativeURI('m=settings&a=customizeEvaluationTemplate');
-}
+    private function onCustomizeEvaluationTemplate()
+    {
+        $jobOrderID  = isset($_POST['jobOrderID']) ? (int) $_POST['jobOrderID'] : 0;
+        $commandList = isset($_POST['commandList']) ? $_POST['commandList'] : '';
+
+        $evalTemplate = new EvaluationTemplate($this->_siteID);
+
+        // Use getOwnTemplateID — no fallback to generic for specific job orders
+        $templateID = $evalTemplate->getOwnTemplateID($jobOrderID);
+        if (!$templateID)
+        {
+            $templateID = $evalTemplate->addTemplate($jobOrderID);
+        }
+
+        $commands = explode(',', $commandList);
+        foreach ($commands as $commandEncoded)
+        {
+            $command = trim(urldecode($commandEncoded));
+            if ($command === '') continue;
+
+            $args = explode(' ', $command, 4);
+            if (empty($args[0])) continue;
+
+            switch ($args[0])
+            {
+                case 'ADDSTAGE':
+                    $stageName = isset($args[1]) ? urldecode($args[1]) : '';
+                    if ($stageName === '') break;
+                    $position = $evalTemplate->getNextStagePosition($templateID);
+                    $evalTemplate->addStage($templateID, $stageName, $position);
+                    break;
+
+                case 'DELETESTAGE':
+                    $stageName = isset($args[1]) ? urldecode($args[1]) : '';
+                    $stageID   = $evalTemplate->getStageIDByName($templateID, $stageName);
+                    if ($stageID !== false)
+                        $evalTemplate->deleteStage($stageID);
+                    break;
+
+                case 'ADDCRITERIA':
+                    if (!isset($args[2])) break;
+                    $stageName    = urldecode($args[1]);
+                    $criteriaName = urldecode($args[2]);
+                    $stageID = $evalTemplate->getStageIDByName($templateID, $stageName);
+                    if ($stageID !== false && $criteriaName !== '')
+                    {
+                        $position = $evalTemplate->getNextCriteriaPosition($stageID);
+                        $evalTemplate->addCriteria($stageID, $criteriaName, $position);
+                    }
+                    break;
+
+                case 'DELETECRITERIA':
+                    if (!isset($args[2])) break;
+                    $stageName    = urldecode($args[1]);
+                    $criteriaName = urldecode($args[2]);
+                    $stageID = $evalTemplate->getStageIDByName($templateID, $stageName);
+                    if ($stageID !== false)
+                    {
+                        $criteriaID = $evalTemplate->getCriteriaIDByName($stageID, $criteriaName);
+                        if ($criteriaID !== false)
+                            $evalTemplate->deleteCriteria($criteriaID);
+                    }
+                    break;
+                case 'RENAMESTAGE':
+                    if (!isset($args[1])) break;
+                    $parts = explode(':', urldecode($args[1]), 2);
+                    if (count($parts) < 2) break;
+                    $oldName = $parts[0];
+                    $newName = $parts[1];
+                    $stageID = $evalTemplate->getStageIDByName($templateID, $oldName);
+                    if ($stageID !== false && $newName !== '')
+                        $evalTemplate->renameStage($stageID, $newName);
+                    break;
+
+                case 'RENAMECRITERIA':
+                    if (!isset($args[2])) break;
+                    $stageName = urldecode($args[1]);
+                    $parts     = explode(':', urldecode($args[2]), 2);
+                    if (count($parts) < 2) break;
+                    $oldName = $parts[0];
+                    $newName = $parts[1];
+                    $stageID = $evalTemplate->getStageIDByName($templateID, $stageName);
+                    if ($stageID !== false)
+                    {
+                        $criteriaID = $evalTemplate->getCriteriaIDByName($stageID, $oldName);
+                        if ($criteriaID !== false && $newName !== '')
+                            $evalTemplate->renameCriteria($criteriaID, $newName);
+                    }
+                    break;
+            }
+        }
+
+       CATSUtility::transferRelativeURI('m=settings&a=customizeEvaluationTemplate&jobOrderID=' . $jobOrderID);
+    }
 
 //     private function customizeEvaluationTemplate()
 // {
