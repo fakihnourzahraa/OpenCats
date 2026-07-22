@@ -330,7 +330,47 @@
                         </td>
                         <?php endif; ?>
                     </tr>
-                </table>
+
+                     <!-- Evaluation Template (read-only) -->
+          
+                <tr>
+                    <td colspan="2" style="padding: 8px 0 6px 0;">
+                        <strong>Evaluation Template</strong>
+                        <a href="<?php echo(CATSUtility::getIndexName()); ?>?m=settings&amp;a=customizeEvaluationTemplate&amp;jobOrderID=<?php echo($this->jobOrderID); ?>"
+                           style="margin-left:10px; font-weight:normal;">
+                            [Edit]
+                        </a>
+                    </td>
+                </tr>
+                <?php if (empty($this->evaluationStages)): ?>
+                    <tr>
+                        <td colspan="2" style="color:#888;">
+                            No evaluation stages defined yet.
+                        </td>
+                    </tr>
+                <?php else: ?>
+                    <?php foreach ($this->evaluationStages as $stage): ?>
+                        <tr>
+                            <td class="tdVertical" style="vertical-align:top;">
+                                <?php echo htmlspecialchars($stage['stage_name'], ENT_QUOTES, 'UTF-8'); ?>
+                            </td>
+                            <td class="tdData">
+                                <?php if (empty($stage['criteria'])): ?>
+                                    <span style="color:#888;">(no criteria)</span>
+                                <?php else: ?>
+                                    <?php
+                                        $criteriaNames = array_map(function ($c) {
+                                            return htmlspecialchars($c['criteria_name'], ENT_QUOTES, 'UTF-8');
+                                        }, $stage['criteria']);
+                                    ?>
+                                    <?php echo implode(', ', $criteriaNames); ?>
+                                <?php endif; ?>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                <?php endif; ?>
+            </table>
+
                 <input type="submit" tabindex="22" class="button" name="submit" id="submit" value="Save" />&nbsp;
                 <input type="reset"  tabindex="23" class="button" name="reset"  id="reset"  value="Reset" />&nbsp;
                 <input type="button" tabindex="24" class="button" name="back"   id="back"   value="Back to Details" onclick="javascript:goToURL('<?php echo(CATSUtility::getIndexName()); ?>?m=joborders&amp;a=show&amp;jobOrderID=<?php echo($this->jobOrderID); ?>');" />

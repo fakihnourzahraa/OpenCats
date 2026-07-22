@@ -1,4 +1,10 @@
 <?php
+/*
+ * CATS
+ * Evaluation Template Library
+ * Added for IBC
+ * $Id: EvaluationTemplate.php 3810 2026-22-07 $
+ */
 
 class EvaluationTemplate
 {
@@ -24,6 +30,7 @@ class EvaluationTemplate
             if (!empty($rs)) return $rs['template_id'];
         }
 
+        // if job order doesnt have a template, go for generic
         $rs = $this->_db->getAssoc(sprintf(
             "SELECT template_id FROM evaluation_template
              WHERE site_id = %s AND job_order_id IS NULL",
@@ -47,7 +54,7 @@ class EvaluationTemplate
         {
             $this->_db->query(sprintf(
                 "INSERT INTO evaluation_template (site_id, job_order_id)
-                 VALUES (%s, NULL)",
+                 VALUES (%s, NULL)", //important to be null
                 $this->_siteID
             ));
         }
@@ -78,6 +85,8 @@ class EvaluationTemplate
         ));
     }
 
+
+// returns false if job order doesnt have a template (only use to write)
 public function getOwnTemplateID($jobOrderID)
 {
     if ($jobOrderID > 0)
@@ -109,15 +118,14 @@ public function addStage($templateID, $stageName, $position)
     ));
     $stageID = $this->_db->getLastInsertID();
 
-    // is_fixed = 1 so these can't be deleted
     $this->_db->query(sprintf(
-        "INSERT INTO evaluation_criteria (stage_id, site_id, criteria_name, position, is_fixed)
-         VALUES (%s, %s, 'Rating', 0, 1)",
+        "INSERT INTO evaluation_criteria (stage_id, site_id, criteria_name, position)
+         VALUES (%s, %s, 'Rating', 0)",
         (int) $stageID, $this->_siteID
     ));
     $this->_db->query(sprintf(
-        "INSERT INTO evaluation_criteria (stage_id, site_id, criteria_name, position, is_fixed)
-         VALUES (%s, %s, 'Comments', 1, 1)",
+        "INSERT INTO evaluation_criteria (stage_id, site_id, criteria_name, position)
+         VALUES (%s, %s, 'Comments', 1)",
         (int) $stageID, $this->_siteID
     ));
 
@@ -171,6 +179,7 @@ public function addStage($templateID, $stageName, $position)
             $this->_siteID
         ));
     }
+    
     public function renameStage($stageID, $newName)
     {
         $this->_db->query(sprintf(

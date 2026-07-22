@@ -48,7 +48,7 @@ include_once(LEGACY_ROOT . '/lib/CommonErrors.php');
 include_once(LEGACY_ROOT . '/lib/JobOrderTypes.php');
 include_once(LEGACY_ROOT . '/lib/JobOrderStatuses.php');
 include_once(LEGACY_ROOT . '/modules/joborders/dataGrids.php');
-
+include_once(LEGACY_ROOT . '/lib/EvaluationTemplate.php');
 
 class JobOrdersUI extends UserInterface
 {
@@ -1184,8 +1184,11 @@ $this->_template->display('./modules/joborders/Show.tpl');
                     $questionnaireData = $q;
                 }
             }
-        }
+            }
+    $evalTemplate = new EvaluationTemplate($this->_siteID);
+    $evaluationStages = $evalTemplate->getFullTemplate($jobOrderID);
 
+    $this->_template->assign('evaluationStages', $evaluationStages);
         $this->_template->assign('extraFieldRS', $extraFieldRS);
         $this->_template->assign('careerPortalEnabled', $careerPortalEnabled);
         $this->_template->assign('questionnaireID', $questionnaireID);

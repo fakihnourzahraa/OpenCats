@@ -1624,12 +1624,10 @@ class SettingsUI extends UserInterface
         $jobOrdersRS = $jobOrders->getAll(JOBORDERS_STATUS_ALL);
 
         $evalTemplate = new EvaluationTemplate($this->_siteID);
-
-        // Build the nested structure keyed by job order ID.
-        // 0 = generic template.
         $evaluationTemplatesRS = array();
 
         $stages = $evalTemplate->getFullTemplate(0);
+        //only for modified job order templates, not the generic ones
         if (!empty($stages))
         {
             $evaluationTemplatesRS[0] = array('stages' => $stages);
@@ -1645,10 +1643,10 @@ class SettingsUI extends UserInterface
             }
         }
 
-        $this->_template->assign('jobOrdersRS',           $jobOrdersRS);
+        $this->_template->assign('jobOrdersRS', $jobOrdersRS);
         $this->_template->assign('evaluationTemplatesRS', $evaluationTemplatesRS);
-        $this->_template->assign('active',                $this);
-        $this->_template->assign('subActive',             'Administration');
+        $this->_template->assign('active', $this);
+        $this->_template->assign('subActive', 'Administration');
         $this->_template->display('./modules/settings/CustomizeEvaluationTemplate.tpl');
     }
 
@@ -1659,7 +1657,6 @@ class SettingsUI extends UserInterface
 
         $evalTemplate = new EvaluationTemplate($this->_siteID);
 
-        // Use getOwnTemplateID — no fallback to generic for specific job orders
         $templateID = $evalTemplate->getOwnTemplateID($jobOrderID);
         if (!$templateID)
         {
@@ -1746,127 +1743,6 @@ class SettingsUI extends UserInterface
 
        CATSUtility::transferRelativeURI('m=settings&a=customizeEvaluationTemplate&jobOrderID=' . $jobOrderID);
     }
-
-//     private function customizeEvaluationTemplate()
-// {
-//     $this->_template->assign('jobOrdersRS',           array());
-//     $this->_template->assign('evaluationTemplatesRS', array());
-//     $this->_template->assign('active',                $this);
-//     $this->_template->assign('subActive',             'Administration');
-//     $this->_template->display('./modules/settings/CustomizeEvaluationTemplate.tpl');
-// }
-// private function onCustomizeEvaluationTemplate()
-// {
-//     CATSUtility::transferRelativeURI('m=settings&a=customizeEvaluationTemplate');
-// }
-    // /*
-    //  * Called by handleRequest() to show the customize extra fields template.
-    //  */
-    // private function customizeEvaluationTemplate()
-    // {
-    //     $candidates = new Candidates($this->_siteID);
-    //     $candidatesRS = $candidates->extraFields->getSettings();
-
-    //     // $contacts = new Contacts($this->_siteID);
-    //     // $contactsRS = $contacts->extraFields->getSettings();
-
-    //     // $companies = new Companies($this->_siteID);
-    //     // $companiesRS = $companies->extraFields->getSettings();
-
-    //     $jobOrders = new JobOrders($this->_siteID);
-    //     $jobOrdersRS = $jobOrders->extraFields->getSettings();
-
-    //     $this->_template->assign('extraFieldSettingsCandidatesRS', $candidatesRS);
-
-    //     $this->_template->display('./modules/settings/CustomizeEvaluationTemplate.tpl');
-    // }
-
-    // /*
-    //  * Called by handleRequest() to process the customize extra fields template.
-    //  */
-    // private function onCustomizeEvaluationTemplate()
-    // {
-    //     $extraFieldsMaintScript = $this->getTrimmedInput('commandList', $_POST);
-    //     $extraFieldsMaintScriptArray = explode(',', $extraFieldsMaintScript);
-
-    //     foreach($extraFieldsMaintScriptArray as $index => $commandEncoded)
-    //     {
-    //         $command = urldecode($commandEncoded);
-    //         $args = explode(' ', $command);
-
-    //         if (!isset($args[0]))
-    //         {
-    //             continue;
-    //         }
-
-    //         switch ($args[0])
-    //         {
-    //             case 'ADDFIELD':
-    //                 $args = explode(' ', $command, 5);
-    //                 $extraFields = new ExtraFields($this->_siteID, intval(urldecode($args[1])));
-    //                 $filterType = isset($args[4]) ? urldecode($args[4]) : 'default';
-    //                 $validFilters = array('default', 'date', 'range', 'dropdown');
-    //                 $filterParts = array_values(array_intersect(
-    //                     array_filter(explode('|', $filterType)),
-    //                     $validFilters
-    //                 ));
-    //                 if (empty($filterParts)) $filterParts = array('default');
-    //                 $filterType = implode(',', $filterParts);
-    //                 $extraFields->define(urldecode($args[3]), urldecode($args[2]), $filterType);
-    //                 break;
-
-    //             case 'DELETEFIELD':
-    //                 $args = explode(' ', $command, 3);
-    //                 $extraFields = new ExtraFields($this->_siteID, intval($args[1]));
-    //                 $extraFields->remove(urldecode($args[2]));
-    //                 break;
-
-    //             case 'ADDOPTION':
-    //                 $args = explode(' ', $command, 3);
-    //                 $args2 = explode(':', $args[2]);
-
-    //                 $extraFields = new ExtraFields($this->_siteID, intval($args[1]));
-    //                 $extraFields->addOptionToColumn(urldecode($args2[0]), urldecode($args2[1]));
-    //                 break;
-
-    //             case 'DELETEOPTION':
-    //                 $args = explode(' ', $command, 3);
-    //                 $args2 = explode(':', $args[2]);
-
-    //                 $extraFields = new ExtraFields($this->_siteID, intval($args[1]));
-    //                 $extraFields->deleteOptionFromColumn(urldecode($args2[0]), urldecode($args2[1]));
-    //                 break;
-
-    //             case 'SWAPFIELDS':
-    //                 $args = explode(' ', $command, 3);
-    //                 $args2 = explode(':', $args[2]);
-
-    //                 $extraFields = new ExtraFields($this->_siteID, intval($args[1]));
-    //                 $extraFields->swapColumns(urldecode($args2[0]), urldecode($args2[1]));
-    //                 break;
-
-    //             case 'RENAMEROW':
-    //                 $args = explode(' ', $command, 3);
-    //                 $args2 = explode(':', $args[2]);
-
-    //                 $extraFields = new ExtraFields($this->_siteID, intval($args[1]));
-    //                 $extraFields->renameColumn(urldecode($args2[0]), urldecode($args2[1]));
-    //                 break;
-    //             case 'CHANGEFILTER':
-    //                 $args = explode(' ', $command, 3);
-    //                 $args2 = explode(':', $args[2]);
-
-    //                 $extraFields = new ExtraFields($this->_siteID, intval($args[1]));
-    //                 $extraFields->setFilterType(
-    //                     urldecode($args2[0]),
-    //                     isset($args2[1]) ? urldecode($args2[1]) : 'default'
-    //                 );
-    //                 break;
-    //         }
-    //     }
-
-    //     CATSUtility::transferRelativeURI('m=settings&a=customizeExtraFields');
-    // }
 
     //FIXME: Document me.
     private function emailTemplates()
