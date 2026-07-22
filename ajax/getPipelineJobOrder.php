@@ -349,6 +349,8 @@ if (!eval(Hooks::get('JO_AJAX_GET_PIPELINE'))) return;
     <?php endif; ?>
 	<?php if (count($pipelinesRS) <= 15): ?>
         document.getElementById('ajaxPipelineControl').style.display='none';
+    <?php else: ?>
+    document.getElementById('ajaxPipelineControl').style.display='';
 	<?php endif; ?>
 
     document.getElementById('ajaxPipelineNavigation').innerHTML = s;

@@ -400,6 +400,37 @@ document.addEventListener('click', pipelineColumnBox_close);
                                 </td>
 
                             </tr>
+                            <tr>
+                                <td valign="top" class="vertical">
+                                    Evaluation Template:
+                                    <?php if ($this->getUserAccessLevel('joborders.edit') >= ACCESS_LEVEL_EDIT): ?>
+                                        <br /><a href="<?php echo Template::escapeUrl(CATSUtility::getIndexName() . '?m=settings&a=customizeEvaluationTemplate&jobOrderID=' . $this->jobOrderID); ?>">[Edit]</a>
+                                    <?php endif; ?>
+                                </td>
+                                <td class="data" colspan="2">
+                                    <?php if (empty($this->evaluationStages)): ?>
+                                        <span style="color:#888;">No evaluation stages defined yet.</span>
+                                    <?php else: ?>
+                                        <ul style="margin:0 0 0 18px; padding:0;">
+                                            <?php foreach ($this->evaluationStages as $stage): ?>
+                                                <li>
+                                                    <strong><?php echo htmlspecialchars($stage['stage_name'], ENT_QUOTES, 'UTF-8'); ?></strong>
+                                                    <?php if (!empty($stage['criteria'])): ?>
+                                                        <?php
+                                                            $criteriaNames = array_map(function ($c) {
+                                                                return htmlspecialchars($c['criteria_name'], ENT_QUOTES, 'UTF-8');
+                                                            }, $stage['criteria']);
+                                                        ?>
+                                                        — <?php echo implode(', ', $criteriaNames); ?>
+                                                    <?php else: ?>
+                                                        <span style="color:#888;">(no criteria)</span>
+                                                    <?php endif; ?>
+                                                </li>
+                                            <?php endforeach; ?>
+                                        </ul>
+                                    <?php endif; ?>
+                                </td>
+                            </tr>
                         </table>
                     </td>
                 </tr>

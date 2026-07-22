@@ -718,7 +718,10 @@ private function exportPipeline()
         {
             $careerPortalURL = CATSUtility::getAbsoluteURI() . 'careers/';
         }
-
+        
+        $evalTemplate = new EvaluationTemplate($this->_siteID);
+        $evaluationStages = $evalTemplate->getFullTemplate($jobOrderID);
+        $this->_template->assign('evaluationStages', $evaluationStages);
         $this->_template->assign('active', $this);
         $this->_template->assign('isPublic', $isPublic);
         $this->_template->assign('questionnaireID', $questionnaireID);
