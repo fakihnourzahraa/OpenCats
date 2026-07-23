@@ -487,6 +487,21 @@ class SettingsUI extends UserInterface
                 }
                 break;
 
+            case 'evaluate':
+                if ($this->getUserAccessLevel('joborders.evaluate') < ACCESS_LEVEL_EDIT)
+                {
+                    CommonErrors::fatal(COMMONERROR_PERMISSION, $this, 'Invalid user level for action.');
+                }
+                if ($this->isPostBack())
+                {
+                    $this->onEvaluate();
+                }
+                else
+                {
+                    $this->evaluate();
+                }
+                break;
+
             case 'reports':
                 if ($this->getUserAccessLevel('settings.reports') < ACCESS_LEVEL_DEMO)
                 {
@@ -1743,6 +1758,80 @@ class SettingsUI extends UserInterface
 
        CATSUtility::transferRelativeURI('m=settings&a=customizeEvaluationTemplate&jobOrderID=' . $jobOrderID);
     }
+
+    private function evaluate()
+    {
+        $jobOrderID  = isset($_GET['jobOrderID'])  ? (int) $_GET['jobOrderID']  : 0;
+        $candidateID = isset($_GET['candidateID']) ? (int) $_GET['candidateID'] : 0;
+
+        if ($jobOrderID <= 0 || $candidateID <= 0)
+        {
+            CommonErrors::fatal(COMMONERROR_BADFIELDS, $this, 'Invalid request.');
+        }
+
+        $jobOrders  = new JobOrders($this->_siteID);
+        $jobOrderRS = $jobOrders->get($jobOrderID);
+
+        $candidates  = new Candidates($this->_siteID);
+        $candidateRS = $candidates->get($candidateID);
+
+        $evalTemplate = new EvaluationTemplate($this->_siteID);
+        $stages       = $evalTemplate->getFullTemplate($jobOrderID);
+
+        $this->_template->assign('jobOrderID',    $jobOrderID);
+        $this->_template->assign('candidateID',   $candidateID);
+        $this->_template->assign('jobOrderTitle', $jobOrderRS['title']);
+        $this->_template->assign('candidateName', $candidateRS['first_name'] . ' ' . $candidateRS['last_name']);
+        $this->_template->assign('stages',        $stages);
+        $this->_template->assign('noTemplate',    empty($stages));
+        $this->_template->assign('active',        $this);
+        $this->_template->assign('subActive',     'Evaluate');
+        $this->_template->display('./modules/joborders/Evaluate.tpl');
+    }
+private function onEvaluate()
+{
+    $jobOrderID  = isset($_POST['jobOrderID'])  ? (int) $_POST['jobOrderID']  : 0;
+    $candidateID = isset($_POST['candidateID']) ? (int) $_POST['candidateID'] : 0;
+    $stageID     = isset($_POST['stageID'])     ? (int) $_POST['stageID']     : 0;
+    $evaluatorID = isset($_POST['evaluatorID']) ? (int) $_POST['evaluatorID'] : 0;
+    $evaluatorName = isset($_POST['evaluatorName']) ? trim($_POST['evaluatorName']) : '';
+    $values      = isset($_POST['values']) && is_array($_POST['values']) ? $_POST['values'] : array();
+
+    if ($jobOrderID <= 0 || $candidateID <= 0 || $stageID <= 0 || $evaluatorName === '')
+    {
+        CommonErrors::fatal(COMMONERROR_BADFIELDS, $this, 'Invalid request.');
+    }
+
+    $evaluations  = new Evaluations($this->_siteID);
+    $evalTemplate = new EvaluationTemplate($this->_siteID);
+
+    $instanceID = $evaluations->getInstanceForPipeline($candidateID, $jobOrderID);
+    if ($instanceID === false)
+    {
+        $templateID = $evalTemplate->getTemplateID($jobOrderID);
+        $instanceID = $evaluations->createInstance($candidateID, $jobOrderID, $templateID);
+    }
+
+    // Add a new evaluator, or rename an existing one if the name changed.
+    if ($evaluatorID <= 0)
+    {
+        $evaluatorID = $evaluations->addEvaluator($instanceID, $stageID, $evaluatorName);
+    }
+    else
+    {
+        $evaluations->renameEvaluator($evaluatorID, $evaluatorName);
+    }
+
+    // Upsert each criterion value posted for this stage/evaluator.
+    foreach ($values as $criteriaID => $value)
+    {
+        $evaluations->saveCriteriaValue((int) $evaluatorID, (int) $criteriaID, $value);
+    }
+
+    CATSUtility::transferRelativeURI(
+        'm=joborders&a=evaluate&jobOrderID=' . $jobOrderID . '&candidateID=' . $candidateID
+    );
+}
 
     //FIXME: Document me.
     private function emailTemplates()

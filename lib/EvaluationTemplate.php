@@ -250,3 +250,4 @@ public function addStage($templateID, $stageName, $position)
         return $stages;
     }
 }
+?>
