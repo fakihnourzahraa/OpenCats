@@ -421,7 +421,7 @@ document.addEventListener('click', pipelineColumnBox_close);
                                                                 return htmlspecialchars($c['criteria_name'], ENT_QUOTES, 'UTF-8');
                                                             }, $stage['criteria']);
                                                         ?>
-                                                        — <?php echo implode(', ', $criteriaNames); ?>
+                                                    : <?php echo implode(', ', $criteriaNames); ?>
                                                     <?php else: ?>
                                                         <span style="color:#888;">(no criteria)</span>
                                                     <?php endif; ?>

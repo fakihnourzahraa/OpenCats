@@ -100,15 +100,11 @@ $selectedJobOrderID = isset($_GET['jobOrderID']) ? (int) $_GET['jobOrderID'] : 0
                                             <option value="<?php echo (int) $joEntry['jobOrderID']; ?>"
                                                 <?php echo ((int) $joEntry['jobOrderID'] === $selectedJobOrderID) ? 'selected="selected"' : ''; ?>>
                                                 <?php echo htmlspecialchars($joEntry['title'], ENT_QUOTES, 'UTF-8'); ?>
-                                                <?php if (!empty($joEntry['companyName'])): ?>
-                                                    &mdash; <?php echo htmlspecialchars($joEntry['companyName'], ENT_QUOTES, 'UTF-8'); ?>
-                                                <?php endif; ?>
+
                                             </option>
                                         <?php endforeach; ?>
                                     </select>
-                                    <span style="color:#888; font-size:0.85em;">
-                                        <br />If no template is saved for a job order, the Generic Template is used.
-                                    </span>
+
                                 </td>
                             </tr>
                         </table>
@@ -384,11 +380,6 @@ $selectedJobOrderID = isset($_GET['jobOrderID']) ? (int) $_GET['jobOrderID'] : 0
                                             Evaluation Template:
                                             <?php echo htmlspecialchars($joEntry['title'], ENT_QUOTES, 'UTF-8'); ?>
                                         </strong>
-                                        <?php if (!$hasTpl): ?>
-                                            <span style="color:#888; font-size:0.85em; margin-left:8px;">
-                                                (no saved template yet — Generic Template used at runtime)
-                                            </span>
-                                        <?php endif; ?>
                                     <?php endif; ?>
                                 </td>
                             </tr>
