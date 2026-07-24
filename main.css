@@ -1406,3 +1406,16 @@ td.contentContainerOld {
 #emailPreview * {
     padding: 5px;
 }
+
+input[readonly], textarea[readonly] {
+    border: none;
+    background: transparent;
+    padding: 2px 0;
+    resize: none;
+}
+input.editableField, textarea.editableField {
+    border: 1px solid #ccc;
+    background: #fff;
+    padding: 4px;
+    resize: both;
+}

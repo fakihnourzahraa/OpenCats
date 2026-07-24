@@ -486,6 +486,7 @@ class SettingsUI extends UserInterface
                     $this->customizeEvaluationTemplate();
                 }
                 break;
+                
 
             case 'reports':
                 if ($this->getUserAccessLevel('settings.reports') < ACCESS_LEVEL_DEMO)
@@ -1750,6 +1751,27 @@ private function onCustomizeEvaluationTemplate()
                             $evalTemplate->renameCriteria($criteriaID, $newName);
                     }
                     break;
+            case 'MOVESTAGEUP':
+            case 'MOVESTAGEDOWN':
+                $stageName = isset($args[1]) ? urldecode($args[1]) : '';
+                $stageID   = $evalTemplate->getStageIDByName($templateID, $stageName);
+                if ($stageID !== false)
+                    $evalTemplate->moveStage($templateID, $stageID, $args[0] === 'MOVESTAGEUP' ? 'up' : 'down');
+                break;
+
+            case 'MOVECRITERIAUP':
+            case 'MOVECRITERIADOWN':
+                if (!isset($args[2])) break;
+                $stageName    = urldecode($args[1]);
+                $criteriaName = urldecode($args[2]);
+                $stageID = $evalTemplate->getStageIDByName($templateID, $stageName);
+                if ($stageID !== false)
+                {
+                    $criteriaID = $evalTemplate->getCriteriaIDByName($stageID, $criteriaName);
+                    if ($criteriaID !== false)
+                        $evalTemplate->moveCriteria($stageID, $criteriaID, $args[0] === 'MOVECRITERIAUP' ? 'up' : 'down');
+                }
+                break;
             }
         }
 
