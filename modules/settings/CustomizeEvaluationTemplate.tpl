@@ -46,7 +46,7 @@ $selectedJobOrderID = isset($_GET['jobOrderID']) ? (int) $_GET['jobOrderID'] : 0
             <input type="hidden" name="csrfToken" value="<?php echo htmlspecialchars($_SESSION['CATS']->getCSRFToken(), ENT_QUOTES, 'UTF-8'); ?>" />
             <input type="hidden" name="jobOrderID" id="jobOrderID" value="0" />
             <input type="hidden" name="commandList" id="commandList" value="" />
-
+            <input type="hidden" name="resetToGeneric" id="resetToGeneric" value="0" />
             <script type="text/javascript">
                 var ALL_TEMPLATE_IDS = [0<?php foreach ($jobOrdersRS as $jo): ?>, <?php echo (int) $jo['jobOrderID']; ?><?php endforeach; ?>];
 
@@ -77,6 +77,16 @@ $selectedJobOrderID = isset($_GET['jobOrderID']) ? (int) $_GET['jobOrderID'] : 0
                     }
                     document.getElementById('jobOrderID').value  = joID;
                     document.getElementById('commandList').value = commandList;
+                    document.getElementById('evalTemplateForm').submit();
+                }
+
+                function resetToGenericTemplate(joID) {
+                    if (!confirm('Reset this job order\'s evaluation template to the generic template? All stage and criteria customizations for this job order will be permanently deleted.')) {
+                        return;
+                    }
+                    document.getElementById('jobOrderID').value      = joID;
+                    document.getElementById('commandList').value     = '';
+                    document.getElementById('resetToGeneric').value  = '1';
                     document.getElementById('evalTemplateForm').submit();
                 }
 
@@ -498,7 +508,12 @@ $selectedJobOrderID = isset($_GET['jobOrderID']) ? (int) $_GET['jobOrderID'] : 0
                             <tr>
                                 <td colspan="2" style="padding: 10px 0;">
                                     <input type="button" class="button" value="Save Template"
-                                           onclick="submitTemplate(<?php echo $joID; ?>);" />
+                                        onclick="submitTemplate(<?php echo $joID; ?>);" />
+                                    <?php if (!$isGeneric): ?>
+                                    <input type="button" class="button" value="Reset to Generic"
+                                        style="margin-left:6px;"
+                                        onclick="resetToGenericTemplate(<?php echo $joID; ?>);" />
+                                    <?php endif; ?>
                                 </td>
                             </tr>
 

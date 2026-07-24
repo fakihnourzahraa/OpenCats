@@ -513,6 +513,8 @@ use OpenCATS\UI\CandidateDuplicateQuickActionMenu;
                     <th align="left">Status</th>
 <?php if (!$this->isPopup): ?>
                     <th align="center">Action</th>
+
+<th align="center">Evaluate</th>
 <?php endif; ?>
                 </tr>
 
@@ -553,6 +555,9 @@ use OpenCATS\UI\CandidateDuplicateQuickActionMenu;
 <?php if (!$this->isPopup): ?>
                         <td align="center" nowrap="nowrap">
                             <?php eval(Hooks::get('CANDIDATE_TEMPLATE_SHOW_PIPELINE_ACTION')); ?>
+                            <?php if ($this->getUserAccessLevel('joborders.edit') >= ACCESS_LEVEL_EDIT): ?>
+
+<?php endif; ?>
                             <?php if ($this->getUserAccessLevel('pipelines.screening') >= ACCESS_LEVEL_EDIT && !$_SESSION['CATS']->hasUserCategory('sourcer')): ?>
                                 <?php if ($pipelinesData['ratingValue'] < 0): ?>
                                 <a href="#" id="screenLink<?php echo($pipelinesData['candidateJobOrderID']); ?>" onclick="moImageValue<?php echo($pipelinesData['candidateJobOrderID']); ?> = 0; setRating(<?php echo($pipelinesData['candidateJobOrderID']); ?>, 0, 'moImage<?php echo($pipelinesData['candidateJobOrderID']); ?>', <?php echo Template::escapeJsAttr($_SESSION['CATS']->getCookie() . ' '); ?>); return false;">
@@ -576,6 +581,13 @@ use OpenCATS\UI\CandidateDuplicateQuickActionMenu;
                                 </form>
                             <?php endif; ?>
                         </td>
+                        <td align="center" nowrap="nowrap">
+    <?php if ($this->getUserAccessLevel('joborders.edit') >= ACCESS_LEVEL_EDIT): ?>
+        <a href="<?php echo Template::escapeUrl(CATSUtility::getIndexName() . '?m=joborders&a=evaluate&jobOrderID=' . $pipelinesData['jobOrderID'] . '&candidateID=' . $this->candidateID); ?>">
+            <img src="images/actions/edit.gif" width="16" height="16" class="absmiddle" alt="" border="0" title="Evaluate" />
+        </a>
+    <?php endif; ?>
+    </td>
 <?php endif; ?>
                     </tr>
                     <tr class="<?php TemplateUtility::printAlternatingRowClass($rowNumber); ?>" id="pipelineDetails<?php echo($rowNumber); ?>" style="display:none;">
@@ -631,7 +643,9 @@ use OpenCATS\UI\CandidateDuplicateQuickActionMenu;
                     <th align="left" width="90">Entered By</th>
 <?php if (!$this->isPopup): ?>
                     <th align="left" width="40">Action</th>
+
 <?php endif; ?>
+
                 </tr>
 
                 <?php foreach ($this->activityRS as $rowNumber => $activityData): ?>

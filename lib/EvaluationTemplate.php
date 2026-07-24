@@ -40,26 +40,69 @@ class EvaluationTemplate
     }
 
     public function addTemplate($jobOrderID)
+{
+    if ($jobOrderID > 0)
     {
-        if ($jobOrderID > 0)
+        $this->_db->query(sprintf(
+            "INSERT INTO evaluation_template (site_id, job_order_id)
+             VALUES (%s, %s)",
+            $this->_siteID,
+            (int) $jobOrderID
+        ));
+        $templateID = $this->_db->getLastInsertID();
+
+        /* A job order's first own template inherits a copy of whatever the
+           generic template currently has, so customizing it doesn't discard
+           stages/criteria it was previously inheriting. */
+        $genericTemplateID = $this->getOwnTemplateID(0);
+        if ($genericTemplateID !== false)
         {
-            $this->_db->query(sprintf(
-                "INSERT INTO evaluation_template (site_id, job_order_id)
-                 VALUES (%s, %s)",
-                $this->_siteID,
-                (int) $jobOrderID
-            ));
+            $this->_copyStagesAndCriteria($genericTemplateID, $templateID);
         }
-        else
-        {
-            $this->_db->query(sprintf(
-                "INSERT INTO evaluation_template (site_id, job_order_id)
-                 VALUES (%s, NULL)", //important to be null
-                $this->_siteID
-            ));
-        }
+
+        return $templateID;
+    }
+    else
+    {
+        $this->_db->query(sprintf(
+            "INSERT INTO evaluation_template (site_id, job_order_id)
+             VALUES (%s, NULL)", //important to be null
+            $this->_siteID
+        ));
         return $this->_db->getLastInsertID();
     }
+}
+
+private function _copyStagesAndCriteria($sourceTemplateID, $destTemplateID)
+{
+    $stages = $this->getStages($sourceTemplateID);
+
+    foreach ($stages as $stage)
+    {
+        $this->_db->query(sprintf(
+            "INSERT INTO evaluation_stage (template_id, site_id, stage_name, position)
+             VALUES (%s, %s, '%s', %s)",
+            (int) $destTemplateID,
+            $this->_siteID,
+            $this->_db->escapeString($stage['stage_name']),
+            (int) $stage['position']
+        ));
+        $newStageID = $this->_db->getLastInsertID();
+
+        $criteria = $this->getCriteria($stage['stage_id']);
+        foreach ($criteria as $criterion)
+        {
+            $this->_db->query(sprintf(
+                "INSERT INTO evaluation_criteria (stage_id, site_id, criteria_name, position)
+                 VALUES (%s, %s, '%s', %s)",
+                (int) $newStageID,
+                $this->_siteID,
+                $this->_db->escapeString($criterion['criteria_name']),
+                (int) $criterion['position']
+            ));
+        }
+    }
+}
 
     public function getStages($templateID)
     {
@@ -248,6 +291,30 @@ public function addStage($templateID, $stageName, $position)
             $stages[$i]['criteria'] = $this->getCriteria($stage['stage_id']);
         }
         return $stages;
+    }
+    public function deleteTemplate($templateID)
+    {
+        $stages = $this->getStages($templateID);
+        foreach ($stages as $stage)
+        {
+            $this->_db->query(sprintf(
+                "DELETE FROM evaluation_criteria WHERE stage_id = %s AND site_id = %s",
+                (int) $stage['stage_id'],
+                $this->_siteID
+            ));
+        }
+
+        $this->_db->query(sprintf(
+            "DELETE FROM evaluation_stage WHERE template_id = %s AND site_id = %s",
+            (int) $templateID,
+            $this->_siteID
+        ));
+
+        $this->_db->query(sprintf(
+            "DELETE FROM evaluation_template WHERE template_id = %s AND site_id = %s",
+            (int) $templateID,
+            $this->_siteID
+        ));
     }
 }
 ?>
