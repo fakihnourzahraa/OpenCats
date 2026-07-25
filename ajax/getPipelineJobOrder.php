@@ -59,7 +59,6 @@ $isPopup        = $_REQUEST['isPopup'] == 1 ? true : false;
 
 $filterValue    = isset($_REQUEST['filterValue'])    ? trim(htmlspecialchars($_REQUEST['filterValue']))    : '';
 
-# default filter type and operator
 $filterColumn   = isset($_REQUEST['filterColumn'])   ? trim(htmlspecialchars($_REQUEST['filterColumn']))   : 'firstName';
 $filterOperator = isset($_REQUEST['filterOperator']) ? trim(htmlspecialchars($_REQUEST['filterOperator'])) : '=~';
 
@@ -128,8 +127,11 @@ $candidateIDs = array_map(function($row)
 {
     return $row['candidateID'];
 }, $pipelinesRS);
-
+# gets all extra fields mapped to each candidate 
 $extraFieldsByCandidate = $pipelines->getExtraFieldsForPipelineCandidates($candidateIDs);
+
+
+# adding extra fields to pipelinesRS
 foreach ($pipelinesRS as $idx => $row)
 {
     $cid = $row['candidateID'];
