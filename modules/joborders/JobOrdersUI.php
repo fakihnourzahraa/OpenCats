@@ -402,7 +402,7 @@ private function exportPipeline()
     $pipelines   = new Pipelines($siteID);
     $pipelinesRS = $pipelines->getJobOrderPipeline($jobOrderID);
 
-    /* Build addedByAbbrName */
+
     foreach ($pipelinesRS as $i => $row)
     {
         $pipelinesRS[$i]['addedByAbbrName'] = StringUtility::makeInitialName(
@@ -480,7 +480,6 @@ private function exportPipeline()
         }));
     }
 
-    /* Base column map */
     $allCols = array(
         'firstName'           => array('First Name',       'firstName'),
         'lastName'            => array('Last Name',        'lastName'),
@@ -518,15 +517,8 @@ private function exportPipeline()
             $allCols[$fn] = array($fn, $fn);
         }
     }
-    /* Build export columns from visible session cols */
-    $visibleCols = isset($_SESSION['pipelineCols'][$siteID])
-        ? $_SESSION['pipelineCols'][$siteID]
-        : array('firstName', 'lastName', 'state', 'dateCreatedInt', 'addedByAbbrName', 'status', 'lastActivity');
-    $exportCols = array();
-    foreach ($visibleCols as $key)
-    {
-        if (isset($allCols[$key])) $exportCols[$key] = $allCols[$key];
-    }
+
+    $exportCols = $allCols;
     header('Content-Disposition: attachment; filename="export.csv"');
     header('Content-Type: text/x-csv; charset=utf-8');
     $out = fopen('php://output', 'w');
@@ -1627,7 +1619,8 @@ $this->_template->display('./modules/joborders/Show.tpl');
                     $stages[$i]['evaluators'] = array_values($evaluatorsByStage[$stageID]);
             }
         }
-
+$allEvaluatorNames = $evaluations->getAllEvaluatorNames();
+$this->_template->assign('allEvaluatorNames', $allEvaluatorNames);
          $this->_template->assign('jobOrderID',    $jobOrderID);
         $this->_template->assign('candidateID',   $candidateID);
         $this->_template->assign('openStageID',   $openStageID);

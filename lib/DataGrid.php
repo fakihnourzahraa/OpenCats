@@ -1541,9 +1541,9 @@ class DataGrid
 
         /* Figure out what columns we can export. */
         $exportableColumns = array();
-        foreach ($this->_currentColumns as $index => $colData)
+        foreach ($this->_classColumns as $index => $data)
         {
-            $exportableColumns[] = array('name' => $colData['name'], 'data' => $colData['data']);
+            $exportableColumns[] = array('name' => $index, 'data' => $data);
         }
         $this->_currentColumns = $exportableColumns;
 

@@ -231,4 +231,17 @@ public function deleteEvaluator($evaluatorID)
         $this->_siteID
     ));
 }
+
+public function getAllEvaluatorNames()
+{
+    $rows = $this->_db->getAllAssoc(sprintf(
+        "SELECT DISTINCT evaluator_name
+         FROM evaluation_stage_evaluator
+         WHERE site_id = %s AND evaluator_name != ''
+         ORDER BY evaluator_name ASC",
+        $this->_siteID
+    ));
+
+    return array_map(function ($row) { return $row['evaluator_name']; }, $rows);
+}
 }

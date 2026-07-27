@@ -566,7 +566,7 @@ $selectedJobOrderID = isset($_GET['jobOrderID']) ? (int) $_GET['jobOrderID'] : 0
                                                 <div id="addCriteriaLink_<?php echo $joID; ?>_<?php echo $stageIdx; ?>" style="margin-top:4px; margin-bottom:10px;">
                                                     <a href="javascript:void(0);"
                                                        onclick="showAddCriteria_<?php echo $joID; ?>(<?php echo $stageIdx; ?>);">
-                                                        <img src="images/actions/add_small.gif" border="0" />&nbsp;Add criteria to <?php echo htmlspecialchars($stage['stage_name'], ENT_QUOTES, 'UTF-8'); ?>
+                                                        <img src="images/actions/add_small.gif" border="0" />&nbsp;Add criteria
                                                     </a>
                                                 </div>
 
@@ -591,7 +591,7 @@ $selectedJobOrderID = isset($_GET['jobOrderID']) ? (int) $_GET['jobOrderID'] : 0
                                                     document.getElementById('addStageLink_<?php echo $joID; ?>').style.display='none';
                                                     document.getElementById('addStageInput_<?php echo $joID; ?>').value='';
                                                     document.getElementById('addStageInput_<?php echo $joID; ?>').focus();">
-                                            <img src="images/actions/add_small.gif" border="0" />&nbsp;Add an interview stage
+                                            <img src="images/actions/add_small.gif" border="0" />&nbsp;Add interview stage
                                         </a>
                                     </div>
 
