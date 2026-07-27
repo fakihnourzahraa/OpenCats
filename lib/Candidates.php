@@ -494,10 +494,10 @@ class Candidates
                 candidate.is_hot AS isHot,
                 candidate.is_admin_hidden AS isAdminHidden,
                 DATE_FORMAT(
-                    candidate.date_created, '%%m-%%d-%%y (%%h:%%i %%p)'
+                    candidate.date_created, '%%d-%%m-%%y (%%h:%%i %%p)'
                 ) AS dateCreated,
                 DATE_FORMAT(
-                    candidate.date_modified, '%%m-%%d-%%y (%%h:%%i %%p)'
+                    candidate.date_modified, '%%d-%%m-%%y (%%h:%%i %%p)'
                 ) AS dateModified,
                 COUNT(
                     candidate_joborder.joborder_id
@@ -525,7 +525,7 @@ class Candidates
                 ) AS ownerFullName,
                 owner_user.email AS owner_email,
                 DATE_FORMAT(
-                    candidate.date_available, '%%m-%%d-%%y'
+                    candidate.date_available, '%%d-%%m-%%y'
                 ) AS dateAvailable,
                 eeo_ethnic_type.type AS eeoEthnicType,
                 eeo_veteran_type.type AS eeoVeteranType,
@@ -635,7 +635,7 @@ class Candidates
                 candidate.eeo_gender AS eeoGender,
                 candidate.is_admin_hidden AS isAdminHidden,
                 DATE_FORMAT(
-                    candidate.date_available, '%%m-%%d-%%y'
+                    candidate.date_available, '%%d-%%m-%%y'
                 ) AS dateAvailable
             FROM
                 candidate
@@ -821,10 +821,10 @@ class Candidates
                 candidate.key_skills AS keySkills,
                 candidate.is_hot AS isHot,
                 DATE_FORMAT(
-                    candidate.date_created, '%%m-%%d-%%y'
+                    candidate.date_created, '%%d-%%m-%%y'
                 ) AS dateCreated,
                 DATE_FORMAT(
-                    candidate.date_modified, '%%m-%%d-%%y'
+                    candidate.date_modified, '%%d-%%m-%%y'
                 ) AS dateModified,
                 candidate.date_created AS dateCreatedSort,
                 owner_user.first_name AS ownerFirstName,
@@ -1565,7 +1565,7 @@ class Candidates
         }
         $dateAvailable = $rs['dateAvailable'];
         $dateParts = explode("-", $dateAvailable);
-        $dateAvailable = "20" . $dateParts[2] . "-" . $dateParts[0] . "-" . $dateParts[1] . " 00:00:00";
+        $dateAvailable = "20" . $dateParts[2] . "-" . $dateParts[1] . "-" . $dateParts[0] . " 00:00:00";
         $update .= "is_active = " . $rs['isActive'] . ", " .
                     "current_employer = '" . $rs['currentEmployer'] . "', " .
                     "current_pay = '" . $rs['currentPay'] . "', " .     
@@ -2231,21 +2231,21 @@ class CandidatesDataGrid extends DataGrid
                                      'alphaNavigation' => true,
                                      'filter'         => 'CONCAT(owner_user.first_name, owner_user.last_name)'),
 
-            'Created' =>       array('select'   => 'DATE_FORMAT(candidate.date_created, \'%m-%d-%y\') AS dateCreated',
+            'Created' =>       array('select'   => 'DATE_FORMAT(candidate.date_created, \'%d-%m-%y\') AS dateCreated',
                                      'pagerRender'      => 'return $rsData[\'dateCreated\'];',
                                      'sortableColumn'     => 'dateCreatedSort',
                                      'pagerWidth'    => 60,
                                       'filter'      => 'candidate.date_created',
-                                     'filterHaving' => 'DATE_FORMAT(candidate.date_created, \'%m-%d-%y\')',
+                                     'filterHaving' => 'DATE_FORMAT(candidate.date_created, \'%d-%m-%y\')',
                                     'filterTypes'  => '=d>=d<=='),
 
-            'Modified' =>      array('select'   => 'DATE_FORMAT(candidate.date_modified, \'%m-%d-%y\') AS dateModified, candidate.date_modified AS dateModifiedSort',
+            'Modified' =>      array('select'   => 'DATE_FORMAT(candidate.date_modified, \'%d-%m-%y\') AS dateModified, candidate.date_modified AS dateModifiedSort',
                                      'pagerRender'      => 'return $rsData[\'dateModified\'];',
                                      'sortableColumn'     => 'dateModifiedSort',
                                      'pagerWidth'    => 60,
                                      'pagerOptional' => true,
                                       'filter'         => 'candidate.date_modified',
-                                     'filterHaving' => 'DATE_FORMAT(candidate.date_modified, \'%m-%d-%y\')',
+                                     'filterHaving' => 'DATE_FORMAT(candidate.date_modified, \'%d-%m-%y\')',
                                      'filterTypes'    => '=d>=d<=='),
 
             /* This one only works when called from the saved list view.  Thats why it is not optional, filterable, or exportable.

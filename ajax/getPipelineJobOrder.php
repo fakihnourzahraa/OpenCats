@@ -205,9 +205,12 @@ $allPipelineColumns = array(
     'jobOrderStatus'      => 'Job Order Status',
     'action'              => 'Action',
 );
+
+# appending extra fields to allPipelineColumns
 $extraFieldDefs = $pipelines->getExtraFieldDefinitions();
 if ($extraFieldDefs) {
     $actionLabel = $allPipelineColumns['action'];
+    # we need action to be the final column
     unset($allPipelineColumns['action']);
     foreach ($extraFieldDefs as $def) {
         $fn = $def['field_name'];
@@ -259,6 +262,7 @@ $hardcodedCols = array(
     'keySkills','currentEmployer','currentPay','desiredPay','canRelocate',
     'source','webSite','notes','dateAvailable','dateModified', 'candidateDateCreated', 'jobOrderStatus','action',
 );
+#checkbox, empty and expand/collapse history
 $visibleColCount = 3;
 foreach ($allPipelineColumns as $k => $v) {
     if ($k === 'action' && $isPopup) continue;
@@ -360,13 +364,12 @@ if (!eval(Hooks::get('JO_AJAX_GET_PIPELINE'))) return;
 
     <table class="notsortable" id="pipelineTable" width="100%">
     <tr>
+        <!-- selector -->
         <th style="width:10px; border-right:1px solid gray;" align="center">
             <div style="width:10px; position:relative;">
-                <!-- columns icon -->
                 <a href="javascript:void(0);" id="pipelineColumnIcon" onclick="pipelineColumnBox_toggle(); return false;">
                     <img src="images/tab_add.gif" border="0" alt="" />
                 </a>
-                <!-- dropdown -->
                 <div class="ajaxSearchResults" id="pipelineColumnBox" onclick="event.stopPropagation();"
                      style="display:none; position:absolute; left:0; top:16px; width:180px; z-index:10000; text-align:left;">
                     <span style="font-weight:bold; color:#000000;">Show Columns:</span><br/><br/>

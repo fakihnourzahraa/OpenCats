@@ -329,8 +329,8 @@ filter.DefaultFilter.prototype.render = function() {
             valueArea.appendChild(andSpan);
             valueArea.appendChild(toInput);
               if (filterDateRangeRegistry[col]) {
-                fromInput.placeholder = "mm-dd-yy";
-                toInput.placeholder   = "mm-dd-yy";
+                fromInput.placeholder = "dd-mm-yy";
+                toInput.placeholder   = "dd-mm-yy";
             }
             return;
         }
@@ -570,7 +570,7 @@ operatorSelect.appendChild(this.createOption("=e", "is empty"));
     var singleInput = this.createElement("input", {
         id: this.filterAreaID + this.filterCounter + "value",
         className: "inputbox", type: "text",
-        placeholder: "mm-dd-yy", style: "width: 80px;"
+        placeholder: "dd-mm-yy", style: "width: 80px;"
     });
     filterDiv.appendChild(singleInput);
 
@@ -581,12 +581,12 @@ operatorSelect.appendChild(this.createOption("=e", "is empty"));
     var fromInput = this.createElement("input", {
         id: this.filterAreaID + this.filterCounter + "from",
         className: "inputbox", type: "text",
-        placeholder: "mm-dd-yy", style: "width: 80px;"
+        placeholder: "dd-mm-yy", style: "width: 80px;"
     });
     var toInput = this.createElement("input", {
         id: this.filterAreaID + this.filterCounter + "to",
         className: "inputbox", type: "text",
-        placeholder: "mm-dd-yy", style: "width: 80px;"
+        placeholder: "dd-mm-yy", style: "width: 80px;"
     });
     rangeSpan.appendChild(this.createElement("span", { innerHTML: " " }));
     rangeSpan.appendChild(fromInput);
@@ -640,14 +640,13 @@ function applyDateRangeFilter(filterAreaID, filterCounter, instanceName, columnN
     var filterVal  = filterArea.value;
       var escapedColumn = columnName.replace(/[-\/\\^$*+?.()|[\]{}]/g, "\\$&");
     filterVal = filterVal.replace(new RegExp(",?" + escapedColumn + "=e[^,]*", "g"), "");
-    // Remove any existing filters for THIS column (using escapedColumn in the regex)
+    // Remove any existing filters for THIS column
   
     filterVal = filterVal.replace(new RegExp(",?" + escapedColumn + "=d>[^,]*", "g"), "");
     filterVal = filterVal.replace(new RegExp(",?" + escapedColumn + "=d<[^,]*", "g"), "");
     filterVal = filterVal.replace(new RegExp(",?" + escapedColumn + "==[^,]*",  "g"), "");
     filterVal = filterVal.replace(/^,/, "").replace(/,$/, "");
 
-    // Map the UI operator values to the filter string operators
     var opMap = { "=>": "=d>", "=<": "=d<", "==": "==" };
 
     if (op === "between") {
