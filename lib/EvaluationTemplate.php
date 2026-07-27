@@ -168,7 +168,7 @@ public function addStage($templateID, $stageName, $position)
     ));
     $this->_db->query(sprintf(
         "INSERT INTO evaluation_criteria (stage_id, site_id, criteria_name, position)
-         VALUES (%s, %s, 'Comments', 1)",
+         VALUES (%s, %s, 'Comments', 99)",
         (int) $stageID, $this->_siteID
     ));
 
@@ -271,7 +271,7 @@ public function addStage($templateID, $stageName, $position)
     {
         $rs = $this->_db->getAssoc(sprintf(
             "SELECT MAX(position) AS max_pos FROM evaluation_criteria
-             WHERE stage_id = %s AND site_id = %s",
+            WHERE stage_id = %s AND site_id = %s AND criteria_name != 'Comments'",
             (int) $stageID,
             $this->_siteID
         ));
