@@ -6,6 +6,9 @@ use OpenCATS\UI\QuickActionMenu;
     <?php TemplateUtility::printHeader('Job Order - ' . $this->data['title'], array('js/sorttable.js', 'js/match.js', 'js/pipeline.js', 'js/attachment.js','js/dataGrid.js','js/dataGridFilters.js')); ?>
 <?php else: ?>
     <?php TemplateUtility::printHeader('Job Order - ' . $this->data['title'], array( 'js/sorttable.js', 'js/match.js', 'js/pipeline.js', 'js/attachment.js','js/dataGrid.js','js/dataGridFilters.js')); ?>
+    <script>
+    var isDateDMY = <?php echo $_SESSION['CATS']->isDateDMY() ? 'true' : 'false'; ?>;
+    </script>
     <?php TemplateUtility::printHeaderBlock(); ?>
     <?php TemplateUtility::printTabs($this->active); ?>
         <div id="main">

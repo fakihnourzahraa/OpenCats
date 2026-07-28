@@ -329,11 +329,13 @@ filter.DefaultFilter.prototype.render = function() {
             valueArea.appendChild(andSpan);
             valueArea.appendChild(toInput);
             if (filterDateRangeRegistry[col]) {
-            var ph;
-            if (typeof isDateDMY !== 'undefined' && isDateDMY)
-                ph = "dd-mm-yy";
-            else
-                ph = "mm-dd-yy";
+                var ph;
+                if (typeof isDateDMY !== 'undefined' && isDateDMY)
+                    ph = "dd-mm-yy";
+                else
+                    ph = "mm-dd-yy";
+                fromInput.placeholder = ph;
+                toInput.placeholder   = ph;
             }
             return;
         }
@@ -567,13 +569,19 @@ filter.DateRangeFilter.prototype.render = function() {
     operatorSelect.appendChild(this.createOption("==",     "is equal to"));
     operatorSelect.appendChild(this.createOption("=>",     "is after"));
     operatorSelect.appendChild(this.createOption("=<",     "is before"));
-operatorSelect.appendChild(this.createOption("=e", "is empty"));
+    operatorSelect.appendChild(this.createOption("=e", "is empty"));
     filterDiv.appendChild(operatorSelect);
+
+    var ph;
+    if (typeof isDateDMY !== 'undefined' && isDateDMY)
+        ph = "dd-mm-yy";
+    else
+        ph = "mm-dd-yy";
 
     var singleInput = this.createElement("input", {
         id: this.filterAreaID + this.filterCounter + "value",
         className: "inputbox", type: "text",
-        placeholder: "dd-mm-yy", style: "width: 80px;"
+        placeholder: ph, style: "width: 80px;"
     });
     filterDiv.appendChild(singleInput);
 
@@ -584,12 +592,12 @@ operatorSelect.appendChild(this.createOption("=e", "is empty"));
     var fromInput = this.createElement("input", {
         id: this.filterAreaID + this.filterCounter + "from",
         className: "inputbox", type: "text",
-        placeholder: "dd-mm-yy", style: "width: 80px;"
+        placeholder: ph, style: "width: 80px;"
     });
     var toInput = this.createElement("input", {
         id: this.filterAreaID + this.filterCounter + "to",
         className: "inputbox", type: "text",
-        placeholder: "dd-mm-yy", style: "width: 80px;"
+        placeholder: ph, style: "width: 80px;"
     });
     rangeSpan.appendChild(this.createElement("span", { innerHTML: " " }));
     rangeSpan.appendChild(fromInput);
