@@ -1,10 +1,16 @@
 <?php /* $Id: Candidates.tpl 3445 2007-11-06 23:17:04Z will $ */ ?>
+
+<script>
+var isDateDMY = <?php echo $_SESSION['CATS']->isDateDMY() ? 'true' : 'false'; ?>;
+</script>
+
 <?php TemplateUtility::printHeader('Candidates', array( 'js/highlightrows.js', 'js/export.js', 'js/dataGrid.js', 'js/dataGridFilters.js')); ?>
 <?php TemplateUtility::printHeaderBlock(); ?>
 <?php TemplateUtility::printTabs($this->active); ?>
 <?php $md5InstanceName = md5($this->dataGrid->getInstanceName());?>
 
 <script type="text/javascript">
+
     filterDropDownRegistry['Source'] = [
         <?php foreach ($this->sourcesRS as $i => $s): ?>
             { value: '<?php echo addslashes($s['name']); ?>', label: '<?php echo addslashes($s['name']); ?>' }<?php echo ($i < count($this->sourcesRS) - 1) ? ',' : ''; ?>

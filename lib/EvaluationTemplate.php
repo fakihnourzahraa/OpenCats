@@ -1,9 +1,11 @@
 <?php
 /*
  * CATS
- * Evaluation Template Library
- * Added for IBC
- * $Id: EvaluationTemplate.php 3810 2026-22-07 $
+ * Evaluations Library
+ * 
+ * The Original Code is "CATS Standard Edition".
+ * This file was added for IBC
+ * 
  */
 
 class EvaluationTemplate

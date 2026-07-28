@@ -1,12 +1,13 @@
 <?php
 /*
  * CATS
- * Evaluation Template Library
- * Added for IBC
- * $Id: EvaluationTemplate.php 3810 2026-22-07 $
+ * Evaluations Library
+ * 
+ * The Original Code is "CATS Standard Edition".
+ * This file was added for IBC
+ * 
  */
-
-
+ 
 include_once(LEGACY_ROOT . '/lib/DatabaseConnection.php');
 
 class Evaluations
@@ -20,10 +21,9 @@ class Evaluations
         $this->_db = DatabaseConnection::getInstance();
     }
 
-    /*
-     * Finds the evaluation_instance for a candidate/job order pipeline.
-     * Returns the instance_id, or false if none exists yet.
-     */
+
+    // Finds the evaluation_instance and returns the instance_id, 
+    // or false if nonexistent.
     public function getInstanceForPipeline($candidateID, $jobOrderID)
     {
         $rs = $this->_db->getAssoc(sprintf(
@@ -36,10 +36,9 @@ class Evaluations
         return !empty($rs) ? $rs['instance_id'] : false;
     }
 
-    /*
-     * Creates a new evaluation_instance for a candidate/job order pipeline.
-     * Returns the new instance_id.
-     */
+    
+    // Creates a new evaluation_instance and returns instance_id.
+    // date_created is never touched other than here.
     public function createInstance($candidateID, $jobOrderID, $templateID)
     {
         $this->_db->query(sprintf(
@@ -54,11 +53,8 @@ class Evaluations
         return $this->_db->getLastInsertID();
     }
 
-    /*
-     * Refreshes an instance's template_id, in case the template changed
-     * since it was first created. date_created is never touched here or
-     * anywhere else after creation.
-     */
+    
+    // Updates/refreshes an instance's template_id, in case the template changed
     public function updateInstanceTemplate($instanceID, $templateID)
     {
         $this->_db->query(sprintf(
@@ -71,11 +67,8 @@ class Evaluations
         ));
     }
 
-    /*
-     * Returns all evaluators (evaluator_id, evaluator_name) recorded for a
-     * given stage of a given instance, ordered by evaluator_id (i.e. the
-     * order they were added).
-     */
+    // Returns all evaluators (evaluator_id, evaluator_name) recorded for a
+    // given stage of a given instance, ordered by the evaluator_id
     public function getEvaluatorsForStage($instanceID, $stageID)
     {
         return $this->_db->getAllAssoc(sprintf(
@@ -89,10 +82,8 @@ class Evaluations
         ));
     }
 
-    /*
-     * Adds a new evaluator to a stage of an instance.
-     * Returns the new evaluator_id.
-     */
+    
+    // Adds a new evaluator and returns their id.
     public function addEvaluator($instanceID, $stageID, $evaluatorName)
     {
         $this->_db->query(sprintf(
@@ -107,10 +98,8 @@ class Evaluations
         return $this->_db->getLastInsertID();
     }
 
-    /*
-     * Renames an existing evaluator. Identity is by evaluator_id, not name,
-     * so this is safe even when two evaluators on the same stage share a name.
-     */
+    
+    // Renames an existing evaluator
     public function renameEvaluator($evaluatorID, $newName)
     {
         $this->_db->query(sprintf(
@@ -123,10 +112,9 @@ class Evaluations
         ));
     }
 
-    /*
-     * Returns criteria_id => value for everything a single evaluator has
-     * filled in so far, for pre-filling their block on page load.
-     */
+    
+    // Returns criteria_id => value for everything a single evaluator has
+    // filled in so far, for pre-filling their block on page load.    
     public function getValuesForEvaluator($evaluatorID)
     {
         $rows = $this->_db->getAllAssoc(sprintf(

@@ -328,9 +328,12 @@ filter.DefaultFilter.prototype.render = function() {
             valueArea.appendChild(fromInput);
             valueArea.appendChild(andSpan);
             valueArea.appendChild(toInput);
-              if (filterDateRangeRegistry[col]) {
-                fromInput.placeholder = "dd-mm-yy";
-                toInput.placeholder   = "dd-mm-yy";
+            if (filterDateRangeRegistry[col]) {
+            var ph;
+            if (typeof isDateDMY !== 'undefined' && isDateDMY)
+                ph = "dd-mm-yy";
+            else
+                ph = "mm-dd-yy";
             }
             return;
         }

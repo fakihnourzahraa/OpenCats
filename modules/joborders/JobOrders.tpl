@@ -1,4 +1,9 @@
 <?php /* $Id: JobOrders.tpl 3676 2007-11-21 21:02:15Z brian $ */ ?>
+
+<script>
+var isDateDMY = <?php echo $_SESSION['CATS']->isDateDMY() ? 'true' : 'false'; ?>;
+</script>
+
 <?php TemplateUtility::printHeader('Job Orders', array( 'js/highlightrows.js',  'js/sweetTitles.js', 'js/export.js', 'js/dataGrid.js', 'js/dataGridFilters.js')); ?>
 <?php TemplateUtility::printHeaderBlock(); ?>
 <?php TemplateUtility::printTabs($this->active); ?>
