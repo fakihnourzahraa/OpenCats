@@ -133,11 +133,8 @@ class Evaluations
         return $values;
     }
 
-    /*
-     * Upserts a single criterion's value for a given evaluator.
-     * Update if a row for (evaluator_id, criteria_id) already exists,
-     * insert otherwise.
-     */
+
+    //Update if a row for (evaluator_id, criteria_id) already exists, insert otherwise.
     public function saveCriteriaValue($evaluatorID, $criteriaID, $value)
     {
         $rs = $this->_db->getAssoc(sprintf(
@@ -173,16 +170,11 @@ class Evaluations
         }
     }
 
-    /*
-     * Returns every evaluator + value row for an entire instance in one
-     * query, as flat rows of (stage_id, evaluator_id, evaluator_name,
-     * criteria_id, value). evaluate() folds this into each stage's
-     * 'evaluators' array rather than querying per stage/evaluator.
-     *
-     * Note: a LEFT JOIN is used on the value side so an evaluator who
-     * exists but hasn't filled in any criteria yet still shows up (with
-     * criteria_id/value as null), rather than being silently dropped.
-     */
+    // Returns every evaluator + value row for an entire instance in one
+    // query(stage_id, evaluator_id, evaluator_name,
+    // criteria_id, value). evaluate() folds this into each stage's 'evaluators' array.
+    // LEFT JOIN is used on the value side so evaluators with no criterias show up
+
     public function getAllValuesForInstance($instanceID)
     {
         return $this->_db->getAllAssoc(sprintf(
@@ -199,37 +191,35 @@ class Evaluations
         ));
     }
 
-    /*
- * Deletes an evaluator and all their criteria values for a stage.
- * No FK cascade in this schema, so both tables are cleaned up explicitly.
- */
-public function deleteEvaluator($evaluatorID)
-{
-    $this->_db->query(sprintf(
-        "DELETE FROM evaluation_criteria_value
-         WHERE evaluator_id = %s AND site_id = %s",
-        (int) $evaluatorID,
-        $this->_siteID
-    ));
+    
+    //Deletes an evaluator and all their criteria values for a stage.
+    public function deleteEvaluator($evaluatorID)
+    {
+        $this->_db->query(sprintf(
+            "DELETE FROM evaluation_criteria_value
+            WHERE evaluator_id = %s AND site_id = %s",
+            (int) $evaluatorID,
+            $this->_siteID
+        ));
 
-    $this->_db->query(sprintf(
-        "DELETE FROM evaluation_stage_evaluator
-         WHERE evaluator_id = %s AND site_id = %s",
-        (int) $evaluatorID,
-        $this->_siteID
-    ));
-}
+        $this->_db->query(sprintf(
+            "DELETE FROM evaluation_stage_evaluator
+            WHERE evaluator_id = %s AND site_id = %s",
+            (int) $evaluatorID,
+            $this->_siteID
+        ));
+    }
 
-public function getAllEvaluatorNames()
-{
-    $rows = $this->_db->getAllAssoc(sprintf(
-        "SELECT DISTINCT evaluator_name
-         FROM evaluation_stage_evaluator
-         WHERE site_id = %s AND evaluator_name != ''
-         ORDER BY evaluator_name ASC",
-        $this->_siteID
-    ));
+    public function getAllEvaluatorNames()
+    {
+        $rows = $this->_db->getAllAssoc(sprintf(
+            "SELECT DISTINCT evaluator_name
+            FROM evaluation_stage_evaluator
+            WHERE site_id = %s AND evaluator_name != ''
+            ORDER BY evaluator_name ASC",
+            $this->_siteID
+        ));
 
-    return array_map(function ($row) { return $row['evaluator_name']; }, $rows);
-}
+        return array_map(function ($row) { return $row['evaluator_name']; }, $rows);
+    }
 }
