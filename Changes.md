@@ -154,7 +154,6 @@ After this:
     <?php TemplateUtility::printHeader('Job Order - ' . $this->data['title'], array('js/sorttable.js', 'js/match.js', 'js/pipeline.js', 'js/attachment.js','js/dataGrid.js','js/dataGridFilters.js')); ?>
 <?php else: ?>
     <?php TemplateUtility::printHeader('Job Order - ' . $this->data['title'], array( 'js/sorttable.js', 'js/match.js', 'js/pipeline.js', 'js/attachment.js','js/dataGrid.js','js/dataGridFilters.js')); ?>
-    <script>
 ```
 Add this:
 ```php
