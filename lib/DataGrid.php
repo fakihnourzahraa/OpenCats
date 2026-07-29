@@ -1154,8 +1154,6 @@ class DataGrid
         //getColumn is set to the only column we want to populate if it is set.
 
         $db = DatabaseConnection::getInstance();
-$dbg = $db->getAssoc("SELECT @@SESSION.sql_mode AS m, DATE(STR_TO_DATE('07-03-26','%m-%d-%y')) AS lhs, STR_TO_DATE('25-06-26','%d-%m-%y') AS lo");
-error_log('PROBE | sql_mode: ' . $dbg['m'] . ' | lhs: ' . var_export($dbg['lhs'], true) . ' | lo: ' . var_export($dbg['lo'], true));
         // Using MD5 hashing to detect duplicates.
         $selectSQL = array();
         $joinSQL = array();
