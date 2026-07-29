@@ -223,3 +223,4 @@ class Evaluations
         return array_map(function ($row) { return $row['evaluator_name']; }, $rows);
     }
 }
+?>
