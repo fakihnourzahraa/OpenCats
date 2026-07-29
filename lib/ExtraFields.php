@@ -832,7 +832,6 @@ class ExtraFields
                 $tokens[] = '=d>';
                 $tokens[] = '=d<';
                 $definition['filter'] = 'STR_TO_DATE(extra_field' . $uniqueIndex . '.value, CONCAT(\'%\',\'m\',\'-\',\'%\',\'d\',\'-\',\'%\',\'y\'))';
-              //  $definition['filter'] = 'STR_TO_DATE(extra_field' . $uniqueIndex . '.value, \'%m-%d-%y\')';
                 break;
 
             case 'range':

@@ -1305,6 +1305,7 @@ class DataGrid
                             }
                         }
                     }
+                    
                     /* Contains (=~) */
                     if (strpos($data, '=~') !== false)
                     {
@@ -1496,17 +1497,10 @@ class DataGrid
         $orderSQL = 'ORDER BY ' . $this->_parameters['sortBy'] . ' ' . $this->_parameters['sortDirection'];
 
         $sql = $this->getSQL($selectSQL, $joinSQL, $whereSQL, $havingSQL, $orderSQL, $limitSQL);
-        $x = $db->getAssoc("SELECT
-    STR_TO_DATE('07-03-26','%m-%d-%y') AS a,
-    STR_TO_DATE('07-03-26','%d-%m-%y') AS b,
-    STR_TO_DATE('07-03-26', CONCAT('%','m','-','%','d','-','%','y')) AS c,
-    HEX('%m-%d-%y') AS h");
-error_log('VARIANTS: ' . json_encode($x));
         $this->_rs = $db->getAllAssoc($sql);
 
         /* Get total number of results before limit. */
         $rs2 = $db->getAssoc("SELECT FOUND_ROWS() as rowCount");
-        error_log('SQL: ' . preg_replace('/\s+/', ' ', $sql) . ' || ROWS: ' . count($this->_rs) . ' | FOUND: ' . $rs2['rowCount']);
         $this->_totalEntries = $rs2['rowCount'];
     }
 
