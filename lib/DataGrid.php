@@ -1154,7 +1154,8 @@ class DataGrid
         //getColumn is set to the only column we want to populate if it is set.
 
         $db = DatabaseConnection::getInstance();
-
+$dbg = $db->getAssoc("SELECT @@SESSION.sql_mode AS m, DATE(STR_TO_DATE('07-03-26','%m-%d-%y')) AS lhs, STR_TO_DATE('25-06-26','%d-%m-%y') AS lo");
+error_log('PROBE | sql_mode: ' . $dbg['m'] . ' | lhs: ' . var_export($dbg['lhs'], true) . ' | lo: ' . var_export($dbg['lo'], true));
         // Using MD5 hashing to detect duplicates.
         $selectSQL = array();
         $joinSQL = array();
@@ -1260,10 +1261,28 @@ class DataGrid
 
 
                     
-                    /* Is equal to (==) */
+                  /* Is equal to (==) */
                     if (strpos($data, '==') !== false)
                     {
-                        if (isset($this->_classColumns[$columnName]['filterInList']) && $this->_classColumns[$columnName]['filterInList'] == true)
+                        $isDateColumn = isset($this->_classColumns[$columnName]['filterTypes']) &&
+                            (strpos($this->_classColumns[$columnName]['filterTypes'], '=d>') !== false ||
+                             strpos($this->_classColumns[$columnName]['filterTypes'], '=d<') !== false);
+
+                        if ($isDateColumn)
+                        {
+                            $dateSQLFormat = $_SESSION['CATS']->isDateDMY() ? '%d-%m-%y' : '%m-%d-%y';
+
+                            if (isset($this->_classColumns[$columnName]['filter']))
+                            {
+                                $whereSQL_or[] = 'DATE(' . $this->_classColumns[$columnName]['filter'] . ') = STR_TO_DATE(' . $db->makeQueryString($argument) . ', \'' . $dateSQLFormat . '\') ';
+                            }
+
+                            if (isset($this->_classColumns[$columnName]['filterHaving']))
+                            {
+                                $havingSQL_or[] = 'DATE(' . $this->_classColumns[$columnName]['filterHaving'] . ') = STR_TO_DATE(' . $db->makeQueryString($argument) . ', \'' . $dateSQLFormat . '\') ';
+                            }
+                        }
+                        else if (isset($this->_classColumns[$columnName]['filterInList']) && $this->_classColumns[$columnName]['filterInList'] == true)
                         {
                             if (isset($this->_classColumns[$columnName]['filter']))
                             {
@@ -1288,7 +1307,6 @@ class DataGrid
                             }
                         }
                     }
-
                     /* Contains (=~) */
                     if (strpos($data, '=~') !== false)
                     {
@@ -1400,14 +1418,6 @@ class DataGrid
                         if (isset($this->_classColumns[$columnName]['filter']))
                         {
                             $dateSQLFormat = $_SESSION['CATS']->isDateDMY() ? '%d-%m-%y' : '%m-%d-%y';
-                            $whereSQL_or[] = $this->_classColumns[$columnName]['filter'] . ' <= STR_TO_DATE(' . $db->makeQueryString($argument) . ', \'' . $dateSQLFormat . '\') ';
-                        }
-                    }
-                    if (strpos($data, '=d<') !== false)
-                    {
-                        if (isset($this->_classColumns[$columnName]['filter']))
-                        {
-                            $dateSQLFormat = $_SESSION['CATS']->isDateDMY() ? '%d-%m-%y' : '%m-%d-%y';
                             $whereSQL_or[] = 'DATE(' . $this->_classColumns[$columnName]['filter'] . ') <= STR_TO_DATE(' . $db->makeQueryString($argument) . ', \'' . $dateSQLFormat . '\') ';
                         }
                     }
@@ -1488,11 +1498,17 @@ class DataGrid
         $orderSQL = 'ORDER BY ' . $this->_parameters['sortBy'] . ' ' . $this->_parameters['sortDirection'];
 
         $sql = $this->getSQL($selectSQL, $joinSQL, $whereSQL, $havingSQL, $orderSQL, $limitSQL);
-
+        $x = $db->getAssoc("SELECT
+    STR_TO_DATE('07-03-26','%m-%d-%y') AS a,
+    STR_TO_DATE('07-03-26','%d-%m-%y') AS b,
+    STR_TO_DATE('07-03-26', CONCAT('%','m','-','%','d','-','%','y')) AS c,
+    HEX('%m-%d-%y') AS h");
+error_log('VARIANTS: ' . json_encode($x));
         $this->_rs = $db->getAllAssoc($sql);
 
         /* Get total number of results before limit. */
         $rs2 = $db->getAssoc("SELECT FOUND_ROWS() as rowCount");
+        error_log('SQL: ' . preg_replace('/\s+/', ' ', $sql) . ' || ROWS: ' . count($this->_rs) . ' | FOUND: ' . $rs2['rowCount']);
         $this->_totalEntries = $rs2['rowCount'];
     }
 
