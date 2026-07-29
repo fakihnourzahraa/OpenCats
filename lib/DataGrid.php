@@ -1399,22 +1399,24 @@ class DataGrid
                     {
                         if (isset($this->_classColumns[$columnName]['filter']))
                         {
-                            $whereSQL_or[] = $this->_classColumns[$columnName]['filter'] . ' <= STR_TO_DATE(' . $db->makeQueryString($argument) . ', \'%m-%d-%y\') ';
+                            $dateSQLFormat = $_SESSION['CATS']->isDateDMY() ? '%d-%m-%y' : '%m-%d-%y';
+                            $whereSQL_or[] = $this->_classColumns[$columnName]['filter'] . ' <= STR_TO_DATE(' . $db->makeQueryString($argument) . ', \'' . $dateSQLFormat . '\') ';
+                        }
+                    }
+                    if (strpos($data, '=d<') !== false)
+                    {
+                        if (isset($this->_classColumns[$columnName]['filter']))
+                        {
+                            $dateSQLFormat = $_SESSION['CATS']->isDateDMY() ? '%d-%m-%y' : '%m-%d-%y';
+                            $whereSQL_or[] = 'DATE(' . $this->_classColumns[$columnName]['filter'] . ') <= STR_TO_DATE(' . $db->makeQueryString($argument) . ', \'' . $dateSQLFormat . '\') ';
                         }
                     }
                     if (strpos($data, '=d>') !== false)
                     {
                         if (isset($this->_classColumns[$columnName]['filter']))
                         {
-                            $whereSQL_or[] = $this->_classColumns[$columnName]['filter'] . ' >= STR_TO_DATE(' . $db->makeQueryString($argument) . ', \'%m-%d-%y\') ';
-                        }
-                    }
-                    if (strpos($data, '=e') !== false)
-                    {
-                        if (isset($this->_classColumns[$columnName]['filter']))
-                        {
-                            $whereSQL_or[] = '(' . $this->_classColumns[$columnName]['filter'] . ' IS NULL OR '
-                                . $this->_classColumns[$columnName]['filter'] . " = '')";
+                            $dateSQLFormat = $_SESSION['CATS']->isDateDMY() ? '%d-%m-%y' : '%m-%d-%y';
+                            $whereSQL_or[] = 'DATE(' . $this->_classColumns[$columnName]['filter'] . ') >= STR_TO_DATE(' . $db->makeQueryString($argument) . ', \'' . $dateSQLFormat . '\') ';
                         }
                     }
                 }
