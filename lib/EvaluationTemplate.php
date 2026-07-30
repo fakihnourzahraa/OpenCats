@@ -289,6 +289,7 @@ class EvaluationTemplate
         }
         return $stages;
     }
+
     public function deleteTemplate($templateID)
     {
         $stages = $this->getStages($templateID);
@@ -314,56 +315,68 @@ class EvaluationTemplate
         ));
     }
 
-public function moveStage($templateID, $stageID, $direction)
-{
-    $stages = $this->getStages($templateID); // ordered by position ASC
-    $idx = -1;
-    foreach ($stages as $i => $s)
+    public function moveStage($templateID, $stageID, $direction)
     {
-        if ((int) $s['stage_id'] === (int) $stageID) { $idx = $i; break; }
+        $stages = $this->getStages($templateID); //ordered by position asc
+        $idx = -1;
+        foreach ($stages as $i => $s)
+        {
+            if ((int) $s['stage_id'] === (int) $stageID)
+            {
+                $idx = $i;
+                break; 
+            }
+        }
+        if ($idx === -1)
+            return;
+
+        $swapIdx = ($direction === 'up') ? $idx - 1 : $idx + 1;
+        if ($swapIdx < 0 || $swapIdx >= count($stages))
+            return;
+
+        $posA = $stages[$idx]['position'];
+        $posB = $stages[$swapIdx]['position'];
+
+        $this->_db->query(sprintf(
+            "UPDATE evaluation_stage SET position = %s WHERE stage_id = %s AND site_id = %s",
+            (int) $posB, (int) $stages[$idx]['stage_id'], $this->_siteID
+        ));
+        $this->_db->query(sprintf(
+            "UPDATE evaluation_stage SET position = %s WHERE stage_id = %s AND site_id = %s",
+            (int) $posA, (int) $stages[$swapIdx]['stage_id'], $this->_siteID
+        ));
     }
-    if ($idx === -1) return;
 
-    $swapIdx = ($direction === 'up') ? $idx - 1 : $idx + 1;
-    if ($swapIdx < 0 || $swapIdx >= count($stages)) return;
-
-    $posA = $stages[$idx]['position'];
-    $posB = $stages[$swapIdx]['position'];
-
-    $this->_db->query(sprintf(
-        "UPDATE evaluation_stage SET position = %s WHERE stage_id = %s AND site_id = %s",
-        (int) $posB, (int) $stages[$idx]['stage_id'], $this->_siteID
-    ));
-    $this->_db->query(sprintf(
-        "UPDATE evaluation_stage SET position = %s WHERE stage_id = %s AND site_id = %s",
-        (int) $posA, (int) $stages[$swapIdx]['stage_id'], $this->_siteID
-    ));
-}
-
-public function moveCriteria($stageID, $criteriaID, $direction)
-{
-    $criteria = $this->getCriteria($stageID); // ordered by position ASC
-    $idx = -1;
-    foreach ($criteria as $i => $c)
+    public function moveCriteria($stageID, $criteriaID, $direction)
     {
-        if ((int) $c['criteria_id'] === (int) $criteriaID) { $idx = $i; break; }
+        $criteria = $this->getCriteria($stageID); //ordered by position asc
+        $idx = -1;
+        foreach ($criteria as $i => $c)
+        {
+            if ((int) $c['criteria_id'] === (int) $criteriaID)
+            {
+                $idx = $i;
+                break;
+            }
+        }
+        if ($idx === -1)
+            return;
+
+        $swapIdx = ($direction === 'up') ? $idx - 1 : $idx + 1;
+        if ($swapIdx < 0 || $swapIdx >= count($criteria))
+            return;
+
+        $posA = $criteria[$idx]['position'];
+        $posB = $criteria[$swapIdx]['position'];
+
+        $this->_db->query(sprintf(
+            "UPDATE evaluation_criteria SET position = %s WHERE criteria_id = %s AND site_id = %s",
+            (int) $posB, (int) $criteria[$idx]['criteria_id'], $this->_siteID
+        ));
+        $this->_db->query(sprintf(
+            "UPDATE evaluation_criteria SET position = %s WHERE criteria_id = %s AND site_id = %s",
+            (int) $posA, (int) $criteria[$swapIdx]['criteria_id'], $this->_siteID
+        ));
     }
-    if ($idx === -1) return;
-
-    $swapIdx = ($direction === 'up') ? $idx - 1 : $idx + 1;
-    if ($swapIdx < 0 || $swapIdx >= count($criteria)) return;
-
-    $posA = $criteria[$idx]['position'];
-    $posB = $criteria[$swapIdx]['position'];
-
-    $this->_db->query(sprintf(
-        "UPDATE evaluation_criteria SET position = %s WHERE criteria_id = %s AND site_id = %s",
-        (int) $posB, (int) $criteria[$idx]['criteria_id'], $this->_siteID
-    ));
-    $this->_db->query(sprintf(
-        "UPDATE evaluation_criteria SET position = %s WHERE criteria_id = %s AND site_id = %s",
-        (int) $posA, (int) $criteria[$swapIdx]['criteria_id'], $this->_siteID
-    ));
-}
 }
 ?>

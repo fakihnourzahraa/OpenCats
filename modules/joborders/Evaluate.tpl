@@ -1,18 +1,12 @@
-<!-- modules/joborders/Evaluate.tpl -->
+<?php /* Evaluate.tpl IBC */ ?>
 
 <?php TemplateUtility::printHeader('Evaluate - ' . $this->candidateName, array('js/lib.js')); ?>
 <?php TemplateUtility::printHeaderBlock(); ?>
 <?php TemplateUtility::printTabs($this->active); ?>
 
 <script type="text/javascript">
-    var CATS_CSRF_TOKEN = <?php echo json_encode($_SESSION['CATS']->getCSRFToken()); ?>;
+    var CSRF_Token = <?php echo json_encode($_SESSION['CATS']->getCSRFToken()); ?>;
 
-    // ------------------------------------------------------------------
-    // Single shared builder used for EVERY evaluator block, whether it's
-    // an existing evaluator loaded on page load or a brand new one added
-    // via "Add Evaluator". There is intentionally only one code path here
-    // so the two can never render or lock differently.
-    // ------------------------------------------------------------------
     window.CATSStages = window.CATSStages || {};
     window.evaluatorBlocks = window.evaluatorBlocks || [];
 
@@ -20,11 +14,9 @@
         var btn = document.getElementById('saveAllButton');
         var originalLabel = btn.value;
         btn.disabled = true;
-        btn.value = 'Saving all...';
+        btn.value = 'Saving';
 
         var toSave = window.evaluatorBlocks.filter(function (block) {
-            // Skip untouched blank "new evaluator" rows so Save All doesn't
-            // send pointless empty submissions.
             return block.isSaved() || block.hasContent();
         });
 
@@ -38,8 +30,6 @@
         });
     };
 
-    // Recomputes the average across every evaluator's "Rating" field,
-    // across all stages, and updates the header display.
     window.updateAverageRating = function () {
         var display = document.getElementById('avgRatingDisplay');
         if (!display) {
@@ -50,8 +40,9 @@
             .map(function (block) { return block.getRatingValue ? block.getRatingValue() : null; })
             .filter(function (v) { return v !== null; });
 
+        // For when there are evaluators but no avgRatingDisplay
         if (values.length === 0) {
-            display.textContent = 'N/A';
+            display.textContent = 'Empty';
             return;
         }
 
@@ -59,38 +50,39 @@
         display.textContent = avg.toFixed(1);
     };
 
-    // Adds a name to the shared "all evaluators" datalist if it isn't
-    // already there, so it becomes selectable immediately without a
-    // page reload (e.g. right after saving a brand new evaluator).
+    //All Evaluators Datalist
     window.registerEvaluatorName = function (name) {
         name = (name || '').trim();
-        if (!name) {
+        if (!name)
+        {
             return;
         }
-
         var datalist = document.getElementById('evaluatorNamesList');
-        if (!datalist) {
+        if (!datalist)
+        {
             return;
         }
 
-        var alreadyThere = Array.prototype.some.call(datalist.options, function (opt) {
+        var exists = Array.prototype.some.call(datalist.options, function (opt) {
             return opt.value === name;
         });
 
-        if (!alreadyThere) {
+        if (!exists)
+        {
             var opt = document.createElement('option');
             opt.value = name;
             datalist.appendChild(opt);
         }
     };
 
+    // If evaluatorID = 0, not saved yet
     (function () {
-        var uidCounter = 0;
+        var uniqueCount = 0;
 
         window.renderEvaluatorBlock = function (stageID, evaluatorID, evaluatorName, values) {
             var stage = window.CATSStages[stageID];
             var container = document.getElementById('evaluatorsContainer_' + stageID);
-            var uid = 'uid' + (++uidCounter);
+            var uid = 'uid' + (++uniqueCount);
 
             values = values || {};
 
@@ -103,7 +95,6 @@
                 return input;
             }
 
-            // ---- Outer 2-column layout: icons + Save on the left, form on the right ----
             var outer = document.createElement('table');
             outer.setAttribute('border', '0');
             outer.setAttribute('cellpadding', '0');
@@ -254,7 +245,6 @@
             form.appendChild(table);
             formTd.appendChild(form);
 
-            // ---- Hidden delete form ----
             var deleteForm = document.createElement('form');
             deleteForm.method = 'post';
             deleteForm.action = stage.indexName + '?m=joborders&a=deleteEvaluator';
@@ -264,7 +254,6 @@
             var deleteEvaluatorIDInput = addHidden(deleteForm, 'evaluatorID', evaluatorID);
             addHidden(deleteForm, 'csrfToken', stage.csrfToken);
 
-            // ---- Lock / unlock behavior (shared, only ever defined once per block) ----
             function applyFieldStyle(el, isEditable) {
                 el.readOnly = !isEditable;
                 el.classList.toggle('editableField', isEditable);
@@ -283,8 +272,6 @@
                 textareas.forEach(function (t) { applyFieldStyle(t, isEditable); });
             }
 
-            // Existing evaluators (evaluatorID > 0) start locked; a freshly
-            // added block (evaluatorID === 0) starts editable.
             setEditable(evaluatorID === 0);
 
             editLink.onclick = function (e) {
@@ -383,7 +370,7 @@
                     <?php echo htmlspecialchars($this->jobOrderTitle, ENT_QUOTES, 'UTF-8'); ?>
 
                     <?php if (!$this->noTemplate): ?>
-                        <br><span style="font-weight:normal; font-size:13px;">Rating: <span id="avgRatingDisplay">N/A</span></span>
+                        <br><span style="font-weight:normal; font-size:13px;">Rating: <span id="avgRatingDisplay">Empty</span></span>
                         <br><input type="button" id="saveAllButton" value="Save All" class="button" style="margin-top:6px;"
                                onclick="saveAllEvaluators();" />
                     <?php endif; ?>
@@ -428,7 +415,7 @@
                 jobOrderID: <?php echo (int) $this->jobOrderID; ?>,
                 candidateID: <?php echo (int) $this->candidateID; ?>,
                 indexName: <?php echo json_encode(CATSUtility::getIndexName()); ?>,
-                csrfToken: CATS_CSRF_TOKEN
+                csrfToken: CSRF_Token
             };
 
             (function () {

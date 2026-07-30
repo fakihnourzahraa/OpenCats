@@ -554,9 +554,6 @@ use OpenCATS\UI\CandidateDuplicateQuickActionMenu;
 <?php if (!$this->isPopup): ?>
                         <td align="center" nowrap="nowrap">
                             <?php eval(Hooks::get('CANDIDATE_TEMPLATE_SHOW_PIPELINE_ACTION')); ?>
-                            <?php if ($this->getUserAccessLevel('joborders.edit') >= ACCESS_LEVEL_EDIT): ?>
-
-<?php endif; ?>
                             <?php if ($this->getUserAccessLevel('pipelines.screening') >= ACCESS_LEVEL_EDIT && !$_SESSION['CATS']->hasUserCategory('sourcer')): ?>
                                 <?php if ($pipelinesData['ratingValue'] < 0): ?>
                                 <a href="#" id="screenLink<?php echo($pipelinesData['candidateJobOrderID']); ?>" onclick="moImageValue<?php echo($pipelinesData['candidateJobOrderID']); ?> = 0; setRating(<?php echo($pipelinesData['candidateJobOrderID']); ?>, 0, 'moImage<?php echo($pipelinesData['candidateJobOrderID']); ?>', <?php echo Template::escapeJsAttr($_SESSION['CATS']->getCookie() . ' '); ?>); return false;">

@@ -330,8 +330,6 @@
                         </td>
                         <?php endif; ?>
                     </tr>
-
-                     <!-- Evaluation Template (read-only) -->
           
                 <tr>
                     <td colspan="2" style="padding: 8px 0 6px 0;">

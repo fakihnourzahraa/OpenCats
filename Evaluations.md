@@ -14,6 +14,7 @@
 - `modules/joborders/JobOrdersUI.php`: added `evaluate()` / `onEvaluate()` cases in `handleRequest()`; also the edit-display method that fetches `getFullTemplate()` for the read-only view
 - `modules/joborders/Edit.tpl` — read-only "Evaluation Template" stages/criteria display + link into the template editor
 - `modules/joborders/Show.tpl` — pipeline-row entry point link into the evaluate page
+- `modules/candidates/Show.tpl` — pipeline-row entry point link into the evaluate page
 
 ## Database Changes
 - `evaluation_template` — template definitions (`site_id`, `job_order_id`; `NULL` = generic)

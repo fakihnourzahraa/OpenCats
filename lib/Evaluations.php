@@ -171,8 +171,8 @@ class Evaluations
     }
 
     // Returns every evaluator + value row for an entire instance in one
-    // query(stage_id, evaluator_id, evaluator_name,
-    // criteria_id, value). evaluate() folds this into each stage's 'evaluators' array.
+    // query(stage_id, evaluator_id, evaluator_name, criteria_id, value)
+    // evaluate() folds this into each stage's 'evaluators' array.
     // LEFT JOIN is used on the value side so evaluators with no criterias show up
 
     public function getAllValuesForInstance($instanceID)

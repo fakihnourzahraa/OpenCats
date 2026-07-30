@@ -759,7 +759,10 @@ class DataGrid
 
                 if ($columnName == $dataColumnName)
                 {
-                    return urldecode(substr($data, strpos($data, '='), 2));
+                    $eqPos = strpos($data, '=');
+                    $three = substr($data, $eqPos, 3);
+                    $opLen = ($three === '=d>' || $three === '=d<' || $three === '=in' || $three === '=bt') ? 3 : 2;
+                    return substr($data, $eqPos, $opLen);
                 }
             }
         }
@@ -878,14 +881,33 @@ class DataGrid
         echo '><legend class="filterAreaLegend">Filter</legend>';
 
         echo '<table style="border-collapse: collapse;"><tr><td width="100%" style="vertical-align:top;" id="filterResultsAreaTable', $md5InstanceName, '">';
-
-        $counterFilters = 0;
-
+$counterFilters = 0;
         foreach ($this->_classColumns as $index => $data)
         {
-            $filterValue = $this->getFilterValue($index);
-            $filterOperator = $this->getFilterOperator($index);
-            if ($filterValue != '' || $filterOperator == '=e')
+            /* Collect every filter token belonging to this column, so range
+               filters (=d>/=d<, =>/=<) render as one box per bound. */
+            $filterTokens = array();
+            if (isset($this->_parameters['filter']))
+            {
+                $ops = array('=d>', '=d<', '=in', '=bt', '=~', '==', '=>', '=<', '=#', '=@', '=e');
+                foreach (explode(',', $this->_parameters['filter']) as $tok)
+                {
+                    $eqPos = strpos($tok, '=');
+                    if ($eqPos === false) continue;
+                    if (urldecode(substr($tok, 0, $eqPos)) != $index) continue;
+
+                    foreach ($ops as $op)
+                    {
+                        if (substr($tok, $eqPos, strlen($op)) === $op)
+                        {
+                            $filterTokens[] = array($op, urldecode(substr($tok, $eqPos + strlen($op))));
+                            continue 2;
+                        }
+                    }
+                }
+            }
+
+            if (!empty($filterTokens))
             {
                 $counterFilters++;
 
@@ -895,57 +917,65 @@ class DataGrid
                     unset ($filterableColumns[array_search($index, $filterableColumns)]);
                 }
 
-                $filterOperatorHuman = '';
-                switch ($filterOperator)
+                if (isset($data['filterDescription']))
                 {
-                    case '==':
-                        $filterOperatorHuman = ' is equal to';
-                        break;
-
-                    case '=~':
-                        $filterOperatorHuman = ' contains';
-                        break;
-
-                    case '=>':
-                        $filterOperatorHuman = ' is greater than';
-                        break;
-
-                    case '=<':
-                        $filterOperatorHuman = ' is less than';
-                        break;
-
-                    case '=#':
-                        $filterOperatorHuman = ' has element';
-                        break;                  
-                    case '=d>':
-                        $filterOperatorHuman = ' from';
-                        break;
-                    case '=d<':
-                        $filterOperatorHuman = ' to';
-                        break;
-                    case '=e':
-                        $filterOperatorHuman = ' is empty';
-                        break;
+                    echo '<span class="filterArea">', $data['filterDescription'], '</span>';
+                    continue;
                 }
-                //note: =d> and =d< operator descriptions get overriden
 
-                echo '<span class="filterArea">';
-                echo '<a href="javascript:void(0);" onclick="this.parentNode.style.display=\'none\'; ', $this->getJSRemoveFilter($index), '">';
-                echo '<img src="images/actions/delete_small.gif" style="padding:0px; margin:0px;" border="0" alt="" title="Remove this Filter" />';
-                echo '</a>&nbsp;';
-
-                if (!isset($data['filterDescription']))
+                foreach ($filterTokens as $token)
                 {
-                    echo '\'', $index, '\'', $filterOperatorHuman,': ';
+                    $filterOperator = $token[0];
+                    $filterValue    = $token[1];
+
+                    if ($filterValue === '' && $filterOperator != '=e') continue;
+
+                    $filterOperatorHuman = '';
+                    switch ($filterOperator)
+                    {
+                        case '==':
+                            $filterOperatorHuman = ' is equal to';
+                            break;
+                        case '=~':
+                            $filterOperatorHuman = ' contains';
+                            break;
+                        case '=>':
+                            $filterOperatorHuman = ' is greater than';
+                            break;
+                        case '=<':
+                            $filterOperatorHuman = ' is less than';
+                            break;
+                        case '=#':
+                            $filterOperatorHuman = ' has element';
+                            break;
+                        case '=bt':
+                            $filterOperatorHuman = ' is between';
+                            break;
+                        case '=in':
+                            $filterOperatorHuman = ' is in';
+                            break;
+                        case '=d>':
+                            $filterOperatorHuman = ' from';
+                            break;
+                        case '=d<':
+                            $filterOperatorHuman = ' to';
+                            break;
+                        case '=e':
+                            $filterOperatorHuman = ' is empty';
+                            break;
+                    }
+
+                    echo '<span class="filterArea">';
+                    echo '<a href="javascript:void(0);" onclick="this.parentNode.style.display=\'none\'; ', $this->getJSRemoveFilter($index), '">';
+                    echo '<img src="images/actions/delete_small.gif" style="padding:0px; margin:0px;" border="0" alt="" title="Remove this Filter" />';
+                    echo '</a>&nbsp;';
+                    echo '\'', $index, '\'', $filterOperatorHuman, ': ';
                     echo '<input class="inputbox" style="width:180px;" value="', htmlspecialchars($filterValue), '" onChange="addColumnToFilter(\'filterArea', $md5InstanceName, '\', urlDecode(\'', urlencode($index), '\'), \'', $filterOperator, '\', this.value);" />';
+                    echo '</span>';
                 }
-                else
-                {
-                    echo ($data['filterDescription']);
-                }
-                echo '</span>';
             }
-        }
+            }
+        
 
         /* Remove columns we can not apply a filter to, and set what kind of filters can be applied to each column. */
         foreach ($filterableColumns as $index => $value)
@@ -1004,6 +1034,7 @@ class DataGrid
         $template->assign('counterFilters', $counterFilters);
         $template->display('./lib/datagrid/FilterArea.tpl');
     }
+
 
     /**
      * Gets the current layout for this datagrid's columns.  If no layout is defined, uses default layout.
