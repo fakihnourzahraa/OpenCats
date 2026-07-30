@@ -59,13 +59,15 @@ filter.FilterFactory.createFromPossibleOperatorType = function(
     selectableColumns,
     instanceName
 ) {
+    // We're checking for how many filters (dropdown, ranges, etc) need to be applied
+    // If 1 registery, then proceed as normal, else use the default filter
     var col   = getFilterColumnNameFromOptionValue(possibleOperatorType);
     var types = getFilterColumnTypesFromOptionValue(possibleOperatorType) || "";
 
     if (types == "=@") {
         return new filter.NearZipCodeFilter(possibleOperatorType, filterCounter, filterAreaID, selectableColumns, instanceName);
     }
-     var hasDate  = types.indexOf("=d>") !== -1 || types.indexOf("=d<") !== -1;
+    var hasDate  = types.indexOf("=d>") !== -1 || types.indexOf("=d<") !== -1;
     var hasRange = !hasDate && (types.indexOf("=>") !== -1 || types.indexOf("=<") !== -1);
     var hasText  = types.indexOf("=~") !== -1;
     var hasDrop = !!filterDropDownRegistry[col];
@@ -259,7 +261,6 @@ filter.DefaultFilter.prototype.render = function() {
         var col = getColumn();
         var op  = operatorSelect.value;
 
-        /* "=bt" is a UI-only operator: translate it into two real tokens. */
         if (op === "=bt") {
           var filterArea = document.getElementById("filterArea" + me.instanceName);
             var esc = col.replace(/[-\/\\^$*+?.()|[\]{}]/g, "\\$&");
