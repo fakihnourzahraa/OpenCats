@@ -42,7 +42,6 @@ use OpenCATS\UI\QuickActionMenu;
     filterDateRangeRegistry['Modified'] = true;
     filterDateRangeRegistry['Added'] = true;
 
-
 </script>
 <script type="text/javascript">
 function pipelineColumnBox_toggle() {

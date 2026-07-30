@@ -1404,6 +1404,21 @@ $counterFilters = 0;
                             $havingSQL_or[] = $this->_classColumns[$columnName]['filterHaving'] . ' = ' . $db->makeQueryString($argument) . ' ';
                         }
                     }
+
+                    /* Is empty (=e) */
+                    if ($op === '=e')
+                    {
+                        if (isset($this->_classColumns[$columnName]['filterHaving']))
+                        {
+                            $havingSQL_or[] = '(' . $this->_classColumns[$columnName]['filterHaving'] . ' IS NULL OR '
+                                . $this->_classColumns[$columnName]['filterHaving'] . ' = \'\') ';
+                        }
+                        else if (isset($this->_classColumns[$columnName]['filter']))
+                        {
+                            $whereSQL_or[] = '(' . $this->_classColumns[$columnName]['filter'] . ' IS NULL OR '
+                                . $this->_classColumns[$columnName]['filter'] . ' = \'\') ';
+                        }
+                    }
                     
                     /* Near Zipcode (=@) */
                     if (strpos($data, '=@') !== false)
