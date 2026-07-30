@@ -22,7 +22,7 @@ use OpenCATS\UI\QuickActionMenu;
             { value: '<?php echo addslashes($s['name']); ?>', label: '<?php echo addslashes($s['name']); ?>' }<?php echo ($i < count($this->sourcesRS) - 1) ? ',' : ''; ?>
         <?php endforeach; ?>
     ];
-    filterDropDownRegistry['Recent Status'] = [
+    filterDropDownRegistry['Status'] = [
         <?php foreach ($this->statusesRS as $i => $s): ?>
             { value: '<?php echo addslashes($s['optionValue']); ?>', label: '<?php echo addslashes($s['optionLabel']); ?>' }<?php echo ($i < count($this->statusesRS) - 1) ? ',' : ''; ?>
         <?php endforeach; ?>
@@ -33,7 +33,7 @@ use OpenCATS\UI\QuickActionMenu;
             { value: '<?php echo addslashes($s['val']); ?>', label: '<?php echo addslashes($s['val']); ?>' }<?php echo ($i < count($this->pipelineSourcesIsIn) - 1) ? ',' : ''; ?>
         <?php endforeach; endif; ?>
     ];
-    filterIsInRegistry['Recent Status'] = [
+    filterIsInRegistry['Status'] = [
         <?php if (!empty($this->pipelineStatusesIsIn)): foreach ($this->pipelineStatusesIsIn as $i => $s): ?>
             { value: '<?php echo addslashes($s['val']); ?>', label: '<?php echo addslashes($s['label']); ?>' }<?php echo ($i < count($this->pipelineStatusesIsIn) - 1) ? ',' : ''; ?>
         <?php endforeach; endif; ?>
@@ -584,11 +584,19 @@ var opNames = {'==':'is equal to','=~':'contains','=>':'is greater than','=<':'i
                     });
                 }, 0);
             };
-            <?php if (!empty($this->savedPipelineFilter)): ?>
-            submitFilter<?php echo md5('joborders:PipelineCandidatesDataGrid'); ?>(true);
-            <?php else: ?>
-            showNewFilter<?php echo md5('joborders:PipelineCandidatesDataGrid'); ?>();
-            <?php endif; ?>
+<?php if (!empty($this->savedPipelineFilter)): ?>
+if (window.addEventListener) {
+    window.addEventListener('DOMContentLoaded', function() {
+        submitFilter<?php echo md5('joborders:PipelineCandidatesDataGrid'); ?>(true);
+    });
+} else {
+    window.attachEvent('onload', function() {
+        submitFilter<?php echo md5('joborders:PipelineCandidatesDataGrid'); ?>(true);
+    });
+}
+<?php else: ?>
+showNewFilter<?php echo md5('joborders:PipelineCandidatesDataGrid'); ?>();
+<?php endif; ?>
             </script>
 
             <p id="ajaxPipelineControl">
@@ -622,8 +630,9 @@ var opNames = {'==':'is equal to','=~':'contains','=>':'is greater than','=<':'i
                 var filterString = filterAreaEl ? filterAreaEl.value : '';
                 window.location.href = '<?php echo(CATSUtility::getIndexName()); ?>?m=joborders&a=exportPipeline&jobOrderID=<?php echo($this->data['jobOrderID']); ?>&exportAll=1&filterString=' + encodeURIComponent(filterString);
             }
-
+<?php if (empty($this->savedPipelineFilter)): ?>
             PipelineJobOrder_populate(<?php $this->_($this->data['jobOrderID']); ?>, 0, <?php $this->_($this->pipelineEntriesPerPage); ?>, 'dateCreatedInt', 'desc', <?php if ($this->isPopup) echo(1); else echo(0); ?>, 'ajaxPipelineTable', <?php echo Template::escapeJs($this->sessionCookie); ?>, 'ajaxPipelineTableIndicator', <?php echo Template::escapeJs(CATSUtility::getIndexName()); ?>);
+            <?php endif; ?>
             </script>
 
             <?php if (!$this->isPopup): ?>

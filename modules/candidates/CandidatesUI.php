@@ -566,7 +566,28 @@ class CandidatesUI extends UserInterface
 
         $sourcesRS = $candidates->getPossibleSources();
         $this->_template->assign('sourcesRS', $sourcesRS);
-        
+             $statusesRS = $candidates->getPossibleDropDownOptions(
+            'candidate_joborder_status',
+            'short_description',
+            'short_description',
+            null,
+            'candidate_joborder_status_id ASC',
+            'is_enabled = 1 AND candidate_joborder_status_id != 0'
+        );
+        $this->_template->assign('statusesRS', $statusesRS);
+
+        $pipelineStatusesIsIn = array();
+        foreach ($statusesRS as $s)
+        {
+            if ($s['optionValue'] === '' || $s['optionValue'] === null) continue;
+            $pipelineStatusesIsIn[] = array(
+                'val'   => $s['optionValue'],
+                'label' => $s['optionLabel'],
+            );
+        }
+        $this->_template->assign('pipelineStatusesIsIn', $pipelineStatusesIsIn);
+
+        $this->_template->assign('pipelineSourcesIsIn', array());
 
         if (!eval(Hooks::get('CANDIDATE_LIST_BY_VIEW'))) return;
 

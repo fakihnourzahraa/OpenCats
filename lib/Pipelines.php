@@ -913,7 +913,7 @@ public function filterPipelineRows($pipelinesRS, $filterString, $columnMap)
 
                 $pipelinesRS = array_filter($pipelinesRS, function($row) use ($col, $op, $val) {
                     $fieldValue = isset($row[$col]) ? $row[$col] : '';
-
+error_log('KEYS: ' . implode(',', array_keys($row)) . ' || col=' . $col . ' || field=' . var_export($fieldValue, true) . ' || val=' . $val);
                     // if ($col === 'dateCreated' || $col === 'candidateDateCreated' || $col == 'dateModified') {
                     //     if ($op === '=e') return $fieldValue === '' || $fieldValue === null;
                     //     $fieldValue = DateTime::createFromFormat('m-d-y', $fieldValue);

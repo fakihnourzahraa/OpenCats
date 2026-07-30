@@ -2111,7 +2111,7 @@ class CandidatesDataGrid extends DataGrid
                                      'pagerWidth'   => 210,
                                      'filter'         => 'candidate.key_skills'),
 
-            'Recent Status' => array('select'  => '(
+            'Status' => array('select'  => '(
                                                     SELECT
                                                         CONCAT(
                                                             \'<a href="'.CATSUtility::getIndexName().'?m=joborders&amp;a=show&amp;jobOrderID=\',

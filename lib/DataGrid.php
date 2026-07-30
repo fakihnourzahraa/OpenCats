@@ -1420,6 +1420,15 @@ $counterFilters = 0;
                         }
                     }
                     
+                    if ($op === '=in')
+                    {
+                        if (isset($this->_classColumns[$columnName]['filterHaving']))
+                        {
+                            $havingSQL_or[] = $this->_classColumns[$columnName]['filterHaving']
+                                . ' LIKE ' . $db->makeQueryString('%>' . $argument . '</a>') . ' ';
+                        }
+                    }
+                                        
                     /* Near Zipcode (=@) */
                     if (strpos($data, '=@') !== false)
                     {
@@ -1475,6 +1484,7 @@ $counterFilters = 0;
                         }
                     }
                 }
+                
                 if (count($whereSQL_or) > 0)
                 {
                     $whereSQL[] = '(' . implode(' OR ', $whereSQL_or) . ')';

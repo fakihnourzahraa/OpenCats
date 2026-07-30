@@ -171,7 +171,7 @@ $columnMap = array(
     'Modified'         => 'dateModified',
     'Added'            => 'dateCreated',
     'Created'          => 'candidateDateCreated',
-    'Status'  => 'statusDescription',
+    'Status'  => 'status',
 );
 # show columns
 $allPipelineColumns = array(
