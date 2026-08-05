@@ -969,8 +969,15 @@ $counterFilters = 0;
                     echo '<a href="javascript:void(0);" onclick="this.parentNode.style.display=\'none\'; ', $this->getJSRemoveFilter($index), '">';
                     echo '<img src="images/actions/delete_small.gif" style="padding:0px; margin:0px;" border="0" alt="" title="Remove this Filter" />';
                     echo '</a>&nbsp;';
-                    echo '\'', $index, '\'', $filterOperatorHuman, ': ';
-                    echo '<input class="inputbox" style="width:180px;" value="', htmlspecialchars($filterValue), '" onChange="addColumnToFilter(\'filterArea', $md5InstanceName, '\', urlDecode(\'', urlencode($index), '\'), \'', $filterOperator, '\', this.value);" />';
+                    if ($filterOperator === '=e')
+                    {
+                        echo '\'', $index, '\'', $filterOperatorHuman;
+                    }
+                    else
+                    {
+                        echo '\'', $index, '\'', $filterOperatorHuman, ': ';
+                        echo '<input class="inputbox" style="width:180px;" value="', htmlspecialchars($filterValue), '" onChange="addColumnToFilter(\'filterArea', $md5InstanceName, '\', urlDecode(\'', urlencode($index), '\'), \'', $filterOperator, '\', this.value);" />';
+                    }
                     echo '</span>';
                 }
             }

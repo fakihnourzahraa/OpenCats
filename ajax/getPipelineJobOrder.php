@@ -202,7 +202,6 @@ $allPipelineColumns = array(
     'dateAvailable'       => 'Available',
     'dateModified'        => 'Modified',
     'candidateDateCreated'         => 'Created',
-    'jobOrderStatus'      => 'Job Order Status',
     'action'              => 'Action',
 );
 
@@ -416,7 +415,7 @@ if (!eval(Hooks::get('JO_AJAX_GET_PIPELINE'))) return;
         </th>
         <th align="left" width="40" nowrap="nowrap">
             <a href="javascript:void(0);" onclick="PipelineJobOrder_populate(<?php echo($jobOrderID); ?>, <?php echo($page); ?>, <?php echo($entriesPerPage); ?>, <?php printSortLink('state'); ?>, <?php if ($isPopup) echo(1); else echo(0); ?>, 'ajaxPipelineTable', '<?php echo($_SESSION['CATS']->getCookie()); ?>', 'ajaxPipelineTableIndicator', '<?php echo($indexFile); ?>');">
-                Loc
+                State
             </a>
         </th>
 
@@ -529,7 +528,7 @@ if (!eval(Hooks::get('JO_AJAX_GET_PIPELINE'))) return;
         <?php endif; ?>
         <?php if (in_array('jobOrderStatus', $visibleCols)): ?>
         <th align="left" width="80" nowrap="nowrap">
-            <a href="javascript:void(0);" onclick="PipelineJobOrder_populate(<?php echo($jobOrderID); ?>, <?php echo($page); ?>, <?php echo($entriesPerPage); ?>, <?php printSortLink('jobOrderStatus'); ?>, <?php if ($isPopup) echo(1); else echo(0); ?>, 'ajaxPipelineTable', '<?php echo($_SESSION['CATS']->getCookie()); ?>', 'ajaxPipelineTableIndicator', '<?php echo($indexFile); ?>');">Job Order Status</a>
+            <a href="javascript:void(0);" onclick="PipelineJobOrder_populate(<?php echo($jobOrderID); ?>, <?php echo($page); ?>, <?php echo($entriesPerPage); ?>, <?php printSortLink('jobOrderStatus'); ?>, <?php if ($isPopup) echo(1); else echo(0); ?>, 'ajaxPipelineTable', '<?php echo($_SESSION['CATS']->getCookie()); ?>', 'ajaxPipelineTableIndicator', '<?php echo($indexFile); ?>');">Status</a>
         </th>
         <?php endif; ?>
 <?php foreach ($allPipelineColumns as $colKey => $colLabel): ?>
