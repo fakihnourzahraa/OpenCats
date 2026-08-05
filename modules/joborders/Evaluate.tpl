@@ -205,11 +205,18 @@
                 var isRating = criterion.name.trim().toLowerCase() === 'rating';
                 var field;
 
-                if (isRating) {
+var type = criterion.type || 'text';
+                var field;
+
+                if (type === 'number') {
                     field = document.createElement('input');
                     field.type = 'number';
                     field.step = 'any';
                     field.style.width = '100px';
+                } else if (type === 'date') {
+                    field = document.createElement('input');
+                    field.type = 'date';
+                    field.style.width = '160px';
                 } else {
                     field = document.createElement('textarea');
                     field.rows = 2;
@@ -409,8 +416,12 @@
 
         <script type="text/javascript">
             window.CATSStages[<?php echo $stageID; ?>] = {
-                criteria: <?php echo json_encode(array_map(function ($c) {
-                    return array('id' => (int) $c['criteria_id'], 'name' => $c['criteria_name']);
+criteria: <?php echo json_encode(array_map(function ($c) {
+                    return array(
+                        'id'   => (int) $c['criteria_id'],
+                        'name' => $c['criteria_name'],
+                        'type' => isset($c['data_type']) ? $c['data_type'] : 'text',
+                    );
                 }, $stage['criteria'])); ?>,
                 jobOrderID: <?php echo (int) $this->jobOrderID; ?>,
                 candidateID: <?php echo (int) $this->candidateID; ?>,

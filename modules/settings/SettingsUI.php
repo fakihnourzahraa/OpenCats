@@ -1705,11 +1705,12 @@ private function onCustomizeEvaluationTemplate()
                     if (!isset($args[2])) break;
                     $stageName    = urldecode($args[1]);
                     $criteriaName = urldecode($args[2]);
+                    $dataType     = isset($args[3]) ? urldecode($args[3]) : 'text';
                     $stageID = $evalTemplate->getStageIDByName($templateID, $stageName);
                     if ($stageID !== false && $criteriaName !== '')
                     {
                         $position = $evalTemplate->getNextCriteriaPosition($stageID);
-                        $evalTemplate->addCriteria($stageID, $criteriaName, $position);
+                        $evalTemplate->addCriteria($stageID, $criteriaName, $position, $dataType);
                     }
                     break;
 
@@ -1751,6 +1752,38 @@ private function onCustomizeEvaluationTemplate()
                             $evalTemplate->renameCriteria($criteriaID, $newName);
                     }
                     break;
+                case 'CHANGECRITERIATYPE':
+                    if (!isset($args[3])) break;
+                    $stageName    = urldecode($args[1]);
+                    $criteriaName = urldecode($args[2]);
+                    $dataType     = urldecode($args[3]);
+                    $stageID = $evalTemplate->getStageIDByName($templateID, $stageName);
+                    if ($stageID !== false)
+                    {
+                        $criteriaID = $evalTemplate->getCriteriaIDByName($stageID, $criteriaName);
+                        if ($criteriaID !== false)
+                        {
+                            $evalTemplate->changeCriteriaType($criteriaID, $dataType);
+                        }
+                    }
+                    break;
+                case 'CHANGECRITERIATYPE':
+                    // CHANGECRITERIATYPE stageName criteriaName dataType
+                    if (!isset($args[3])) break;
+                    $stageName    = urldecode($args[1]);
+                    $criteriaName = urldecode($args[2]);
+                    $dataType     = urldecode($args[3]);
+                    $stageID = $evalTemplate->getStageIDByName($templateID, $stageName);
+                    if ($stageID !== false)
+                    {
+                        $criteriaID = $evalTemplate->getCriteriaIDByName($stageID, $criteriaName);
+                        if ($criteriaID !== false)
+                        {
+                            $evalTemplate->changeCriteriaType($criteriaID, $dataType);
+                        }
+                    }
+                    break;
+
             case 'MOVESTAGEUP':
             case 'MOVESTAGEDOWN':
                 $stageName = isset($args[1]) ? urldecode($args[1]) : '';

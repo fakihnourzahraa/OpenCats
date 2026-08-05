@@ -90,11 +90,12 @@ class EvaluationTemplate
             foreach ($criteria as $criterion)
             {
                 $this->_db->query(sprintf(
-                    "INSERT INTO evaluation_criteria (stage_id, site_id, criteria_name, position)
-                    VALUES (%s, %s, '%s', %s)",
+                    "INSERT INTO evaluation_criteria (stage_id, site_id, criteria_name, data_type, position)
+                    VALUES (%s, %s, '%s', '%s', %s)",
                     (int) $newStageID,
                     $this->_siteID,
                     $this->_db->escapeString($criterion['criteria_name']),
+                    $this->_db->escapeString($criterion['data_type']),
                     (int) $criterion['position']
                 ));
             }
@@ -113,10 +114,10 @@ class EvaluationTemplate
         ));
     }
 
-    public function getCriteria($stageID)
+public function getCriteria($stageID)
     {
         return $this->_db->getAllAssoc(sprintf(
-            "SELECT criteria_id, criteria_name, position
+            "SELECT criteria_id, criteria_name, data_type, position
              FROM evaluation_criteria
              WHERE stage_id = %s AND site_id = %s
              ORDER BY position ASC",
@@ -159,16 +160,15 @@ class EvaluationTemplate
         $stageID = $this->_db->getLastInsertID();
 
         $this->_db->query(sprintf(
-            "INSERT INTO evaluation_criteria (stage_id, site_id, criteria_name, position)
-            VALUES (%s, %s, 'Rating', 0)",
+            "INSERT INTO evaluation_criteria (stage_id, site_id, criteria_name, data_type, position)
+            VALUES (%s, %s, 'Rating', 'number', 0)",
             (int) $stageID, $this->_siteID
         ));
         $this->_db->query(sprintf(
-            "INSERT INTO evaluation_criteria (stage_id, site_id, criteria_name, position)
-            VALUES (%s, %s, 'Comments', 99)",
+            "INSERT INTO evaluation_criteria (stage_id, site_id, criteria_name, data_type, position)
+            VALUES (%s, %s, 'Comments', 'text', 99)",
             (int) $stageID, $this->_siteID
         ));
-
         return ($stageID);
     }
 
@@ -198,19 +198,24 @@ class EvaluationTemplate
         return (!empty($rs) ? $rs['stage_id'] : false);
     }
 
-    public function addCriteria($stageID, $criteriaName, $position)
+    public function addCriteria($stageID, $criteriaName, $position, $dataType = 'text')
     {
+        if (!in_array($dataType, array('text', 'date', 'number')))
+        {
+            $dataType = 'text';
+        }
+
         $this->_db->query(sprintf(
-            "INSERT INTO evaluation_criteria (stage_id, site_id, criteria_name, position)
-             VALUES (%s, %s, '%s', %s)",
+            "INSERT INTO evaluation_criteria (stage_id, site_id, criteria_name, data_type, position)
+             VALUES (%s, %s, '%s', '%s', %s)",
             (int) $stageID,
             $this->_siteID,
             $this->_db->escapeString($criteriaName),
+            $this->_db->escapeString($dataType),
             (int) $position
         ));
         return ($this->_db->getLastInsertID());
     }
-
     public function deleteCriteria($criteriaID)
     {
         $this->_db->query(sprintf(
@@ -378,5 +383,23 @@ class EvaluationTemplate
             (int) $posA, (int) $criteria[$swapIdx]['criteria_id'], $this->_siteID
         ));
     }
+
+    public function changeCriteriaType($criteriaID, $dataType)
+    {
+        if (!in_array($dataType, array('text', 'date', 'number')))
+        {
+            return;
+        }
+
+        $this->_db->query(sprintf(
+            "UPDATE evaluation_criteria SET data_type = '%s'
+            WHERE criteria_id = %s AND site_id = %s",
+            $this->_db->escapeString($dataType),
+            (int) $criteriaID,
+            $this->_siteID
+        ));
+    }
+    
+    
 }
 ?>

@@ -142,6 +142,7 @@ $selectedJobOrderID = isset($_GET['jobOrderID']) ? (int) $_GET['jobOrderID'] : 0
                             window[<?php echo json_encode('criteriaCount_' . $joID . '_' . $stageIdx); ?>] = <?php echo count($stage['criteria']); ?>;
                             <?php foreach ($stage['criteria'] as $criteriaIdx => $criterion): ?>
                             window[<?php echo json_encode('criteriaName_' . $joID . '_' . $stageIdx . '_' . $criteriaIdx); ?>] = <?php echo json_encode($criterion['criteria_name']); ?>;
+                            window[<?php echo json_encode('criteriaType_' . $joID . '_' . $stageIdx . '_' . $criteriaIdx); ?>] = <?php echo json_encode(isset($criterion['data_type']) ? $criterion['data_type'] : 'text'); ?>;
                             <?php endforeach; ?>
                             <?php endforeach; ?>
 
@@ -212,6 +213,14 @@ $selectedJobOrderID = isset($_GET['jobOrderID']) ? (int) $_GET['jobOrderID'] : 0
                                 document.getElementById('criteriaNameInput_<?php echo $joID; ?>_' + key).value = window['criteriaName_<?php echo $joID; ?>_' + key];
                                 document.getElementById('criteriaNameDisplay_<?php echo $joID; ?>_' + key).style.display = 'none';
                                 document.getElementById('criteriaNameEditArea_<?php echo $joID; ?>_' + key).style.display = '';
+
+                                var typeSel = document.getElementById('criteriaTypeInput_<?php echo $joID; ?>_' + key);
+                                if (typeSel) {
+                                    typeSel.value = window['criteriaType_<?php echo $joID; ?>_' + key] || 'text';
+                                    typeSel.style.display = '';
+                                    document.getElementById('criteriaTypeDisplay_<?php echo $joID; ?>_' + key).style.display = 'none';
+                                }
+
                                 document.getElementById('criteriaNameInput_<?php echo $joID; ?>_' + key).focus();
                             }
 
@@ -219,20 +228,42 @@ $selectedJobOrderID = isset($_GET['jobOrderID']) ? (int) $_GET['jobOrderID'] : 0
                                 var key = stageIdx + '_' + criteriaIdx;
                                 document.getElementById('criteriaNameEditArea_<?php echo $joID; ?>_' + key).style.display = 'none';
                                 document.getElementById('criteriaNameDisplay_<?php echo $joID; ?>_' + key).style.display = '';
+
+                                var typeSel = document.getElementById('criteriaTypeInput_<?php echo $joID; ?>_' + key);
+                                if (typeSel) {
+                                    typeSel.style.display = 'none';
+                                    document.getElementById('criteriaTypeDisplay_<?php echo $joID; ?>_' + key).style.display = '';
+                                }
                             }
 
-                            function saveCriteriaEdit_<?php echo $joID; ?>(stageIdx, criteriaIdx) {
+function saveCriteriaEdit_<?php echo $joID; ?>(stageIdx, criteriaIdx) {
                                 var key = stageIdx + '_' + criteriaIdx;
                                 var newName = document.getElementById('criteriaNameInput_<?php echo $joID; ?>_' + key).value.replace(/^\s+|\s+$/g, '');
                                 if (!newName) return;
 
-                                var oldName = window['criteriaName_<?php echo $joID; ?>_' + key];
+                                var stageName = window['stageName_<?php echo $joID; ?>_' + stageIdx];
+                                var oldName   = window['criteriaName_<?php echo $joID; ?>_' + key];
+
                                 if (newName !== oldName) {
-                                    var stageName = window['stageName_<?php echo $joID; ?>_' + stageIdx];
                                     appendCommand(<?php echo $joID; ?>, 'RENAMECRITERIA ' + encodeURIComponent(stageName) + ' ' + encodeURIComponent(oldName) + ':' + encodeURIComponent(newName));
                                     window['criteriaName_<?php echo $joID; ?>_' + key] = newName;
                                     document.getElementById('criteriaNameDisplay_<?php echo $joID; ?>_' + key).textContent = newName;
                                 }
+
+                                var typeSel = document.getElementById('criteriaTypeInput_<?php echo $joID; ?>_' + key);
+                                if (typeSel) {
+                                    var newType = typeSel.value;
+                                    var oldType = window['criteriaType_<?php echo $joID; ?>_' + key] || 'text';
+                                    if (newType !== oldType) {
+                                        /* newName, not oldName: the RENAMECRITERIA above is
+                                           processed first server-side, so by the time this
+                                           command runs the criterion has the new name. */
+                                        appendCommand(<?php echo $joID; ?>, 'CHANGECRITERIATYPE ' + encodeURIComponent(stageName) + ' ' + encodeURIComponent(newName) + ' ' + encodeURIComponent(newType));
+                                        window['criteriaType_<?php echo $joID; ?>_' + key] = newType;
+                                        document.getElementById('criteriaTypeDisplay_<?php echo $joID; ?>_' + key).textContent = newType;
+                                    }
+                                }
+
                                 cancelCriteriaEdit_<?php echo $joID; ?>(stageIdx, criteriaIdx);
                             }
 
@@ -262,7 +293,11 @@ $selectedJobOrderID = isset($_GET['jobOrderID']) ? (int) $_GET['jobOrderID'] : 0
                                 document.getElementById('addCriteriaArea_<?php echo $joID; ?>_' + stageIdx).style.display = '';
                                 document.getElementById('addCriteriaLink_<?php echo $joID; ?>_' + stageIdx).style.display = 'none';
                                 document.getElementById('addCriteriaInput_<?php echo $joID; ?>_' + stageIdx).value = '';
+                                var typeSel = document.getElementById('addCriteriaType_<?php echo $joID; ?>_' + stageIdx);
+                                if (typeSel) typeSel.value = 'text';
                                 document.getElementById('addCriteriaInput_<?php echo $joID; ?>_' + stageIdx).focus();
+                                
+
                             }
 
                             function hideAddCriteria_<?php echo $joID; ?>(stageIdx) {
@@ -274,6 +309,8 @@ $selectedJobOrderID = isset($_GET['jobOrderID']) ? (int) $_GET['jobOrderID'] : 0
                                 var input = document.getElementById('addCriteriaInput_<?php echo $joID; ?>_' + stageIdx);
                                 var name  = input.value.replace(/^\s+|\s+$/g, '');
                                 if (!name) return;
+                                var typeSel = document.getElementById('addCriteriaType_<?php echo $joID; ?>_' + stageIdx);
+                                var dataType = typeSel ? typeSel.value : 'text';
 
                                 var criteriaIdx = window['criteriaCount_<?php echo $joID; ?>_' + stageIdx];
                                 var key = stageIdx + '_' + criteriaIdx;
@@ -351,11 +388,13 @@ $selectedJobOrderID = isset($_GET['jobOrderID']) ? (int) $_GET['jobOrderID'] : 0
                                         '<input type="button" class="button" value="Cancel" onclick="cancelCriteriaEdit_<?php echo $joID; ?>(' + stageIdx + ', ' + criteriaIdx + ');" />' +
                                     '</span>';
                                 document.getElementById('criteriaNameDisplay_<?php echo $joID; ?>_' + key).textContent = name;
-
+                                
+                                var cellType = row.insertCell(2);
+                                cellType.textContent = dataType;
                                 window['criteriaCount_<?php echo $joID; ?>_' + stageIdx]++;
 
                                 var stageName = window['stageName_<?php echo $joID; ?>_' + stageIdx];
-                                appendCommand(<?php echo $joID; ?>, 'ADDCRITERIA ' + encodeURIComponent(stageName) + ' ' + encodeURIComponent(name));
+                               appendCommand(<?php echo $joID; ?>, 'ADDCRITERIA ' + encodeURIComponent(stageName) + ' ' + encodeURIComponent(name) + ' ' + encodeURIComponent(dataType));
                                 hideAddCriteria_<?php echo $joID; ?>(stageIdx);
                             }
 
@@ -452,9 +491,14 @@ $selectedJobOrderID = isset($_GET['jobOrderID']) ? (int) $_GET['jobOrderID'] : 0
                                             '<img src="images/actions/add_small.gif" border="0"/>&nbsp;Add criteria to ' + stageName +
                                         '</a>' +
                                     '</div>' +
-                                    '<div id="addCriteriaArea_<?php echo $joID; ?>_' + idx + '" style="display:none; margin-top:4px; margin-bottom:10px;">' +
-                                        '<input id="addCriteriaInput_<?php echo $joID; ?>_' + idx + '" type="text" class="inputbox" style="width:220px;" ' +
+'<div id="addCriteriaArea_<?php echo $joID; ?>_' + idx + '" style="display:none; margin-top:4px; margin-bottom:10px;">' +
+                                        '<input id="addCriteriaInput_<?php echo $joID; ?>_' + idx + '" type="text" class="inputbox" style="width:160px;" ' +
                                             'onkeypress="if(event.keyCode==13){doAddCriteria_<?php echo $joID; ?>(' + idx + ');return false;}"/>' +
+                                        '<select id="addCriteriaType_<?php echo $joID; ?>_' + idx + '" class="inputbox" style="width:90px;">' +
+                                            '<option value="text">Text</option>' +
+                                            '<option value="date">Date</option>' +
+                                            '<option value="number">Number</option>' +
+                                        '</select>' +
                                         '<input type="button" class="button" value="Add Criteria" onclick="doAddCriteria_<?php echo $joID; ?>(' + idx + ');"/>' +
                                         '<input type="button" class="button" value="Cancel" onclick="hideAddCriteria_<?php echo $joID; ?>(' + idx + ');"/>' +
                                     '</div>';
@@ -527,6 +571,7 @@ $selectedJobOrderID = isset($_GET['jobOrderID']) ? (int) $_GET['jobOrderID'] : 0
                                                         <tr>
                                                             <th width="90"></th>
                                                             <th align="left">Criteria</th>
+                                                            <th align="left" width="70">Type</th>
                                                         </tr>
                                                     </thead>
                                                     <?php foreach ($stage['criteria'] as $criteriaIdx => $criterion): ?>
@@ -558,7 +603,14 @@ $selectedJobOrderID = isset($_GET['jobOrderID']) ? (int) $_GET['jobOrderID'] : 0
                                                                 <input type="button" class="button" value="Cancel" onclick="cancelCriteriaEdit_<?php echo $joID; ?>(<?php echo $stageIdx; ?>, <?php echo $criteriaIdx; ?>);" />
                                                             </span>
                                                         </td>
-                                                    </tr>
+                                                       <td>
+                                                            <span id="criteriaTypeDisplay_<?php echo $joID; ?>_<?php echo $stageIdx; ?>_<?php echo $criteriaIdx; ?>"><?php echo htmlspecialchars(isset($criterion['data_type']) ? $criterion['data_type'] : 'text', ENT_QUOTES, 'UTF-8'); ?></span>
+                                                            <select id="criteriaTypeInput_<?php echo $joID; ?>_<?php echo $stageIdx; ?>_<?php echo $criteriaIdx; ?>" class="inputbox" style="display:none; width:90px;">
+                                                                <option value="text">text</option>
+                                                                <option value="date">date</option>
+                                                                <option value="number">number</option>
+                                                            </select>
+                                                        </td>
                                                     <?php endforeach; ?>
                                                     <tbody id="criteriaBody_<?php echo $joID; ?>_<?php echo $stageIdx; ?>"></tbody>
                                                 </table>
@@ -570,10 +622,15 @@ $selectedJobOrderID = isset($_GET['jobOrderID']) ? (int) $_GET['jobOrderID'] : 0
                                                     </a>
                                                 </div>
 
-                                                <div id="addCriteriaArea_<?php echo $joID; ?>_<?php echo $stageIdx; ?>" style="display:none; margin-top:4px; margin-bottom:10px;">
+<div id="addCriteriaArea_<?php echo $joID; ?>_<?php echo $stageIdx; ?>" style="display:none; margin-top:4px; margin-bottom:10px;">
                                                     <input id="addCriteriaInput_<?php echo $joID; ?>_<?php echo $stageIdx; ?>"
-                                                           type="text" class="inputbox" style="width:220px;"
+                                                           type="text" class="inputbox" style="width:160px;"
                                                            onkeypress="if(event.keyCode==13){ doAddCriteria_<?php echo $joID; ?>(<?php echo $stageIdx; ?>); return false; }" />
+                                                    <select id="addCriteriaType_<?php echo $joID; ?>_<?php echo $stageIdx; ?>" class="inputbox" style="width:90px;">
+                                                        <option value="text">Text</option>
+                                                        <option value="date">Date</option>
+                                                        <option value="number">Number</option>
+                                                    </select>
                                                     <input type="button" class="button" value="Add Criteria"
                                                            onclick="doAddCriteria_<?php echo $joID; ?>(<?php echo $stageIdx; ?>);" />
                                                     <input type="button" class="button" value="Cancel"
