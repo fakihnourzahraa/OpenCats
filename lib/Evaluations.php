@@ -43,17 +43,16 @@ class Evaluations
         return (!empty($rs) ? $rs : false);
     }
 
-    // Every evaluation on a candidate, newest first, with a stage count for
-    // the list on the candidate page.
     public function getInstancesForCandidate($candidateID)
     {
         return $this->_db->getAllAssoc(sprintf(
-            "SELECT ei.instance_id, ei.title, ei.date_created, ei.date_modified,
-                    (SELECT COUNT(*) FROM evaluation_instance_stage eis
-                      WHERE eis.instance_id = ei.instance_id) AS stage_count
-             FROM evaluation_instance ei
-             WHERE ei.candidate_id = %s AND ei.site_id = %s
-             ORDER BY ei.instance_id DESC",
+        "SELECT ei.instance_id, ei.title, ei.date_created, ei.date_modified,
+                ei.is_locked, ei.final_opinion,
+                (SELECT COUNT(*) FROM evaluation_instance_stage eis
+                WHERE eis.instance_id = ei.instance_id) AS stage_count
+        FROM evaluation_instance ei
+        WHERE ei.candidate_id = %s AND ei.site_id = %s
+        ORDER BY ei.instance_id DESC",
             (int) $candidateID,
             $this->_siteID
         ));
@@ -83,6 +82,18 @@ class Evaluations
         ));
     }
 
+    public function setFinalOpinion($instanceID, $finalOpinion)
+    {
+        $this->_db->query(sprintf(
+            "UPDATE evaluation_instance
+                SET final_opinion = '%s', date_modified = NOW()
+            WHERE instance_id = %s AND site_id = %s",
+            $this->_db->escapeString($finalOpinion),
+            (int) $instanceID,
+            $this->_siteID
+        ));
+    }
+
     public function touchInstance($instanceID)
     {
         $this->_db->query(sprintf(
@@ -92,6 +103,32 @@ class Evaluations
             $this->_siteID
         ));
     }
+    public function isLocked($instanceID)
+{
+    $rs = $this->_db->getAssoc(sprintf(
+        "SELECT is_locked FROM evaluation_instance
+         WHERE instance_id = %s AND site_id = %s",
+        (int) $instanceID,
+        $this->_siteID
+    ));
+    return (!empty($rs) && (int) $rs['is_locked'] === 1);
+}
+
+/* Deliberately does NOT touchInstance() - locking isn't a content change,
+   and bumping date_modified would make the list misreport last edit. */
+public function setLocked($instanceID, $lockState, $userID)
+{
+    $this->_db->query(sprintf(
+        "UPDATE evaluation_instance
+            SET is_locked = %s, locked_by = %s, locked_date = %s
+          WHERE instance_id = %s AND site_id = %s",
+        ($lockState ? 1 : 0),
+        ($lockState ? (int) $userID : 'NULL'),
+        ($lockState ? 'NOW()' : 'NULL'),
+        (int) $instanceID,
+        $this->_siteID
+    ));
+}
 
     // No foreign keys in this schema, so the cascade is done by hand,
     // deepest table first.
@@ -264,8 +301,8 @@ class Evaluations
             (int) $posA, (int) $stages[$swapIdx]['instance_stage_id'], $this->_siteID
         ));
     }
-
-
+    
+    
     public function getCriteria($instanceStageID)
     {
         return $this->_db->getAllAssoc(sprintf(

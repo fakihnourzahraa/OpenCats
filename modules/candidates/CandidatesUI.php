@@ -184,35 +184,33 @@ class CandidatesUI extends UserInterface
                     CommonErrors::fatal(COMMONERROR_BADFIELDS, $this, 'Invalid request.');
                 }
                 break;
-            case 'setLock':
-                $lockState = (isset($_POST['lockState']) && $_POST['lockState'] == 1) ? 1 : 0;
-
-                // Only an admin can unlock. Comment this out if anyone may unlock.
-                if ($lockState === 0 && $this->_accessLevel < ACCESS_LEVEL_SA)
+            case 'lockEvaluation':
+                if ($this->getUserAccessLevel('candidates.edit') < ACCESS_LEVEL_EDIT)
                 {
-                    CommonErrors::fatal(COMMONERROR_PERMISSION, $this);
-                    return;
+                    CommonErrors::fatalModal(COMMONERROR_PERMISSION, $this, 'Invalid user level for action.');
                 }
-
-                $sql = sprintf(
-                    "UPDATE evaluation_instance
-                        SET is_locked   = %s,
-                            locked_by   = %s,
-                            locked_date = %s
-                    WHERE instance_id = %s
-                        AND site_id     = %s",
-                    $lockState,
-                    ($lockState ? (int) $_SESSION['CATS']->getUserID() : 'NULL'),
-                    ($lockState ? 'NOW()' : 'NULL'),
-                    (int) $instanceID,
-                    $siteID
-                );
-                $db->query($sql);
-
-                CATSUtility::transferRelativeURI(
-                    'm=candidates&a=evaluate&candidateID=' . (int) $_POST['candidateID']
-                    . '&instanceID=' . (int) $instanceID
-                );
+                if ($this->isPostBack())
+                {
+                    $this->onLockEvaluation();
+                }
+                else
+                {
+                    $this->lockEvaluation();
+                }
+                break;
+            case 'setFinalOpinion':
+                if ($this->getUserAccessLevel('candidates.edit') < ACCESS_LEVEL_EDIT)
+                {
+                    CommonErrors::fatal(COMMONERROR_PERMISSION, $this, 'Invalid user level for action.');
+                }
+                if ($this->isPostBack())
+                {
+                    $this->onSetFinalOpinion();
+                }
+                else
+                {
+                    CommonErrors::fatal(COMMONERROR_BADFIELDS, $this, 'Invalid request.');
+                }
                 break;
             case 'delete':
                 if ($this->getUserAccessLevel('candidates.delete') < ACCESS_LEVEL_DELETE)
@@ -3239,7 +3237,7 @@ class CandidatesUI extends UserInterface
         return $candidateID;
     }
 
-    private function onDeleteEvaluation()
+private function onDeleteEvaluation()
     {
         $candidateID = isset($_POST['candidateID']) ? (int) $_POST['candidateID'] : 0;
         $instanceID  = isset($_POST['instanceID'])  ? (int) $_POST['instanceID']  : 0;
@@ -3402,7 +3400,16 @@ class CandidatesUI extends UserInterface
 
         $evaluations = new Evaluations($this->_siteID);
         $this->_requireEvaluation($evaluations, $instanceID, $candidateID);
-
+if ($evaluations->isLocked($instanceID))
+{
+    if ($isAjax)
+    {
+        header('Content-Type: application/json');
+        echo json_encode(array('success' => false, 'locked' => true, 'error' => 'This evaluation is locked.'));
+        die();
+    }
+    CommonErrors::fatal(COMMONERROR_PERMISSION, $this, 'This evaluation is locked.');
+}
         /* The stage must belong to this evaluation. */
         $stage = $evaluations->getStage($instanceStageID);
         if ($stage === false || (int) $stage['instance_id'] !== $instanceID)
@@ -3482,7 +3489,10 @@ class CandidatesUI extends UserInterface
 
         $evaluations = new Evaluations($this->_siteID);
         $this->_requireEvaluation($evaluations, $instanceID, $candidateID);
-
+        if ($evaluations->isLocked($instanceID))
+        {
+            CommonErrors::fatal(COMMONERROR_PERMISSION, $this, 'This evaluation is locked.');
+        }
         if ($evaluations->getInstanceIDForEvaluator($evaluatorID) !== $instanceID)
         {
             CommonErrors::fatal(COMMONERROR_BADINDEX, $this, 'Invalid evaluator ID.');
@@ -3513,8 +3523,17 @@ class CandidatesUI extends UserInterface
             CommonErrors::fatal(COMMONERROR_BADFIELDS, $this, 'Invalid request.');
         }
 
-        $evaluations = new Evaluations($this->_siteID);
+      $evaluations = new Evaluations($this->_siteID);
         $this->_requireEvaluation($evaluations, $instanceID, $candidateID);
+
+        if ($evaluations->isLocked($instanceID))
+        {
+            CommonErrors::fatal(
+                COMMONERROR_PERMISSION, $this,
+                'This evaluation is locked and cannot be modified.'
+            );
+            return;
+        }
 
         /* Stage/criteria IDs arrive off the form, so anything scoped to a
          * stage is checked against this evaluation before it's used. */
@@ -3528,15 +3547,6 @@ class CandidatesUI extends UserInterface
             {
                 CommonErrors::fatal(COMMONERROR_BADINDEX, $this, 'Invalid stage ID.');
             }
-        }
-
-        if ($command !== 'setLock' && $this->isEvaluationLocked($instanceID))
-        {
-            CommonErrors::fatal(
-                COMMONERROR_PERMISSION, $this,
-                'This evaluation is locked and cannot be modified.'
-            );
-            return;
         }
         switch ($command)
         {
@@ -3737,19 +3747,92 @@ class CandidatesUI extends UserInterface
         );
     }
 
-    private function isEvaluationLocked($instanceID)
+    private function lockEvaluation()
 {
-    $db  = DatabaseConnection::getInstance();
-    $sql = sprintf(
-        "SELECT is_locked FROM evaluation_instance
-          WHERE instance_id = %s AND site_id = %s",
-        (int) $instanceID,
-        $_SESSION['CATS']->getSiteID()
-    );
+    $candidateID = isset($_GET['candidateID']) ? (int) $_GET['candidateID'] : 0;
+    $instanceID  = isset($_GET['instanceID'])  ? (int) $_GET['instanceID']  : 0;
 
-    $rs = $db->getAssoc($sql);
-    return (!empty($rs) && (int) $rs['is_locked'] === 1);
+    if ($candidateID <= 0 || $instanceID <= 0)
+    {
+        CommonErrors::fatalModal(COMMONERROR_BADFIELDS, $this, 'Invalid request.');
+    }
+
+    $evaluations = new Evaluations($this->_siteID);
+    $instance    = $this->_requireEvaluation($evaluations, $instanceID, $candidateID);
+
+    $this->_template->assign('candidateID',     $candidateID);
+    $this->_template->assign('instanceID',      $instanceID);
+    $this->_template->assign('evaluationTitle', $instance['title']);
+    $this->_template->assign('isLocked',        $evaluations->isLocked($instanceID));
+    $this->_template->assign('isFinishedMode',  false);
+    $this->_template->display('./modules/candidates/LockEvaluationModal.tpl');
 }
+
+private function onLockEvaluation()
+{
+    $candidateID = isset($_POST['candidateID']) ? (int) $_POST['candidateID'] : 0;
+    $instanceID  = isset($_POST['instanceID'])  ? (int) $_POST['instanceID']  : 0;
+
+    if ($candidateID <= 0 || $instanceID <= 0)
+    {
+        CommonErrors::fatalModal(COMMONERROR_BADFIELDS, $this, 'Invalid request.');
+    }
+
+    $evaluations = new Evaluations($this->_siteID);
+    $this->_requireEvaluation($evaluations, $instanceID, $candidateID);
+
+    /* One-way: there is no unlock. */
+    if (!$evaluations->isLocked($instanceID))
+    {
+        $evaluations->setLocked($instanceID, 1, $this->_userID);
+
+        if ($this->isChecked('logActivity', $_POST))
+        {
+            $activityEntries = new ActivityEntries($this->_siteID);
+            $activityEntries->add(
+                $candidateID,
+                DATA_ITEM_CANDIDATE,
+                400,
+                'Locked an evaluation.',
+                $this->_userID
+            );
+        }
+    }
+
+    $this->_template->assign('isFinishedMode', true);
+    $this->_template->display('./modules/candidates/LockEvaluationModal.tpl');
+}
+
+private function onSetFinalOpinion()
+    {
+        $candidateID  = isset($_POST['candidateID']) ? (int) $_POST['candidateID'] : 0;
+        $instanceID   = isset($_POST['instanceID'])  ? (int) $_POST['instanceID']  : 0;
+        $finalOpinion = $this->getTrimmedInput('finalOpinion', $_POST);
+
+        if ($candidateID <= 0 || $instanceID <= 0)
+        {
+            CommonErrors::fatal(COMMONERROR_BADFIELDS, $this, 'Invalid request.');
+        }
+
+        $evaluations = new Evaluations($this->_siteID);
+        $this->_requireEvaluation($evaluations, $instanceID, $candidateID);
+
+        if ($evaluations->isLocked($instanceID))
+        {
+            CommonErrors::fatal(COMMONERROR_PERMISSION, $this, 'This evaluation is locked.');
+        }
+
+        $evaluations->setFinalOpinion($instanceID, $finalOpinion);
+
+        CATSUtility::transferRelativeURI(
+            'm=candidates&a=show&candidateID=' . $candidateID
+        );
+    }
+    private function isEvaluationLocked($instanceID)
+    {
+        $evaluations = new Evaluations($this->_siteID);
+        return $evaluations->isLocked($instanceID);
+    }
     /**
      * Processes an Add Activity form and displays
      * candidates/AddActivityScheduleEventModal.tpl.

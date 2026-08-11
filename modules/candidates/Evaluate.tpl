@@ -10,6 +10,11 @@
     var CATS_CandidateID = <?php echo (int) $this->candidateID; ?>;
     var CATS_InstanceID = <?php echo (int) $this->instanceID; ?>;
 
+    /* A locked evaluation renders as a plain read-only record: no icons, no
+       Save, no editable fields. The server refuses the writes regardless -
+       this only keeps the page from offering controls that would fail. */
+    var CATS_IsLocked = <?php echo $this->isLocked ? 'true' : 'false'; ?>;
+
     window.CATSStages = window.CATSStages || {};
     window.evaluatorBlocks = window.evaluatorBlocks || [];
 
@@ -152,8 +157,9 @@
             var uid = 'uid' + (++uniqueCount);
             var criteriaFormID = 'criteriaForm_' + instanceStageID;
 
-            /* First block for this stage claims the criteria edit controls. */
-            var isEditorBlock = !stage.editorBound;
+            /* First block for this stage claims the criteria edit controls.
+               A locked evaluation has no criteria editor at all. */
+            var isEditorBlock = !CATS_IsLocked && !stage.editorBound;
             if (isEditorBlock) {
                 stage.editorBound = true;
                 stage.labelDisplays = [];
@@ -215,15 +221,18 @@
             editLink.appendChild(editImg);
             iconsWrap.appendChild(editLink);
 
-            iconTd.appendChild(iconsWrap);
-            iconTd.appendChild(document.createElement('br'));
-
             var saveBtn = document.createElement('input');
             saveBtn.type = 'submit';
             saveBtn.value = 'Save';
             saveBtn.className = 'button';
             saveBtn.style.marginTop = '8px';
-            iconTd.appendChild(saveBtn);
+
+            /* Locked: the icon column stays (it holds the layout) but is empty. */
+            if (!CATS_IsLocked) {
+                iconTd.appendChild(iconsWrap);
+                iconTd.appendChild(document.createElement('br'));
+                iconTd.appendChild(saveBtn);
+            }
 
             var formTd = row.insertCell(-1);
 
@@ -273,11 +282,13 @@
             nameInput.className = 'inputbox';
             nameInput.autocomplete = 'off';
             nameInput.size = 40;
-            nameInput.setAttribute('list', 'evaluatorNamesList');
+            if (!CATS_IsLocked) {
+                nameInput.setAttribute('list', 'evaluatorNamesList');
+            }
             nameInput.style.paddingLeft = '0';
             nameInput.style.marginLeft = '0';
             nameInput.value = evaluatorName || '';
-            addFieldRow('Evaluator Name: *', nameInput);
+            addFieldRow(CATS_IsLocked ? 'Evaluator Name:' : 'Evaluator Name: *', nameInput);
 
             var fields = [];
             var ratingField = null;
@@ -358,7 +369,7 @@
                 }
             });
 
-            if (ratingField) {
+            if (ratingField && !CATS_IsLocked) {
                 ratingField.addEventListener('input', function () {
                     window.updateAverageRating();
                 });
@@ -399,6 +410,9 @@
             }
 
             function setEditable(isEditable) {
+                if (CATS_IsLocked) {
+                    isEditable = false;
+                }
                 applyFieldStyle(nameInput, isEditable);
                 fields.forEach(function (t) { applyFieldStyle(t, isEditable); });
             }
@@ -419,6 +433,10 @@
             };
 
             function performSave() {
+                if (CATS_IsLocked) {
+                    return Promise.resolve({ success: false });
+                }
+
                 /* An unnamed evaluator is what leaves a phantom saved block on
                    the page after a reload, so it never reaches the server. */
                 if (!nameInput.value.trim()) {
@@ -449,6 +467,11 @@
                         iconsWrap.style.display = '';
                         setEditable(false);
                         window.registerEvaluatorName(nameInput.value);
+                    } else if (data.locked) {
+                        /* Locked after this page was opened. */
+                        saveBtn.value = 'Locked';
+                        alert('This evaluation has been locked and can no longer be edited.');
+                        setEditable(false);
                     } else {
                         saveBtn.value = 'Save (failed, try again)';
                     }
@@ -494,11 +517,13 @@
 <div id="main">
     <?php TemplateUtility::printQuickSearch(); ?>
 
-    <datalist id="evaluatorNamesList">
-        <?php foreach ($this->allEvaluatorNames as $evaluatorName): ?>
-            <option value="<?php echo htmlspecialchars($evaluatorName, ENT_QUOTES, 'UTF-8'); ?>"></option>
-        <?php endforeach; ?>
-    </datalist>
+    <?php if (!$this->isLocked): ?>
+        <datalist id="evaluatorNamesList">
+            <?php foreach ($this->allEvaluatorNames as $evaluatorName): ?>
+                <option value="<?php echo htmlspecialchars($evaluatorName, ENT_QUOTES, 'UTF-8'); ?>"></option>
+            <?php endforeach; ?>
+        </datalist>
+    <?php endif; ?>
 
     <div id="contents">
 
@@ -515,37 +540,50 @@
             <?php echo htmlspecialchars($this->candidateName, ENT_QUOTES, 'UTF-8'); ?>
         </p>
 
+        <?php if ($this->isLocked): ?>
+            <div class="warning" style="margin-bottom:10px;">
+                <img src="images/key.png" width="16" height="16" border="0" class="absmiddle" alt="" />&nbsp;This
+                evaluation is locked. It is read-only and cannot be unlocked.
+            </div>
+        <?php endif; ?>
+
         <!-- Evaluation title (rename in place) -->
         <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-bottom:10px;">
             <tr>
                 <td class="pageHeading">
                     <span id="evalTitleDisplay">
                         <?php echo htmlspecialchars($this->evaluationTitle, ENT_QUOTES, 'UTF-8'); ?>
-                        <a href="javascript:void(0);" style="margin-left:6px;"
-                           onclick="showEdit('evalTitleDisplay', 'evalTitleEdit', 'evalTitleInput');">
-                            <img src="images/edit.gif" border="0" class="absmiddle" alt="edit" />
-                        </a>
+                        <?php if (!$this->isLocked): ?>
+                            <a href="javascript:void(0);" style="margin-left:6px;"
+                               onclick="showEdit('evalTitleDisplay', 'evalTitleEdit', 'evalTitleInput');">
+                                <img src="images/edit.gif" border="0" class="absmiddle" alt="edit" />
+                            </a>
+                        <?php endif; ?>
                     </span>
 
-                    <span id="evalTitleEdit" style="display:none;">
-                        <form method="post" action="<?php echo(CATSUtility::getIndexName()); ?>?m=candidates&amp;a=evaluationCommand" style="display:inline;">
-                            <input type="hidden" name="postback" value="postback" />
-                            <input type="hidden" name="csrfToken" value="<?php echo htmlspecialchars($_SESSION['CATS']->getCSRFToken(), ENT_QUOTES, 'UTF-8'); ?>" />
-                            <input type="hidden" name="candidateID" value="<?php echo (int) $this->candidateID; ?>" />
-                            <input type="hidden" name="instanceID" value="<?php echo (int) $this->instanceID; ?>" />
-                            <input type="hidden" name="command" value="renameEvaluation" />
-                            <input type="text" id="evalTitleInput" name="title" class="inputbox" size="40"
-                                   value="<?php echo htmlspecialchars($this->evaluationTitle, ENT_QUOTES, 'UTF-8'); ?>" />
-                            <input type="submit" class="button" value="Save" />
-                            <input type="button" class="button" value="Cancel"
-                                   onclick="hideEdit('evalTitleDisplay', 'evalTitleEdit');" />
-                        </form>
-                    </span>
+                    <?php if (!$this->isLocked): ?>
+                        <span id="evalTitleEdit" style="display:none;">
+                            <form method="post" action="<?php echo(CATSUtility::getIndexName()); ?>?m=candidates&amp;a=evaluationCommand" style="display:inline;">
+                                <input type="hidden" name="postback" value="postback" />
+                                <input type="hidden" name="csrfToken" value="<?php echo htmlspecialchars($_SESSION['CATS']->getCSRFToken(), ENT_QUOTES, 'UTF-8'); ?>" />
+                                <input type="hidden" name="candidateID" value="<?php echo (int) $this->candidateID; ?>" />
+                                <input type="hidden" name="instanceID" value="<?php echo (int) $this->instanceID; ?>" />
+                                <input type="hidden" name="command" value="renameEvaluation" />
+                                <input type="text" id="evalTitleInput" name="title" class="inputbox" size="40"
+                                       value="<?php echo htmlspecialchars($this->evaluationTitle, ENT_QUOTES, 'UTF-8'); ?>" />
+                                <input type="submit" class="button" value="Save" />
+                                <input type="button" class="button" value="Cancel"
+                                       onclick="hideEdit('evalTitleDisplay', 'evalTitleEdit');" />
+                            </form>
+                        </span>
+                    <?php endif; ?>
 
                     <?php if (!$this->isEmpty): ?>
                         <br /><span style="font-weight:normal; font-size:13px;">Rating: <span id="avgRatingDisplay">Empty</span></span>
-                        <br /><input type="button" id="saveAllButton" value="Save All" class="button" style="margin-top:6px;"
-                                     onclick="saveAllEvaluators();" />
+                        <?php if (!$this->isLocked): ?>
+                            <br /><input type="button" id="saveAllButton" value="Save All" class="button" style="margin-top:6px;"
+                                         onclick="saveAllEvaluators();" />
+                        <?php endif; ?>
                     <?php endif; ?>
                 </td>
             </tr>
@@ -559,6 +597,7 @@
 
              Kept as one plain line rather than a panel: it's an occasional
              setup action, not a section of the evaluation. -->
+        <?php if (!$this->isLocked): ?>
         <div style="margin-bottom:16px;">
             <form method="post" action="<?php echo(CATSUtility::getIndexName()); ?>?m=candidates&amp;a=evaluationCommand" style="display:inline;"
                   onsubmit="return confirm('Load this template into the evaluation?');">
@@ -592,6 +631,7 @@
                 <input type="submit" class="button" value="Load" />
             </form>
         </div>
+        <?php endif; ?>
 
         <?php foreach ($this->stages as $stage): ?>
             <?php $instanceStageID = (int) $stage['instance_stage_id']; ?>
@@ -602,55 +642,58 @@
             <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-top:20px;">
                 <tr>
                     <td class="subHeading">
-                        <a href="javascript:void(0);"
-                           onclick="if (confirm('Delete this stage?')) { document.getElementById('stageDelete_<?php echo $instanceStageID; ?>').submit(); }">
-                            <img src="images/actions/delete.gif" border="0" alt="delete" />
-                        </a>
-                        <a href="javascript:void(0);" style="margin-left:4px;"
-                           onclick="showStageEditor(<?php echo $instanceStageID; ?>);">
-                            <img src="images/edit.gif" border="0" alt="edit" />
-                        </a>&nbsp;<span id="stageDisplay_<?php echo $instanceStageID; ?>"><?php echo htmlspecialchars($stage['stage_name'], ENT_QUOTES, 'UTF-8'); ?></span>
+                        <?php if (!$this->isLocked): ?>
+                            <a href="javascript:void(0);"
+                               onclick="if (confirm('Delete this stage?')) { document.getElementById('stageDelete_<?php echo $instanceStageID; ?>').submit(); }">
+                                <img src="images/actions/delete.gif" border="0" alt="delete" />
+                            </a>
+                            <a href="javascript:void(0);" style="margin-left:4px;"
+                               onclick="showStageEditor(<?php echo $instanceStageID; ?>);">
+                                <img src="images/edit.gif" border="0" alt="edit" />
+                            </a>&nbsp;<?php endif; ?><span id="stageDisplay_<?php echo $instanceStageID; ?>"><?php echo htmlspecialchars($stage['stage_name'], ENT_QUOTES, 'UTF-8'); ?></span>
 
-                        <span id="stageNameEdit_<?php echo $instanceStageID; ?>" style="display:none;">
-                            <input type="text" id="stageNameInput_<?php echo $instanceStageID; ?>"
-                                   name="stageName" class="inputbox" style="width:140px;"
-                                   form="criteriaForm_<?php echo $instanceStageID; ?>"
-                                   value="<?php echo htmlspecialchars($stage['stage_name'], ENT_QUOTES, 'UTF-8'); ?>" />
-                            <input type="submit" class="button" value="Save"
-                                   form="criteriaForm_<?php echo $instanceStageID; ?>" />
-                            <input type="button" class="button" value="Cancel"
-                                   onclick="hideStageEditor(<?php echo $instanceStageID; ?>);" />
-                        </span>
-
-
+                        <?php if (!$this->isLocked): ?>
+                            <span id="stageNameEdit_<?php echo $instanceStageID; ?>" style="display:none;">
+                                <input type="text" id="stageNameInput_<?php echo $instanceStageID; ?>"
+                                       name="stageName" class="inputbox" style="width:140px;"
+                                       form="criteriaForm_<?php echo $instanceStageID; ?>"
+                                       value="<?php echo htmlspecialchars($stage['stage_name'], ENT_QUOTES, 'UTF-8'); ?>" />
+                                <input type="submit" class="button" value="Save"
+                                       form="criteriaForm_<?php echo $instanceStageID; ?>" />
+                                <input type="button" class="button" value="Cancel"
+                                       onclick="hideStageEditor(<?php echo $instanceStageID; ?>);" />
+                            </span>
+                        <?php endif; ?>
                     </td>
                 </tr>
             </table>
 
-            <!-- Criteria/stage-name edits post here. The inputs live inside the
-                 evaluator block's label cells and attach by form= id, since a
-                 form can't be nested inside the evaluator block's own form. -->
-            <form id="criteriaForm_<?php echo $instanceStageID; ?>" method="post"
-                  action="<?php echo(CATSUtility::getIndexName()); ?>?m=candidates&amp;a=evaluationCommand"
-                  style="display:none;">
-                <input type="hidden" name="postback" value="postback" />
-                <input type="hidden" name="csrfToken" value="<?php echo htmlspecialchars($_SESSION['CATS']->getCSRFToken(), ENT_QUOTES, 'UTF-8'); ?>" />
-                <input type="hidden" name="candidateID" value="<?php echo (int) $this->candidateID; ?>" />
-                <input type="hidden" name="instanceID" value="<?php echo (int) $this->instanceID; ?>" />
-                <input type="hidden" name="instanceStageID" value="<?php echo $instanceStageID; ?>" />
-                <input type="hidden" name="command" value="editStage" />
-            </form>
+            <?php if (!$this->isLocked): ?>
+                <!-- Criteria/stage-name edits post here. The inputs live inside the
+                     evaluator block's label cells and attach by form= id, since a
+                     form can't be nested inside the evaluator block's own form. -->
+                <form id="criteriaForm_<?php echo $instanceStageID; ?>" method="post"
+                      action="<?php echo(CATSUtility::getIndexName()); ?>?m=candidates&amp;a=evaluationCommand"
+                      style="display:none;">
+                    <input type="hidden" name="postback" value="postback" />
+                    <input type="hidden" name="csrfToken" value="<?php echo htmlspecialchars($_SESSION['CATS']->getCSRFToken(), ENT_QUOTES, 'UTF-8'); ?>" />
+                    <input type="hidden" name="candidateID" value="<?php echo (int) $this->candidateID; ?>" />
+                    <input type="hidden" name="instanceID" value="<?php echo (int) $this->instanceID; ?>" />
+                    <input type="hidden" name="instanceStageID" value="<?php echo $instanceStageID; ?>" />
+                    <input type="hidden" name="command" value="editStage" />
+                </form>
 
-            <!-- Outside the header so it isn't nested inside the rename form. -->
-            <form id="stageDelete_<?php echo $instanceStageID; ?>" method="post"
-                  action="<?php echo(CATSUtility::getIndexName()); ?>?m=candidates&amp;a=evaluationCommand" style="display:none;">
-                <input type="hidden" name="postback" value="postback" />
-                <input type="hidden" name="csrfToken" value="<?php echo htmlspecialchars($_SESSION['CATS']->getCSRFToken(), ENT_QUOTES, 'UTF-8'); ?>" />
-                <input type="hidden" name="candidateID" value="<?php echo (int) $this->candidateID; ?>" />
-                <input type="hidden" name="instanceID" value="<?php echo (int) $this->instanceID; ?>" />
-                <input type="hidden" name="instanceStageID" value="<?php echo $instanceStageID; ?>" />
-                <input type="hidden" name="command" value="deleteStage" />
-            </form>
+                <!-- Outside the header so it isn't nested inside the rename form. -->
+                <form id="stageDelete_<?php echo $instanceStageID; ?>" method="post"
+                      action="<?php echo(CATSUtility::getIndexName()); ?>?m=candidates&amp;a=evaluationCommand" style="display:none;">
+                    <input type="hidden" name="postback" value="postback" />
+                    <input type="hidden" name="csrfToken" value="<?php echo htmlspecialchars($_SESSION['CATS']->getCSRFToken(), ENT_QUOTES, 'UTF-8'); ?>" />
+                    <input type="hidden" name="candidateID" value="<?php echo (int) $this->candidateID; ?>" />
+                    <input type="hidden" name="instanceID" value="<?php echo (int) $this->instanceID; ?>" />
+                    <input type="hidden" name="instanceStageID" value="<?php echo $instanceStageID; ?>" />
+                    <input type="hidden" name="command" value="deleteStage" />
+                </form>
+            <?php endif; ?>
 
             <div id="evaluatorsContainer_<?php echo $instanceStageID; ?>"></div>
 
@@ -680,66 +723,72 @@
                 })();
             </script>
 
-            <div style="margin-top:12px;">
-                <input type="button" value="Add Evaluator" class="button"
-                       onclick="renderEvaluatorBlock(<?php echo $instanceStageID; ?>, 0, '', {});" />
-            </div>
+            <?php if (!$this->isLocked): ?>
+                <div style="margin-top:12px;">
+                    <input type="button" value="Add Evaluator" class="button"
+                           onclick="renderEvaluatorBlock(<?php echo $instanceStageID; ?>, 0, '', {});" />
+                </div>
 
-            <!-- Add criteria closes out the stage, as the reveal-link pattern
-                 from the settings editor. Unlike Add Evaluator this reloads,
-                 because it changes what fields every evaluator block renders. -->
-            <div id="addCriteriaLink_<?php echo $instanceStageID; ?>" style="margin-top:6px; margin-bottom:10px;">
+                <!-- Add criteria closes out the stage, as the reveal-link pattern
+                     from the settings editor. Unlike Add Evaluator this reloads,
+                     because it changes what fields every evaluator block renders. -->
+                <div id="addCriteriaLink_<?php echo $instanceStageID; ?>" style="margin-top:6px; margin-bottom:10px;">
+                    <a href="javascript:void(0);"
+                       onclick="showEdit('addCriteriaLink_<?php echo $instanceStageID; ?>', 'addCriteriaArea_<?php echo $instanceStageID; ?>', 'addCriteriaInput_<?php echo $instanceStageID; ?>');">
+                        <img src="images/actions/add_small.gif" border="0" alt="add" />&nbsp;Add criteria
+                    </a>
+                </div>
+
+                <div id="addCriteriaArea_<?php echo $instanceStageID; ?>" style="display:none; margin-top:6px; margin-bottom:10px;">
+                    <form method="post" action="<?php echo(CATSUtility::getIndexName()); ?>?m=candidates&amp;a=evaluationCommand" style="display:inline;">
+                        <input type="hidden" name="postback" value="postback" />
+                        <input type="hidden" name="csrfToken" value="<?php echo htmlspecialchars($_SESSION['CATS']->getCSRFToken(), ENT_QUOTES, 'UTF-8'); ?>" />
+                        <input type="hidden" name="candidateID" value="<?php echo (int) $this->candidateID; ?>" />
+                        <input type="hidden" name="instanceID" value="<?php echo (int) $this->instanceID; ?>" />
+                        <input type="hidden" name="instanceStageID" value="<?php echo $instanceStageID; ?>" />
+                        <input type="hidden" name="command" value="addCriteria" />
+                        <input type="text" id="addCriteriaInput_<?php echo $instanceStageID; ?>" name="criteriaName" class="inputbox" style="width:160px;" />
+                        <select name="dataType" class="inputbox" style="width:90px;">
+                            <option value="text">Text</option>
+                            <option value="date">Date</option>
+                            <option value="number">Number</option>
+                        </select>
+                        <input type="submit" class="button" value="Add Criteria" />
+                        <input type="button" class="button" value="Cancel"
+                               onclick="hideEdit('addCriteriaLink_<?php echo $instanceStageID; ?>', 'addCriteriaArea_<?php echo $instanceStageID; ?>');" />
+                    </form>
+                </div>
+            <?php else: ?>
+                <div style="margin-bottom:10px;"></div>
+            <?php endif; ?>
+
+        <?php endforeach; ?>
+
+
+        <?php if (!$this->isLocked): ?>
+            <!-- Add a stage. Same reveal-link pattern as Add criteria, and like a
+                 template stage it arrives with Rating and Comments already on it. -->
+            <div id="addStageLink" style="margin-top:24px;">
                 <a href="javascript:void(0);"
-                   onclick="showEdit('addCriteriaLink_<?php echo $instanceStageID; ?>', 'addCriteriaArea_<?php echo $instanceStageID; ?>', 'addCriteriaInput_<?php echo $instanceStageID; ?>');">
-                    <img src="images/actions/add_small.gif" border="0" alt="add" />&nbsp;Add criteria
+                   onclick="showEdit('addStageLink', 'addStageArea', 'addStageInput');">
+                    <img src="images/actions/add_small.gif" border="0" alt="add" />&nbsp;Add interview stage
                 </a>
             </div>
 
-            <div id="addCriteriaArea_<?php echo $instanceStageID; ?>" style="display:none; margin-top:6px; margin-bottom:10px;">
+            <div id="addStageArea" style="display:none; margin-top:24px;">
                 <form method="post" action="<?php echo(CATSUtility::getIndexName()); ?>?m=candidates&amp;a=evaluationCommand" style="display:inline;">
                     <input type="hidden" name="postback" value="postback" />
                     <input type="hidden" name="csrfToken" value="<?php echo htmlspecialchars($_SESSION['CATS']->getCSRFToken(), ENT_QUOTES, 'UTF-8'); ?>" />
                     <input type="hidden" name="candidateID" value="<?php echo (int) $this->candidateID; ?>" />
                     <input type="hidden" name="instanceID" value="<?php echo (int) $this->instanceID; ?>" />
-                    <input type="hidden" name="instanceStageID" value="<?php echo $instanceStageID; ?>" />
-                    <input type="hidden" name="command" value="addCriteria" />
-                    <input type="text" id="addCriteriaInput_<?php echo $instanceStageID; ?>" name="criteriaName" class="inputbox" style="width:160px;" />
-                    <select name="dataType" class="inputbox" style="width:90px;">
-                        <option value="text">Text</option>
-                        <option value="date">Date</option>
-                        <option value="number">Number</option>
-                    </select>
-                    <input type="submit" class="button" value="Add Criteria" />
+                    <input type="hidden" name="command" value="addStage" />
+                    <input type="text" id="addStageInput" name="stageName" class="inputbox" style="width:220px;" />
+                    <input type="submit" class="button" value="Add Stage" />
                     <input type="button" class="button" value="Cancel"
-                           onclick="hideEdit('addCriteriaLink_<?php echo $instanceStageID; ?>', 'addCriteriaArea_<?php echo $instanceStageID; ?>');" />
+                           onclick="hideEdit('addStageLink', 'addStageArea');" />
                 </form>
             </div>
-
-        <?php endforeach; ?>
-
-
-        <!-- Add a stage. Same reveal-link pattern as Add criteria, and like a
-             template stage it arrives with Rating and Comments already on it. -->
-        <div id="addStageLink" style="margin-top:24px;">
-            <a href="javascript:void(0);"
-               onclick="showEdit('addStageLink', 'addStageArea', 'addStageInput');">
-                <img src="images/actions/add_small.gif" border="0" alt="add" />&nbsp;Add interview stage
-            </a>
-        </div>
-
-        <div id="addStageArea" style="display:none; margin-top:24px;">
-            <form method="post" action="<?php echo(CATSUtility::getIndexName()); ?>?m=candidates&amp;a=evaluationCommand" style="display:inline;">
-                <input type="hidden" name="postback" value="postback" />
-                <input type="hidden" name="csrfToken" value="<?php echo htmlspecialchars($_SESSION['CATS']->getCSRFToken(), ENT_QUOTES, 'UTF-8'); ?>" />
-                <input type="hidden" name="candidateID" value="<?php echo (int) $this->candidateID; ?>" />
-                <input type="hidden" name="instanceID" value="<?php echo (int) $this->instanceID; ?>" />
-                <input type="hidden" name="command" value="addStage" />
-                <input type="text" id="addStageInput" name="stageName" class="inputbox" style="width:220px;" />
-                <input type="submit" class="button" value="Add Stage" />
-                <input type="button" class="button" value="Cancel"
-                       onclick="hideEdit('addStageLink', 'addStageArea');" />
-            </form>
-        </div>
+        <?php endif; ?>
 
         <br clear="all" />
 

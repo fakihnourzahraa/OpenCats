@@ -612,7 +612,8 @@ use OpenCATS\UI\CandidateDuplicateQuickActionMenu;
                     <th align="left" width="300">Title</th>
                     <th align="left" width="70">Stages</th>
                     <th align="left" width="100">Created</th>
-                    <th align="left" width="100">Modified</th>
+<th align="left" width="100">Modified</th>
+                    <th align="left" width="220">Final Opinion</th>
 <?php if (!$this->isPopup): ?>
                     <th align="center" width="60">Action</th>
 <?php endif; ?>
@@ -628,11 +629,26 @@ use OpenCATS\UI\CandidateDuplicateQuickActionMenu;
                         <td><?php $this->_($evaluationData['stage_count']); ?></td>
                         <td><?php $this->_($evaluationData['dateCreatedShow']); ?></td>
                         <td><?php $this->_($evaluationData['dateModifiedShow']); ?></td>
+                        <td>
+                            <?php if (!empty($evaluationData['is_locked'])): ?>
+                                <?php $this->_($evaluationData['final_opinion']); ?>
+                            <?php else: ?>
+                                <form method="post" action="<?php echo(CATSUtility::getIndexName()); ?>?m=candidates&amp;a=setFinalOpinion" style="display:inline; white-space:nowrap;">
+                                    <input type="hidden" name="postback" value="postback" />
+                                    <input type="hidden" name="csrfToken" value="<?php echo htmlspecialchars($_SESSION['CATS']->getCSRFToken(), ENT_QUOTES, 'UTF-8'); ?>" />
+                                    <input type="hidden" name="candidateID" value="<?php echo Template::escapeAttr($this->candidateID); ?>" />
+                                    <input type="hidden" name="instanceID" value="<?php echo Template::escapeAttr($evaluationData['instance_id']); ?>" />
+                                    <input type="text" name="finalOpinion" class="inputbox" style="width:170px;"
+                                           value="<?php echo Template::escapeAttr($evaluationData['final_opinion']); ?>" />
+                                    <input type="submit" class="button" value="Save" />
+                                </form>
+                            <?php endif; ?>
+                        </td>
 <?php if (!$this->isPopup): ?>
                         <td align="center" nowrap="nowrap">
                             <?php if ($this->getUserAccessLevel('candidates.edit') >= ACCESS_LEVEL_EDIT): ?>
-                                <a href="<?php echo Template::escapeUrl(CATSUtility::getIndexName() . '?m=candidates&a=evaluate&candidateID=' . $this->candidateID . '&instanceID=' . $evaluationData['instance_id']); ?>">
-                                    <img src="images/actions/edit.gif" width="16" height="16" class="absmiddle" alt="" border="0" title="Open Evaluation" />
+                                <a href="#" onclick="showPopWin(<?php echo Template::escapeJsAttr(CATSUtility::getIndexName() . '?m=candidates&a=lockEvaluation&candidateID=' . $this->candidateID . '&instanceID=' . $evaluationData['instance_id']); ?>, 400, 260, null); return false;">
+                                    <img src="images/<?php echo !empty($evaluationData['is_locked']) ? 'key.png' : 'actions/edit.gif'; ?>" width="16" height="16" class="absmiddle" alt="" border="0" title="<?php echo !empty($evaluationData['is_locked']) ? 'Locked' : 'Lock Evaluation'; ?>" />
                                 </a>
                             <?php endif; ?>
                             <?php if ($this->getUserAccessLevel('candidates.delete') >= ACCESS_LEVEL_DELETE): ?>
