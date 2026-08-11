@@ -513,7 +513,7 @@ use OpenCATS\UI\CandidateDuplicateQuickActionMenu;
 <?php if (!$this->isPopup): ?>
                     <th align="center">Action</th>
 
-<th align="center">Evaluate</th>
+
 <?php endif; ?>
                 </tr>
 
@@ -577,17 +577,11 @@ use OpenCATS\UI\CandidateDuplicateQuickActionMenu;
                                 </form>
                             <?php endif; ?>
                         </td>
-                        <td align="center" nowrap="nowrap">
-    <?php if ($this->getUserAccessLevel('joborders.edit') >= ACCESS_LEVEL_EDIT): ?>
-        <a href="<?php echo Template::escapeUrl(CATSUtility::getIndexName() . '?m=joborders&a=evaluate&jobOrderID=' . $pipelinesData['jobOrderID'] . '&candidateID=' . $this->candidateID); ?>">
-            <img src="images/actions/edit.gif" width="16" height="16" class="absmiddle" alt="" border="0" title="Evaluate" />
-        </a>
-    <?php endif; ?>
-    </td>
+
 <?php endif; ?>
                     </tr>
                     <tr class="<?php TemplateUtility::printAlternatingRowClass($rowNumber); ?>" id="pipelineDetails<?php echo($rowNumber); ?>" style="display:none;">
-                        <td colspan="11" align="center">
+                        <td colspan="<?php echo($this->isPopup ? 9 : 10); ?>" align="center">
                             <table width="98%" border="1" class="detailsOutside" style="margin: 5px;">
                                 <tr>
                                     <td align="left" style="padding: 6px 6px 6px 6px; background-color: white; clear: both;">
@@ -608,6 +602,66 @@ use OpenCATS\UI\CandidateDuplicateQuickActionMenu;
                 <a href="#" onclick="showPopWin(<?php echo Template::escapeJsAttr(CATSUtility::getIndexName() . '?m=candidates&a=considerForJobSearch&candidateID=' . $this->candidateID); ?>, 750, 390, null); return false;">
                     <img src="images/consider.gif" width="16" height="16" class="absmiddle" alt="Add to Job Order" border="0" />&nbsp;Add This Candidate to Job Order
                 </a>
+                <br clear="all" />
+            <br />
+
+            <p class="note">Evaluations</p>
+
+            <table id="evaluationsTable" class="sortable">
+                <tr>
+                    <th align="left" width="300">Title</th>
+                    <th align="left" width="70">Stages</th>
+                    <th align="left" width="100">Created</th>
+                    <th align="left" width="100">Modified</th>
+<?php if (!$this->isPopup): ?>
+                    <th align="center" width="60">Action</th>
+<?php endif; ?>
+                </tr>
+
+                <?php foreach ($this->evaluationsRS as $rowNumber => $evaluationData): ?>
+                    <tr class="<?php TemplateUtility::printAlternatingRowClass($rowNumber); ?>">
+                        <td>
+                            <a href="<?php echo Template::escapeUrl(CATSUtility::getIndexName() . '?m=candidates&a=evaluate&candidateID=' . $this->candidateID . '&instanceID=' . $evaluationData['instance_id']); ?>">
+                                <?php $this->_($evaluationData['title']); ?>
+                            </a>
+                        </td>
+                        <td><?php $this->_($evaluationData['stage_count']); ?></td>
+                        <td><?php $this->_($evaluationData['dateCreatedShow']); ?></td>
+                        <td><?php $this->_($evaluationData['dateModifiedShow']); ?></td>
+<?php if (!$this->isPopup): ?>
+                        <td align="center" nowrap="nowrap">
+                            <?php if ($this->getUserAccessLevel('candidates.edit') >= ACCESS_LEVEL_EDIT): ?>
+                                <a href="<?php echo Template::escapeUrl(CATSUtility::getIndexName() . '?m=candidates&a=evaluate&candidateID=' . $this->candidateID . '&instanceID=' . $evaluationData['instance_id']); ?>">
+                                    <img src="images/actions/edit.gif" width="16" height="16" class="absmiddle" alt="" border="0" title="Open Evaluation" />
+                                </a>
+                            <?php endif; ?>
+                            <?php if ($this->getUserAccessLevel('candidates.delete') >= ACCESS_LEVEL_DELETE): ?>
+                                <form method="post" action="<?php echo(CATSUtility::getIndexName()); ?>?m=candidates&amp;a=deleteEvaluation" style="display:inline;" onsubmit="return confirm('Delete this evaluation?');">
+                                    <input type="hidden" name="postback" value="postback" />
+                                    <input type="hidden" name="candidateID" value="<?php echo Template::escapeAttr($this->candidateID); ?>" />
+                                    <input type="hidden" name="instanceID" value="<?php echo Template::escapeAttr($evaluationData['instance_id']); ?>" />
+                                    <input type="image" src="images/actions/delete.gif" width="16" height="16" class="absmiddle" alt="" border="0" title="Delete Evaluation" />
+                                </form>
+                            <?php endif; ?>
+                        </td>
+<?php endif; ?>
+                    </tr>
+                <?php endforeach; ?>
+            </table>
+
+<?php if (!$this->isPopup): ?>
+            <?php if ($this->getUserAccessLevel('candidates.edit') >= ACCESS_LEVEL_EDIT): ?>
+                <!-- POST rather than a link: this creates a row, and a link would
+                     make one on every refresh or browser prefetch. -->
+                <form method="post" action="<?php echo(CATSUtility::getIndexName()); ?>?m=candidates&amp;a=addEvaluation" style="display:inline;">
+                    <input type="hidden" name="postback" value="postback" />
+                    <input type="hidden" name="candidateID" value="<?php echo Template::escapeAttr($this->candidateID); ?>" />
+                    <button type="submit" class="linkButton">
+                        <img src="images/new_activity_inline.gif" width="16" height="16" class="absmiddle" alt="Add Evaluation" border="0" />&nbsp;Add New Evaluation
+                    </button>
+                </form>
+            <?php endif; ?>
+<?php endif; ?>
             <?php endif; ?>
 <?php endif; ?>
             <br clear="all" />

@@ -2,9 +2,14 @@
 /*
  * CATS
  * Evaluation Template Library
- * 
+ *
  * The Original Code is "CATS Standard Edition".
  * This file was added for IBC
+ *
+ * Template DEFINITIONS only. Nothing in this class knows that evaluations
+ * exist; the evaluate page reads getFullTemplate() once and copies the result
+ * into the evaluation's own tables. Editing a template here never touches an
+ * evaluation that was previously seeded from it.
  */
 
 class EvaluationTemplate
@@ -114,7 +119,7 @@ class EvaluationTemplate
         ));
     }
 
-public function getCriteria($stageID)
+    public function getCriteria($stageID)
     {
         return $this->_db->getAllAssoc(sprintf(
             "SELECT criteria_id, criteria_name, data_type, position
@@ -147,6 +152,30 @@ public function getCriteria($stageID)
             ));
         }
         return (!empty($rs) ? $rs['template_id'] : false);
+    }
+
+    /* ------------------------------------------------------------------ *
+     * ADDED for the evaluate page's template dropdown.
+     *
+     * Returns [job_order_id => true] for every job order that has a template
+     * of its OWN (as opposed to falling back to generic). The dropdown uses
+     * this to mark which entries actually carry a dedicated template, so
+     * picking one isn't a guess.
+     * ------------------------------------------------------------------ */
+    public function getJobOrdersWithTemplates()
+    {
+        $rows = $this->_db->getAllAssoc(sprintf(
+            "SELECT job_order_id FROM evaluation_template
+             WHERE site_id = %s AND job_order_id IS NOT NULL",
+            $this->_siteID
+        ));
+
+        $map = array();
+        foreach ($rows as $row)
+        {
+            $map[(int) $row['job_order_id']] = true;
+        }
+        return $map;
     }
 
     public function addStage($templateID, $stageName, $position)
@@ -216,6 +245,7 @@ public function getCriteria($stageID)
         ));
         return ($this->_db->getLastInsertID());
     }
+
     public function deleteCriteria($criteriaID)
     {
         $this->_db->query(sprintf(
@@ -224,7 +254,7 @@ public function getCriteria($stageID)
             $this->_siteID
         ));
     }
-    
+
     public function renameStage($stageID, $newName)
     {
         $this->_db->query(sprintf(
@@ -246,6 +276,7 @@ public function getCriteria($stageID)
             $this->_siteID
         ));
     }
+
     public function getCriteriaIDByName($stageID, $criteriaName)
     {
         $rs = $this->_db->getAssoc(sprintf(
@@ -329,7 +360,7 @@ public function getCriteria($stageID)
             if ((int) $s['stage_id'] === (int) $stageID)
             {
                 $idx = $i;
-                break; 
+                break;
             }
         }
         if ($idx === -1)
@@ -399,7 +430,5 @@ public function getCriteria($stageID)
             $this->_siteID
         ));
     }
-    
-    
 }
 ?>

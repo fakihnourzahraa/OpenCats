@@ -48,8 +48,7 @@ include_once(LEGACY_ROOT . '/lib/CommonErrors.php');
 include_once(LEGACY_ROOT . '/lib/JobOrderTypes.php');
 include_once(LEGACY_ROOT . '/lib/JobOrderStatuses.php');
 include_once(LEGACY_ROOT . '/modules/joborders/dataGrids.php');
-include_once(LEGACY_ROOT . '/lib/EvaluationTemplate.php');
-include_once(LEGACY_ROOT . '/lib/Evaluations.php');
+
 
 class JobOrdersUI extends UserInterface
 {
@@ -146,30 +145,6 @@ class JobOrdersUI extends UserInterface
                     $this->edit();
                 }
 
-                break;
-
-
-            case 'evaluate':
-                if ($this->getUserAccessLevel('joborders.edit') < ACCESS_LEVEL_EDIT)
-                {
-                    CommonErrors::fatal(COMMONERROR_PERMISSION, $this, 'Invalid user level for action.');
-                }
-                if ($this->isPostBack())
-                {
-                    $this->onEvaluate();
-                }
-                else
-                {
-                    $this->evaluate();
-                }
-                break;
-            
-            case 'deleteEvaluator':
-                if ($this->getUserAccessLevel('joborders.edit') < ACCESS_LEVEL_EDIT)
-                {
-                    CommonErrors::fatal(COMMONERROR_PERMISSION, $this, 'Invalid user level for action.');
-                }
-                $this->onDeleteEvaluator();
                 break;
 
             case 'delete':
@@ -736,9 +711,6 @@ private function exportPipeline()
             $careerPortalURL = CATSUtility::getAbsoluteURI() . 'careers/';
         }
         
-        $evalTemplate = new EvaluationTemplate($this->_siteID);
-        $evaluationStages = $evalTemplate->getFullTemplate($jobOrderID);
-        $this->_template->assign('evaluationStages', $evaluationStages);
         $this->_template->assign('active', $this);
         $this->_template->assign('isPublic', $isPublic);
         $this->_template->assign('questionnaireID', $questionnaireID);
@@ -1207,10 +1179,7 @@ $this->_template->display('./modules/joborders/Show.tpl');
                 }
             }
             }
-    $evalTemplate = new EvaluationTemplate($this->_siteID);
-    $evaluationStages = $evalTemplate->getFullTemplate($jobOrderID);
-
-    $this->_template->assign('evaluationStages', $evaluationStages);
+            
         $this->_template->assign('extraFieldRS', $extraFieldRS);
         $this->_template->assign('careerPortalEnabled', $careerPortalEnabled);
         $this->_template->assign('questionnaireID', $questionnaireID);
@@ -1562,150 +1531,6 @@ $this->_template->display('./modules/joborders/Show.tpl');
 
         $this->_template->display('./modules/joborders/ConsiderSearchModal.tpl');
     }
-
-    private function evaluate()
-    {
-        $jobOrderID  = isset($_GET['jobOrderID'])  ? (int) $_GET['jobOrderID']  : 0;
-        $candidateID = isset($_GET['candidateID']) ? (int) $_GET['candidateID'] : 0;
-        $openStageID = isset($_GET['openStage'])   ? (int) $_GET['openStage']   : 0;
-
-        if ($jobOrderID <= 0 || $candidateID <= 0)
-        {
-            CommonErrors::fatal(COMMONERROR_BADFIELDS, $this, 'Invalid request.');
-        }
-
-        $jobOrders  = new JobOrders($this->_siteID);
-        $jobOrderRS = $jobOrders->get($jobOrderID);
-
-        $candidates  = new Candidates($this->_siteID);
-        $candidateRS = $candidates->get($candidateID);
-
-        $evalTemplate = new EvaluationTemplate($this->_siteID);
-        $stages       = $evalTemplate->getFullTemplate($jobOrderID);
-
-        foreach ($stages as $i => $stage)
-        {
-            $stages[$i]['evaluators'] = array();
-        }
-
-        $evaluations = new Evaluations($this->_siteID);
-        $instanceID  = $evaluations->getInstanceForPipeline($candidateID, $jobOrderID);
-
-        if ($instanceID !== false)
-        {
-            $rows = $evaluations->getAllValuesForInstance($instanceID);
-
-            $evaluatorsByStage = array();
-            foreach ($rows as $row)
-            {
-                $stageID     = $row['stage_id'];
-                $evaluatorID = $row['evaluator_id'];
-
-                if (!isset($evaluatorsByStage[$stageID][$evaluatorID]))
-                {
-                    $evaluatorsByStage[$stageID][$evaluatorID] = array(
-                        'evaluator_id'   => $evaluatorID,
-                        'evaluator_name' => $row['evaluator_name'],
-                        'values'         => array()
-                    );
-                }
-
-                if ($row['criteria_id'] !== null)
-                    $evaluatorsByStage[$stageID][$evaluatorID]['values'][$row['criteria_id']] = $row['value'];
-            }
-
-            foreach ($stages as $i => $stage)
-            {
-                $stageID = $stage['stage_id'];
-                if (isset($evaluatorsByStage[$stageID]))
-                    $stages[$i]['evaluators'] = array_values($evaluatorsByStage[$stageID]);
-            }
-        }
-$allEvaluatorNames = $evaluations->getAllEvaluatorNames();
-$this->_template->assign('allEvaluatorNames', $allEvaluatorNames);
-         $this->_template->assign('jobOrderID',    $jobOrderID);
-        $this->_template->assign('candidateID',   $candidateID);
-        $this->_template->assign('openStageID',   $openStageID);
-        $this->_template->assign('jobOrderTitle', $jobOrderRS['title']);
-        $this->_template->assign('candidateName', $candidateRS['firstName'] . ' ' . $candidateRS['lastName']);
-        $this->_template->assign('stages',        $stages);
-        $this->_template->assign('noTemplate',    empty($stages));
-        $this->_template->assign('active',        $this);
-        $this->_template->assign('subActive',     'Evaluate');
-        $this->_template->display('./modules/joborders/Evaluate.tpl');
-    }
-    
-   private function onEvaluate()
-{
-    $jobOrderID  = isset($_POST['jobOrderID'])  ? (int) $_POST['jobOrderID']  : 0;
-    $candidateID = isset($_POST['candidateID']) ? (int) $_POST['candidateID'] : 0;
-    $stageID     = isset($_POST['stageID'])     ? (int) $_POST['stageID']     : 0;
-    $evaluatorID = isset($_POST['evaluatorID']) ? (int) $_POST['evaluatorID'] : 0;
-    $evaluatorName = isset($_POST['evaluatorName']) ? trim($_POST['evaluatorName']) : '';
-    $values      = isset($_POST['values']) && is_array($_POST['values']) ? $_POST['values'] : array();
-    $isAjax      = isset($_POST['ajax']) && $_POST['ajax'] == '1';
-
-    if ($jobOrderID <= 0 || $candidateID <= 0 || $stageID <= 0)
-    {
-        if ($isAjax)
-        {
-            header('Content-Type: application/json');
-            echo json_encode(array('success' => false, 'error' => 'Invalid request.'));
-            die();
-        }
-        CommonErrors::fatal(COMMONERROR_BADFIELDS, $this, 'Invalid request.');
-    }
-
-    $evaluations  = new Evaluations($this->_siteID);
-    $evalTemplate = new EvaluationTemplate($this->_siteID);
-
-    $currentTemplateID = $evalTemplate->getTemplateID($jobOrderID);
-
-    $instanceID = $evaluations->getInstanceForPipeline($candidateID, $jobOrderID);
-    if ($instanceID === false)
-        $instanceID = $evaluations->createInstance($candidateID, $jobOrderID, $currentTemplateID);
-    else
-        $evaluations->updateInstanceTemplate($instanceID, $currentTemplateID);
-
-    if ($evaluatorID <= 0)
-        $evaluatorID = $evaluations->addEvaluator($instanceID, $stageID, $evaluatorName);
-    else
-        $evaluations->renameEvaluator($evaluatorID, $evaluatorName);
-
-    foreach ($values as $criteriaID => $value)
-    {
-        $evaluations->saveCriteriaValue((int) $evaluatorID, (int) $criteriaID, $value);
-    }
-
-    if ($isAjax)
-    {
-        header('Content-Type: application/json');
-        echo json_encode(array('success' => true, 'evaluatorID' => (int) $evaluatorID));
-        die();
-    }
-
-    CATSUtility::transferRelativeURI('m=joborders&a=evaluate&jobOrderID=' . $jobOrderID . '&candidateID=' . $candidateID);
-}
-
-    private function onDeleteEvaluator()
-    {
-        $jobOrderID  = isset($_POST['jobOrderID'])  ? (int) $_POST['jobOrderID']  : 0;
-        $candidateID = isset($_POST['candidateID']) ? (int) $_POST['candidateID'] : 0;
-        $evaluatorID = isset($_POST['evaluatorID']) ? (int) $_POST['evaluatorID'] : 0;
-
-        if ($jobOrderID <= 0 || $candidateID <= 0 || $evaluatorID <= 0)
-        {
-            CommonErrors::fatal(COMMONERROR_BADFIELDS, $this, 'Invalid request.');
-        }
-
-        $evaluations = new Evaluations($this->_siteID);
-        $evaluations->deleteEvaluator($evaluatorID);
-
-        CATSUtility::transferRelativeURI(
-            'm=joborders&a=evaluate&jobOrderID=' . $jobOrderID . '&candidateID=' . $candidateID
-        );
-    }
-    
 
     /*
      * Called by handleRequest() to process adding a candidate to the pipeline
