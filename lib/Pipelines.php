@@ -968,6 +968,35 @@ public function filterPipelineRows($pipelinesRS, $filterString, $columnMap)
     return $pipelinesRS;
 }
 
+/* Just enough to fill a dropdown. getJobOrderPipeline() returns the same
+       candidates with a dozen subqueries attached, which a <select> throws away. */
+    public function getJobOrderCandidateList($jobOrderID)
+    {
+        $sql = sprintf(
+            "SELECT
+                candidate.candidate_id AS candidateID,
+                candidate.first_name AS firstName,
+                candidate.last_name AS lastName
+            FROM
+                candidate_joborder
+            INNER JOIN candidate
+                ON candidate_joborder.candidate_id = candidate.candidate_id
+            WHERE
+                candidate_joborder.joborder_id = %s
+            AND
+                candidate_joborder.site_id = %s
+            AND
+                candidate.site_id = %s
+            ORDER BY
+                candidate.last_name ASC, candidate.first_name ASC",
+            $this->_db->makeQueryInteger($jobOrderID),
+            $this->_siteID,
+            $this->_siteID
+        );
+
+        return $this->_db->getAllAssoc($sql);
+    }
+
 }
 
 ?>

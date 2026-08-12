@@ -34,9 +34,10 @@ class Evaluations
     public function getInstance($instanceID)
     {
         $rs = $this->_db->getAssoc(sprintf(
-            "SELECT instance_id, candidate_id, title, date_created, date_modified
-             FROM evaluation_instance
-             WHERE instance_id = %s AND site_id = %s",
+        "SELECT instance_id, candidate_id, title, date_created, date_modified,
+                last_seed_job_order_id
+         FROM evaluation_instance
+         WHERE instance_id = %s AND site_id = %s",
             (int) $instanceID,
             $this->_siteID
         ));
@@ -103,6 +104,65 @@ class Evaluations
             $this->_siteID
         ));
     }
+
+    /* Which job order this evaluation is filed under.
+       NULL = unfiled (never seeded, unreachable from the nav dropdowns)
+       0    = Generic
+       >0   = that job order */
+    public function setJobOrderID($instanceID, $jobOrderID)
+    {
+        $this->_db->query(sprintf(
+            "UPDATE evaluation_instance SET last_seed_job_order_id = %s
+             WHERE instance_id = %s AND site_id = %s",
+            ($jobOrderID === null ? 'NULL' : (int) $jobOrderID),
+            (int) $instanceID,
+            $this->_siteID
+        ));
+    }
+
+    /* $jobOrderID 0 means "any evaluation, however it was filed" - the Generic
+       view. Anything higher restricts to that job order's filing. */
+    public function getLatestInstanceIDFor($candidateID, $jobOrderID)
+    {
+        $filter = ((int) $jobOrderID > 0)
+            ? sprintf('AND last_seed_job_order_id = %s', (int) $jobOrderID)
+            : '';
+
+        $rs = $this->_db->getAssoc(sprintf(
+            "SELECT instance_id FROM evaluation_instance
+             WHERE candidate_id = %s AND site_id = %s %s
+             ORDER BY instance_id DESC LIMIT 1",
+            (int) $candidateID,
+            $this->_siteID,
+            $filter
+        ));
+        return (!empty($rs) ? (int) $rs['instance_id'] : false);
+    }
+
+
+    /* candidate_id => true, for the * marker in the navigation dropdown.
+       Under Generic (0) that reads "has any evaluation". */
+    public function getCandidatesWithEvaluations($jobOrderID)
+    {
+        $filter = ((int) $jobOrderID > 0)
+            ? sprintf('AND last_seed_job_order_id = %s', (int) $jobOrderID)
+            : '';
+
+        $rows = $this->_db->getAllAssoc(sprintf(
+            "SELECT DISTINCT candidate_id FROM evaluation_instance
+             WHERE site_id = %s %s",
+            $this->_siteID,
+            $filter
+        ));
+
+        $map = array();
+        foreach ($rows as $row)
+        {
+            $map[(int) $row['candidate_id']] = true;
+        }
+        return $map;
+    }
+
     public function isLocked($instanceID)
 {
     $rs = $this->_db->getAssoc(sprintf(

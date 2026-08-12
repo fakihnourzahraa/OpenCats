@@ -15,6 +15,28 @@
        this only keeps the page from offering controls that would fail. */
     var CATS_IsLocked = <?php echo $this->isLocked ? 'true' : 'false'; ?>;
 
+    /* Rides along on every write so the job order survives the redirect back
+       to this page. 0 is the Generic view, which files nothing. */
+    var CATS_NavJobOrderID = <?php echo (int) $this->navJobOrderID; ?>;
+
+    /* Navigation only. Unlike the template loader further down, this writes
+       nothing - it just moves to another candidate's evaluation. */
+    window.evalNavGo = function (candidateID, jobOrderID) {
+        window.location = CATS_IndexName + '?m=candidates&a=evaluate'
+            + '&candidateID=' + encodeURIComponent(candidateID)
+            + '&navJobOrderID=' + encodeURIComponent(jobOrderID);
+    };
+
+    window.evalNavJobOrderChanged = function () {
+        evalNavGo(CATS_CandidateID, document.getElementById('navJobOrder').value);
+    };
+
+    window.evalNavCandidateChanged = function () {
+        var sel = document.getElementById('navCandidate');
+        if (!sel || sel.value === '') { return; }
+        evalNavGo(sel.value, document.getElementById('navJobOrder').value);
+    };
+
     window.CATSStages = window.CATSStages || {};
     window.evaluatorBlocks = window.evaluatorBlocks || [];
 
@@ -244,6 +266,7 @@
 
             addHidden(form, 'candidateID', CATS_CandidateID);
             addHidden(form, 'instanceID', CATS_InstanceID);
+            addHidden(form, 'navJobOrderID', CATS_NavJobOrderID);
             addHidden(form, 'instanceStageID', instanceStageID);
             var evaluatorIDInput = addHidden(form, 'evaluatorID', evaluatorID);
             addHidden(form, 'postback', 'postback');
@@ -392,6 +415,7 @@
             deleteForm.style.display = 'none';
             addHidden(deleteForm, 'candidateID', CATS_CandidateID);
             addHidden(deleteForm, 'instanceID', CATS_InstanceID);
+            addHidden(deleteForm, 'navJobOrderID', CATS_NavJobOrderID);
             var deleteEvaluatorIDInput = addHidden(deleteForm, 'evaluatorID', evaluatorID);
             addHidden(deleteForm, 'postback', 'postback');
             addHidden(deleteForm, 'csrfToken', CSRF_Token);
@@ -514,6 +538,14 @@
     })();
 </script>
 
+<?php
+    /* Emitted into every form that writes, so onEvaluationCommand() /
+       onEvaluate() / onDeleteEvaluator() redirect back here with the
+       navigation state intact. */
+    $navJobOrderField = '<input type="hidden" name="navJobOrderID" value="'
+        . (int) $this->navJobOrderID . '" />';
+?>
+
 <div id="main">
     <?php TemplateUtility::printQuickSearch(); ?>
 
@@ -540,10 +572,62 @@
             <?php echo htmlspecialchars($this->candidateName, ENT_QUOTES, 'UTF-8'); ?>
         </p>
 
+        <!-- Navigation. Job order on top, its candidates below; Generic means
+             every candidate and their latest evaluation regardless of filing.
+             This only MOVES between evaluations - it writes nothing, and is
+             unrelated to the "Load stages from" line further down, which is
+             what actually seeds structure. -->
+        <?php $navJobOrderID = (int) $this->navJobOrderID; ?>
+        <div style="margin-bottom:14px;">
+            <select id="navJobOrder" class="inputbox" style="width:340px;"
+                    onchange="evalNavJobOrderChanged();">
+                <option value="0"<?php echo $navJobOrderID === 0 ? ' selected="selected"' : ''; ?>>Generic (all candidates)</option>
+                <?php foreach ($this->jobOrdersRS as $jobOrderData): ?>
+                    <?php $joID = (int) $jobOrderData['jobOrderID']; ?>
+                    <option value="<?php echo $joID; ?>"<?php echo $navJobOrderID === $joID ? ' selected="selected"' : ''; ?>>
+                        <?php echo htmlspecialchars($jobOrderData['title'], ENT_QUOTES, 'UTF-8'); ?><?php
+                            if (!empty($jobOrderData['companyName']))
+                            {
+                                echo ' (' . htmlspecialchars($jobOrderData['companyName'], ENT_QUOTES, 'UTF-8') . ')';
+                            }
+                        ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+
+            <div style="margin-top:4px;">
+                <select id="navCandidate" class="inputbox" style="width:340px;"
+                        onchange="evalNavCandidateChanged();">
+                    <?php if (!$this->navCandidateHere): ?>
+                        <option value="<?php echo (int) $this->candidateID; ?>" selected="selected">
+                            <?php echo htmlspecialchars($this->candidateName, ENT_QUOTES, 'UTF-8'); ?> (not in this pipeline)
+                        </option>
+                    <?php endif; ?>
+                    <?php foreach ($this->navCandidates as $navCandidate): ?>
+                        <?php
+                            $cID   = (int) $navCandidate['candidateID'];
+                            $label = ($navCandidate['firstName'] . ' ' . $navCandidate['lastName']);
+                            if (isset($this->navFiledMap[$cID])) { $label = '* ' . $label; }
+                        ?>
+                        <option value="<?php echo $cID; ?>"<?php echo $cID === (int) $this->candidateID ? ' selected="selected"' : ''; ?>>
+                            <?php echo htmlspecialchars($label, ENT_QUOTES, 'UTF-8'); ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+               
+            </div>
+        </div>
+
         <?php if ($this->isLocked): ?>
             <div class="warning" style="margin-bottom:10px;">
                 <img src="images/key.png" width="16" height="16" border="0" class="absmiddle" alt="" />&nbsp;This
                 evaluation is locked. It is read-only and cannot be unlocked.
+            </div>
+        <?php endif; ?>
+
+        <?php if ($this->isDraft): ?>
+            <div class="note" style="margin-bottom:10px; color:#666;">
+                No evaluation here yet.
             </div>
         <?php endif; ?>
 
@@ -553,7 +637,7 @@
                 <td class="pageHeading">
                     <span id="evalTitleDisplay">
                         <?php echo htmlspecialchars($this->evaluationTitle, ENT_QUOTES, 'UTF-8'); ?>
-                        <?php if (!$this->isLocked): ?>
+                        <?php if (!$this->isLocked && !$this->isDraft): ?>
                             <a href="javascript:void(0);" style="margin-left:6px;"
                                onclick="showEdit('evalTitleDisplay', 'evalTitleEdit', 'evalTitleInput');">
                                 <img src="images/edit.gif" border="0" class="absmiddle" alt="edit" />
@@ -561,13 +645,14 @@
                         <?php endif; ?>
                     </span>
 
-                    <?php if (!$this->isLocked): ?>
+                    <?php if (!$this->isLocked && !$this->isDraft): ?>
                         <span id="evalTitleEdit" style="display:none;">
                             <form method="post" action="<?php echo(CATSUtility::getIndexName()); ?>?m=candidates&amp;a=evaluationCommand" style="display:inline;">
                                 <input type="hidden" name="postback" value="postback" />
                                 <input type="hidden" name="csrfToken" value="<?php echo htmlspecialchars($_SESSION['CATS']->getCSRFToken(), ENT_QUOTES, 'UTF-8'); ?>" />
                                 <input type="hidden" name="candidateID" value="<?php echo (int) $this->candidateID; ?>" />
                                 <input type="hidden" name="instanceID" value="<?php echo (int) $this->instanceID; ?>" />
+                                <?php echo $navJobOrderField; ?>
                                 <input type="hidden" name="command" value="renameEvaluation" />
                                 <input type="text" id="evalTitleInput" name="title" class="inputbox" size="40"
                                        value="<?php echo htmlspecialchars($this->evaluationTitle, ENT_QUOTES, 'UTF-8'); ?>" />
@@ -590,10 +675,12 @@
         </table>
 
         <!-- Seed from a job order's template.
-             This only COPIES stages/criteria in. The job order is not stored
-             against the evaluation, and editing that template later has no
-             effect here. Re-running it merges: existing names are left alone
-             and only what's missing gets added.
+             COPIES stages/criteria in, merging by name: existing names are left
+             alone and only what's missing gets added. It also FILES the
+             evaluation under the job order picked here, replacing whatever it
+             was filed under before. Picking the Generic template files it
+             nowhere, which means it's only reachable through the Generic view.
+             On a draft page this is what creates the evaluation.
 
              Kept as one plain line rather than a panel: it's an occasional
              setup action, not a section of the evaluation. -->
@@ -605,6 +692,7 @@
                 <input type="hidden" name="csrfToken" value="<?php echo htmlspecialchars($_SESSION['CATS']->getCSRFToken(), ENT_QUOTES, 'UTF-8'); ?>" />
                 <input type="hidden" name="candidateID" value="<?php echo (int) $this->candidateID; ?>" />
                 <input type="hidden" name="instanceID" value="<?php echo (int) $this->instanceID; ?>" />
+                <?php echo $navJobOrderField; ?>
                 <input type="hidden" name="command" value="seedTemplate" />
 
                 <span >Load stages from</span>
@@ -679,6 +767,7 @@
                     <input type="hidden" name="csrfToken" value="<?php echo htmlspecialchars($_SESSION['CATS']->getCSRFToken(), ENT_QUOTES, 'UTF-8'); ?>" />
                     <input type="hidden" name="candidateID" value="<?php echo (int) $this->candidateID; ?>" />
                     <input type="hidden" name="instanceID" value="<?php echo (int) $this->instanceID; ?>" />
+                    <?php echo $navJobOrderField; ?>
                     <input type="hidden" name="instanceStageID" value="<?php echo $instanceStageID; ?>" />
                     <input type="hidden" name="command" value="editStage" />
                 </form>
@@ -690,6 +779,7 @@
                     <input type="hidden" name="csrfToken" value="<?php echo htmlspecialchars($_SESSION['CATS']->getCSRFToken(), ENT_QUOTES, 'UTF-8'); ?>" />
                     <input type="hidden" name="candidateID" value="<?php echo (int) $this->candidateID; ?>" />
                     <input type="hidden" name="instanceID" value="<?php echo (int) $this->instanceID; ?>" />
+                    <?php echo $navJobOrderField; ?>
                     <input type="hidden" name="instanceStageID" value="<?php echo $instanceStageID; ?>" />
                     <input type="hidden" name="command" value="deleteStage" />
                 </form>
@@ -745,6 +835,7 @@
                         <input type="hidden" name="csrfToken" value="<?php echo htmlspecialchars($_SESSION['CATS']->getCSRFToken(), ENT_QUOTES, 'UTF-8'); ?>" />
                         <input type="hidden" name="candidateID" value="<?php echo (int) $this->candidateID; ?>" />
                         <input type="hidden" name="instanceID" value="<?php echo (int) $this->instanceID; ?>" />
+                        <?php echo $navJobOrderField; ?>
                         <input type="hidden" name="instanceStageID" value="<?php echo $instanceStageID; ?>" />
                         <input type="hidden" name="command" value="addCriteria" />
                         <input type="text" id="addCriteriaInput_<?php echo $instanceStageID; ?>" name="criteriaName" class="inputbox" style="width:160px;" />
@@ -767,7 +858,9 @@
 
         <?php if (!$this->isLocked): ?>
             <!-- Add a stage. Same reveal-link pattern as Add criteria, and like a
-                 template stage it arrives with Rating and Comments already on it. -->
+                 template stage it arrives with Rating and Comments already on it.
+                 On a draft page this is the other way an evaluation gets created,
+                 for building one by hand without a template. -->
             <div id="addStageLink" style="margin-top:24px;">
                 <a href="javascript:void(0);"
                    onclick="showEdit('addStageLink', 'addStageArea', 'addStageInput');">
@@ -781,6 +874,7 @@
                     <input type="hidden" name="csrfToken" value="<?php echo htmlspecialchars($_SESSION['CATS']->getCSRFToken(), ENT_QUOTES, 'UTF-8'); ?>" />
                     <input type="hidden" name="candidateID" value="<?php echo (int) $this->candidateID; ?>" />
                     <input type="hidden" name="instanceID" value="<?php echo (int) $this->instanceID; ?>" />
+                    <?php echo $navJobOrderField; ?>
                     <input type="hidden" name="command" value="addStage" />
                     <input type="text" id="addStageInput" name="stageName" class="inputbox" style="width:220px;" />
                     <input type="submit" class="button" value="Add Stage" />

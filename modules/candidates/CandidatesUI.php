@@ -139,7 +139,15 @@ class CandidatesUI extends UserInterface
                     $this->evaluate();
                 }
                 break;
-
+            case 'evaluationCandidateSearch':
+                if ($this->getUserAccessLevel('candidates.edit') < ACCESS_LEVEL_EDIT)
+                {
+                    header('Content-Type: application/json');
+                    echo json_encode(array('results' => array()));
+                    die();
+                }
+                $this->onEvaluationCandidateSearch();
+                break;
             case 'addEvaluation':
                 if ($this->getUserAccessLevel('candidates.edit') < ACCESS_LEVEL_EDIT)
                 {
@@ -3253,8 +3261,8 @@ private function onDeleteEvaluation()
         /* Cascades by hand through stages, criteria, evaluators and values. */
         $evaluations->deleteInstance($instanceID);
 
-        CATSUtility::transferRelativeURI(
-            'm=candidates&a=show&candidateID=' . $candidateID
+CATSUtility::transferRelativeURI(
+            $this->_evaluateURI($candidateID, $instanceID, $navJobOrderID)
         );
     }
     
@@ -3279,6 +3287,100 @@ private function onDeleteEvaluation()
         }
 
         return $instance;
+    }
+    /* The draft page has no evaluation row. The first structural edit creates
+     * one, filed under the job order in the nav dropdown - filed immediately,
+     * or selecting the same candidate again would make a second one. */
+    private function _ensureInstance($evaluations, $candidateID, $navJobOrderID)
+    {
+        $candidates  = new Candidates($this->_siteID);
+        $candidateRS = $candidates->get($candidateID);
+
+        if (empty($candidateRS))
+        {
+            CommonErrors::fatal(COMMONERROR_BADINDEX, $this, 'The specified candidate ID could not be found.');
+        }
+
+        $instanceID = $evaluations->createInstance($candidateID, 'Evaluation');
+
+/* Generic isn't a filing bucket, so a draft created while browsing it
+           stays unfiled - which is exactly where Generic will find it again. */
+        if ($navJobOrderID > 0)
+        {
+            $evaluations->setJobOrderID($instanceID, $navJobOrderID);
+        }
+
+        return $instanceID;
+    }
+
+    private function _evaluateURI($candidateID, $instanceID, $navJobOrderID)
+    {
+        $uri = 'm=candidates&a=evaluate&candidateID=' . (int) $candidateID;
+
+        if ($instanceID > 0)
+        {
+            $uri .= '&instanceID=' . (int) $instanceID;
+        }
+        if ($navJobOrderID !== null)
+        {
+            $uri .= '&navJobOrderID=' . (int) $navJobOrderID;
+        }
+
+        return $uri;
+    }
+
+    private function _postedNavJobOrderID()
+    {
+        return (isset($_POST['navJobOrderID']) && $_POST['navJobOrderID'] !== '')
+            ? (int) $_POST['navJobOrderID'] : null;
+    }
+
+    /* Type-ahead behind the Generic candidate box. A plain <select> of every
+     * candidate is ~50 bytes each on every page load and unusable past a few
+     * hundred names. */
+    private function onEvaluationCandidateSearch()
+    {
+        $query         = isset($_GET['q'])             ? trim($_GET['q'])             : '';
+        $navJobOrderID = isset($_GET['navJobOrderID']) ? (int) $_GET['navJobOrderID'] : 0;
+
+        header('Content-Type: application/json');
+
+        if (strlen($query) < 2)
+        {
+            echo json_encode(array('results' => array()));
+            die();
+        }
+
+        $db   = DatabaseConnection::getInstance();
+        $like = $db->escapeString($query);
+
+        $sql = sprintf(
+            "SELECT candidate_id, first_name, last_name
+             FROM candidate
+             WHERE site_id = %s
+               AND (first_name LIKE '%%%s%%'
+                 OR last_name LIKE '%%%s%%'
+                 OR CONCAT(first_name, ' ', last_name) LIKE '%%%s%%')
+             ORDER BY last_name ASC, first_name ASC
+             LIMIT 20",
+            $this->_siteID, $like, $like, $like
+        );
+
+        $evaluations = new Evaluations($this->_siteID);
+        $filedMap    = $evaluations->getCandidatesFiledUnder($navJobOrderID);
+
+        $results = array();
+        foreach ($db->getAllAssoc($sql) as $row)
+        {
+            $results[] = array(
+                'id'    => (int) $row['candidate_id'],
+                'name'  => $row['first_name'] . ' ' . $row['last_name'],
+                'filed' => isset($filedMap[(int) $row['candidate_id']]),
+            );
+        }
+
+        echo json_encode(array('results' => $results));
+        die();
     }
 
     private function onAddEvaluation()
@@ -3311,7 +3413,7 @@ private function onDeleteEvaluation()
         $candidateID = isset($_GET['candidateID']) ? (int) $_GET['candidateID'] : 0;
         $instanceID  = isset($_GET['instanceID'])  ? (int) $_GET['instanceID']  : 0;
 
-        if ($candidateID <= 0 || $instanceID <= 0)
+        if ($candidateID <= 0)
         {
             CommonErrors::fatal(COMMONERROR_BADFIELDS, $this, 'Invalid request.');
         }
@@ -3325,56 +3427,114 @@ private function onDeleteEvaluation()
         }
 
         $evaluations = new Evaluations($this->_siteID);
-        $instance    = $this->_requireEvaluation($evaluations, $instanceID, $candidateID);
 
-        /* The evaluation's OWN stages/criteria/evaluators/values. No template
-         * is consulted here: seeding already copied everything it needed. */
-        $stages = $evaluations->getFullEvaluation($instanceID);
+        $hasNav = (isset($_GET['navJobOrderID']) && $_GET['navJobOrderID'] !== '');
 
-        /* Dropdown source: Generic plus every job order. Selecting one only
-         * seeds; it is never stored against the evaluation. */
+        /* Arriving from the navigation dropdowns: a candidate and a job order,
+         * no instance. Resolve to whatever they have filed there; nothing found
+         * means a draft page, and nothing is written on this request. */
+        if ($instanceID <= 0 && $hasNav)
+        {
+            $found = $evaluations->getLatestInstanceIDFor($candidateID, (int) $_GET['navJobOrderID']);
+            if ($found !== false)
+            {
+                $instanceID = $found;
+            }
+        }
+
+        if ($instanceID > 0)
+        {
+            $instance = $this->_requireEvaluation($evaluations, $instanceID, $candidateID);
+            $stages   = $evaluations->getFullEvaluation($instanceID);
+            $isLocked = $evaluations->isLocked($instanceID);
+            $title    = $instance['title'];
+
+            $filedJobOrderID = ($instance['last_seed_job_order_id'] === null)
+                ? null : (int) $instance['last_seed_job_order_id'];
+        }
+        else
+        {
+            $instance        = false;
+            $stages          = array();
+            $isLocked        = false;
+            $title           = 'Evaluation';
+            $filedJobOrderID = null;
+        }
+
+        /* Rides in the URL so the job order survives each jump between
+         * candidates. Falls back to whatever this evaluation is filed under. */
+        $navJobOrderID = $hasNav ? (int) $_GET['navJobOrderID'] : $filedJobOrderID;
+
         $jobOrders   = new JobOrders($this->_siteID);
         $jobOrdersRS = $jobOrders->getAll(JOBORDERS_STATUS_ALL);
 
-        $evalTemplate    = new EvaluationTemplate($this->_siteID);
-        $ownTemplateMap  = $evalTemplate->getJobOrdersWithTemplates();
-        $hasGeneric      = ($evalTemplate->getOwnTemplateID(0) !== false);
+        $evalTemplate   = new EvaluationTemplate($this->_siteID);
+        $ownTemplateMap = $evalTemplate->getJobOrdersWithTemplates();
+        $hasGeneric     = ($evalTemplate->getOwnTemplateID(0) !== false);
 
-        $db = DatabaseConnection::getInstance();
+        /* Second dropdown. A pipeline is small enough for a plain select;
+         * Generic is every candidate in the site, so the template renders a
+         * type-ahead instead and this stays empty. */
+$navFiledMap      = $evaluations->getCandidatesWithEvaluations($navJobOrderID);
+        $navCandidateHere = false;
 
-        $sql = sprintf(
-            "SELECT last_seed_job_order_id AS lastSeedJobOrderID
-            FROM evaluation_instance
-            WHERE instance_id = %s
-                AND site_id = %s",
-            (int) $instanceID,
-            $this->_siteID
-        );
+        if ($navJobOrderID > 0)
+        {
+            $pipelines     = new Pipelines($this->_siteID);
+            $navCandidates = $pipelines->getJobOrderCandidateList($navJobOrderID);
 
-        $instanceData = $db->getAssoc($sql);
+            foreach ($navCandidates as $navCandidate)
+            {
+                if ((int) $navCandidate['candidateID'] === $candidateID)
+                {
+                    $navCandidateHere = true;
+                    break;
+                }
+            }
+        }
+        else
+        {
+            /* Generic: every candidate at this site. One <option> each, so this
+               grows with the candidate table - see the note below if it ever
+               gets heavy. */
+            $db = DatabaseConnection::getInstance();
 
-        $this->_template->assign(
-            'selectedJobOrderID',
-            (!empty($instanceData) ? (int) $instanceData['lastSeedJobOrderID'] : 0)
-        );
-        
-        $this->_template->assign('isLocked', $this->isEvaluationLocked($instanceID));
-        $this->_template->assign('candidateID',       $candidateID);
-        $this->_template->assign('instanceID',        $instanceID);
-        $this->_template->assign('instance',          $instance);
-        $this->_template->assign('evaluationTitle',   $instance['title']);
-        $this->_template->assign('candidateName',     $candidateRS['firstName'] . ' ' . $candidateRS['lastName']);
-        $this->_template->assign('stages',            $stages);
-        $this->_template->assign('isEmpty',           empty($stages));
-        $this->_template->assign('jobOrdersRS',       $jobOrdersRS);
-        $this->_template->assign('ownTemplateMap',    $ownTemplateMap);
-        $this->_template->assign('hasGeneric',        $hasGeneric);
-        $this->_template->assign('allEvaluatorNames', $evaluations->getAllEvaluatorNames());
-        $this->_template->assign('active',            $this);
-        $this->_template->assign('subActive',         '');
+            $navCandidates = $db->getAllAssoc(sprintf(
+                "SELECT candidate_id AS candidateID,
+                        first_name   AS firstName,
+                        last_name    AS lastName
+                 FROM candidate
+                 WHERE site_id = %s AND is_admin_hidden = 0
+                 ORDER BY last_name ASC, first_name ASC",
+                $this->_siteID
+            ));
+
+            /* The current candidate is always in this list, so no prepended row. */
+            $navCandidateHere = true;
+        }
+
+        $this->_template->assign('isLocked',           $isLocked);
+        $this->_template->assign('isDraft',            ($instanceID <= 0));
+        $this->_template->assign('candidateID',        $candidateID);
+        $this->_template->assign('instanceID',         $instanceID);
+        $this->_template->assign('instance',           $instance);
+        $this->_template->assign('evaluationTitle',    $title);
+        $this->_template->assign('candidateName',      $candidateRS['firstName'] . ' ' . $candidateRS['lastName']);
+        $this->_template->assign('stages',             $stages);
+        $this->_template->assign('isEmpty',            empty($stages));
+        $this->_template->assign('jobOrdersRS',        $jobOrdersRS);
+        $this->_template->assign('ownTemplateMap',     $ownTemplateMap);
+        $this->_template->assign('hasGeneric',         $hasGeneric);
+        $this->_template->assign('selectedJobOrderID', ($filedJobOrderID === null ? 0 : $filedJobOrderID));
+        $this->_template->assign('navJobOrderID',      $navJobOrderID);
+        $this->_template->assign('navCandidates',      $navCandidates);
+        $this->_template->assign('navFiledMap',        $navFiledMap);
+        $this->_template->assign('navCandidateHere',   $navCandidateHere);
+        $this->_template->assign('allEvaluatorNames',  $evaluations->getAllEvaluatorNames());
+        $this->_template->assign('active',             $this);
+        $this->_template->assign('subActive',          '');
         $this->_template->display('./modules/candidates/Evaluate.tpl');
     }
-
     // Saves one evaluator block (name + that stage's criteria values).
     // Called over AJAX by Evaluate.tpl, same contract as before: JSON back.
     private function onEvaluate()
@@ -3471,8 +3631,8 @@ if ($evaluations->isLocked($instanceID))
             die();
         }
 
-        CATSUtility::transferRelativeURI(
-            'm=candidates&a=evaluate&candidateID=' . $candidateID . '&instanceID=' . $instanceID
+CATSUtility::transferRelativeURI(
+            $this->_evaluateURI($candidateID, $instanceID, $navJobOrderID)
         );
     }
 
@@ -3514,15 +3674,42 @@ if ($evaluations->isLocked($instanceID))
      */
     private function onEvaluationCommand()
     {
-        $candidateID = isset($_POST['candidateID']) ? (int) $_POST['candidateID'] : 0;
-        $instanceID  = isset($_POST['instanceID'])  ? (int) $_POST['instanceID']  : 0;
-        $command     = isset($_POST['command'])     ? $_POST['command']           : '';
+$candidateID   = isset($_POST['candidateID']) ? (int) $_POST['candidateID'] : 0;
+        $instanceID    = isset($_POST['instanceID'])  ? (int) $_POST['instanceID']  : 0;
+        $command       = isset($_POST['command'])     ? $_POST['command']           : '';
+        $navJobOrderID = $this->_postedNavJobOrderID();
 
-        if ($candidateID <= 0 || $instanceID <= 0 || $command === '')
+        if ($candidateID <= 0 || $command === '')
         {
             CommonErrors::fatal(COMMONERROR_BADFIELDS, $this, 'Invalid request.');
         }
 
+        $evaluations = new Evaluations($this->_siteID);
+
+        /* Draft page: no row yet. Only seeding and adding a stage can come
+         * first - everything else needs stages a draft doesn't have. */
+        if ($instanceID <= 0)
+        {
+            if ($command !== 'seedTemplate' && $command !== 'addStage')
+            {
+                CommonErrors::fatal(COMMONERROR_BADFIELDS, $this, 'Invalid request.');
+            }
+
+            $instanceID = $this->_ensureInstance($evaluations, $candidateID, $navJobOrderID);
+        }
+        else
+        {
+            $this->_requireEvaluation($evaluations, $instanceID, $candidateID);
+
+            if ($evaluations->isLocked($instanceID))
+            {
+                CommonErrors::fatal(
+                    COMMONERROR_PERMISSION, $this,
+                    'This evaluation is locked and cannot be modified.'
+                );
+                return;
+            }
+        }
       $evaluations = new Evaluations($this->_siteID);
         $this->_requireEvaluation($evaluations, $instanceID, $candidateID);
 
@@ -3586,7 +3773,11 @@ if ($evaluations->isLocked($instanceID))
                     (int) $instanceID,
                     $this->_siteID
                 );
-                $db->query($sql);
+/* Last seed wins. The Generic template files it nowhere, so it
+                   leaves whatever job order's list it was in and is reachable
+                   only through the Generic view. */
+                $evaluations->setJobOrderID($instanceID, ($jobOrderID > 0 ? $jobOrderID : null));
+                $navJobOrderID = $jobOrderID;
                 break;
 
             case 'renameEvaluation':
@@ -3742,8 +3933,8 @@ if ($evaluations->isLocked($instanceID))
 
         $evaluations->touchInstance($instanceID);
 
-        CATSUtility::transferRelativeURI(
-            'm=candidates&a=evaluate&candidateID=' . $candidateID . '&instanceID=' . $instanceID
+CATSUtility::transferRelativeURI(
+            $this->_evaluateURI($candidateID, $instanceID, $navJobOrderID)
         );
     }
 
