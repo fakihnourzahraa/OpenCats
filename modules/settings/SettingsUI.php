@@ -1682,7 +1682,7 @@ private function onCustomizeEvaluationTemplate()
             $command = trim(urldecode($commandEncoded));
             if ($command === '') continue;
 
-            $args = explode(' ', $command, 4);
+              $args = explode(' ', $command, 5);
             if (empty($args[0])) continue;
 
             switch ($args[0])
@@ -1700,17 +1700,44 @@ private function onCustomizeEvaluationTemplate()
                     if ($stageID !== false)
                         $evalTemplate->deleteStage($stageID);
                     break;
-
                 case 'ADDCRITERIA':
                     if (!isset($args[2])) break;
                     $stageName    = urldecode($args[1]);
                     $criteriaName = urldecode($args[2]);
                     $dataType     = isset($args[3]) ? urldecode($args[3]) : 'text';
+                    $weight       = isset($args[4]) ? (float) urldecode($args[4]) : 0;
                     $stageID = $evalTemplate->getStageIDByName($templateID, $stageName);
                     if ($stageID !== false && $criteriaName !== '')
                     {
                         $position = $evalTemplate->getNextCriteriaPosition($stageID);
-                        $evalTemplate->addCriteria($stageID, $criteriaName, $position, $dataType);
+                        $evalTemplate->addCriteria($stageID, $criteriaName, $position, $dataType, $weight);
+                    }
+                    break;
+
+ case 'SETSTAGEWEIGHT':
+                    if (!isset($args[2])) break;
+                    $stageName = urldecode($args[1]);
+                    $weight    = (float) urldecode($args[2]);
+                    $stageID   = $evalTemplate->getStageIDByName($templateID, $stageName);
+                    if ($stageID !== false)
+                    {
+                        $evalTemplate->setStageWeight($stageID, $weight);
+                    }
+                    break;
+
+                case 'SETCRITERIAWEIGHT':
+                    if (!isset($args[3])) break;
+                    $stageName    = urldecode($args[1]);
+                    $criteriaName = urldecode($args[2]);
+                    $weight       = (float) urldecode($args[3]);
+                    $stageID = $evalTemplate->getStageIDByName($templateID, $stageName);
+                    if ($stageID !== false)
+                    {
+                        $criteriaID = $evalTemplate->getCriteriaIDByName($stageID, $criteriaName);
+                        if ($criteriaID !== false)
+                        {
+                            $evalTemplate->setCriteriaWeight($criteriaID, $weight);
+                        }
                     }
                     break;
 
@@ -1752,21 +1779,7 @@ private function onCustomizeEvaluationTemplate()
                             $evalTemplate->renameCriteria($criteriaID, $newName);
                     }
                     break;
-                case 'CHANGECRITERIATYPE':
-                    if (!isset($args[3])) break;
-                    $stageName    = urldecode($args[1]);
-                    $criteriaName = urldecode($args[2]);
-                    $dataType     = urldecode($args[3]);
-                    $stageID = $evalTemplate->getStageIDByName($templateID, $stageName);
-                    if ($stageID !== false)
-                    {
-                        $criteriaID = $evalTemplate->getCriteriaIDByName($stageID, $criteriaName);
-                        if ($criteriaID !== false)
-                        {
-                            $evalTemplate->changeCriteriaType($criteriaID, $dataType);
-                        }
-                    }
-                    break;
+                    
                 case 'CHANGECRITERIATYPE':
                     // CHANGECRITERIATYPE stageName criteriaName dataType
                     if (!isset($args[3])) break;

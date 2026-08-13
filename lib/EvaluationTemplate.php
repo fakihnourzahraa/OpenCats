@@ -10,10 +10,17 @@
  * exist; the evaluate page reads getFullTemplate() once and copies the result
  * into the evaluation's own tables. Editing a template here never touches an
  * evaluation that was previously seeded from it.
+ *
+ * Stages and criteria carry a WEIGHT, which seeds across into the evaluation
+ * alongside data_type. See EvaluationScore.php for what the numbers mean.
  */
 
 class EvaluationTemplate
 {
+    /* Must match Evaluations::$DATA_TYPES - a criterion that is 'score' here
+     * and rejected there would seed as 'text' and silently stop counting. */
+    public static $DATA_TYPES = array('text', 'date', 'number', 'score');
+
     private $_db;
     private $_siteID;
 
@@ -81,13 +88,17 @@ class EvaluationTemplate
 
         foreach ($stages as $stage)
         {
+            /* weight travels with the row. A job order template that inherited
+             * from generic without its weights would look identical in the
+             * editor and score differently. */
             $this->_db->query(sprintf(
-                "INSERT INTO evaluation_stage (template_id, site_id, stage_name, position)
-                VALUES (%s, %s, '%s', %s)",
+                "INSERT INTO evaluation_stage (template_id, site_id, stage_name, position, weight)
+                VALUES (%s, %s, '%s', %s, %s)",
                 (int) $destTemplateID,
                 $this->_siteID,
                 $this->_db->escapeString($stage['stage_name']),
-                (int) $stage['position']
+                (int) $stage['position'],
+                $this->_sanitizeWeight(isset($stage['weight']) ? $stage['weight'] : 0)
             ));
             $newStageID = $this->_db->getLastInsertID();
 
@@ -95,13 +106,14 @@ class EvaluationTemplate
             foreach ($criteria as $criterion)
             {
                 $this->_db->query(sprintf(
-                    "INSERT INTO evaluation_criteria (stage_id, site_id, criteria_name, data_type, position)
-                    VALUES (%s, %s, '%s', '%s', %s)",
+                    "INSERT INTO evaluation_criteria (stage_id, site_id, criteria_name, data_type, position, weight)
+                    VALUES (%s, %s, '%s', '%s', %s, %s)",
                     (int) $newStageID,
                     $this->_siteID,
                     $this->_db->escapeString($criterion['criteria_name']),
                     $this->_db->escapeString($criterion['data_type']),
-                    (int) $criterion['position']
+                    (int) $criterion['position'],
+                    $this->_sanitizeWeight(isset($criterion['weight']) ? $criterion['weight'] : 0)
                 ));
             }
         }
@@ -110,7 +122,7 @@ class EvaluationTemplate
     public function getStages($templateID)
     {
         return $this->_db->getAllAssoc(sprintf(
-            "SELECT stage_id, stage_name, position
+            "SELECT stage_id, stage_name, position, weight
              FROM evaluation_stage
              WHERE template_id = %s AND site_id = %s
              ORDER BY position ASC",
@@ -122,7 +134,7 @@ class EvaluationTemplate
     public function getCriteria($stageID)
     {
         return $this->_db->getAllAssoc(sprintf(
-            "SELECT criteria_id, criteria_name, data_type, position
+            "SELECT criteria_id, criteria_name, data_type, position, weight
              FROM evaluation_criteria
              WHERE stage_id = %s AND site_id = %s
              ORDER BY position ASC",
@@ -178,24 +190,28 @@ class EvaluationTemplate
         return $map;
     }
 
-    public function addStage($templateID, $stageName, $position)
+    /* A new stage arrives with Rating already set up as a graded criterion
+     * carrying the whole weight, so it scores immediately instead of needing
+     * its type changed by hand first. Comments stays text and weightless. */
+    public function addStage($templateID, $stageName, $position, $weight = 100)
     {
         $this->_db->query(sprintf(
-            "INSERT INTO evaluation_stage (template_id, site_id, stage_name, position)
-            VALUES (%s, %s, '%s', %s)",
+            "INSERT INTO evaluation_stage (template_id, site_id, stage_name, position, weight)
+            VALUES (%s, %s, '%s', %s, %s)",
             (int) $templateID, $this->_siteID,
-            $this->_db->escapeString($stageName), (int) $position
+            $this->_db->escapeString($stageName), (int) $position,
+            $this->_sanitizeWeight($weight)
         ));
         $stageID = $this->_db->getLastInsertID();
 
         $this->_db->query(sprintf(
-            "INSERT INTO evaluation_criteria (stage_id, site_id, criteria_name, data_type, position)
-            VALUES (%s, %s, 'Rating', 'number', 0)",
+            "INSERT INTO evaluation_criteria (stage_id, site_id, criteria_name, data_type, position, weight)
+            VALUES (%s, %s, 'Rating', 'score', 0, 100)",
             (int) $stageID, $this->_siteID
         ));
         $this->_db->query(sprintf(
-            "INSERT INTO evaluation_criteria (stage_id, site_id, criteria_name, data_type, position)
-            VALUES (%s, %s, 'Comments', 'text', 99)",
+            "INSERT INTO evaluation_criteria (stage_id, site_id, criteria_name, data_type, position, weight)
+            VALUES (%s, %s, 'Comments', 'text', 99, 0)",
             (int) $stageID, $this->_siteID
         ));
         return ($stageID);
@@ -227,21 +243,22 @@ class EvaluationTemplate
         return (!empty($rs) ? $rs['stage_id'] : false);
     }
 
-    public function addCriteria($stageID, $criteriaName, $position, $dataType = 'text')
+    public function addCriteria($stageID, $criteriaName, $position, $dataType = 'text', $weight = 0)
     {
-        if (!in_array($dataType, array('text', 'date', 'number')))
+        if (!in_array($dataType, self::$DATA_TYPES))
         {
             $dataType = 'text';
         }
 
         $this->_db->query(sprintf(
-            "INSERT INTO evaluation_criteria (stage_id, site_id, criteria_name, data_type, position)
-             VALUES (%s, %s, '%s', '%s', %s)",
+            "INSERT INTO evaluation_criteria (stage_id, site_id, criteria_name, data_type, position, weight)
+             VALUES (%s, %s, '%s', '%s', %s, %s)",
             (int) $stageID,
             $this->_siteID,
             $this->_db->escapeString($criteriaName),
             $this->_db->escapeString($dataType),
-            (int) $position
+            (int) $position,
+            $this->_sanitizeWeight($weight)
         ));
         return ($this->_db->getLastInsertID());
     }
@@ -266,12 +283,34 @@ class EvaluationTemplate
         ));
     }
 
+    public function setStageWeight($stageID, $weight)
+    {
+        $this->_db->query(sprintf(
+            "UPDATE evaluation_stage SET weight = %s
+            WHERE stage_id = %s AND site_id = %s",
+            $this->_sanitizeWeight($weight),
+            (int) $stageID,
+            $this->_siteID
+        ));
+    }
+
     public function renameCriteria($criteriaID, $newName)
     {
         $this->_db->query(sprintf(
             "UPDATE evaluation_criteria SET criteria_name = '%s'
             WHERE criteria_id = %s AND site_id = %s",
             $this->_db->escapeString($newName),
+            (int) $criteriaID,
+            $this->_siteID
+        ));
+    }
+
+    public function setCriteriaWeight($criteriaID, $weight)
+    {
+        $this->_db->query(sprintf(
+            "UPDATE evaluation_criteria SET weight = %s
+            WHERE criteria_id = %s AND site_id = %s",
+            $this->_sanitizeWeight($weight),
             (int) $criteriaID,
             $this->_siteID
         ));
@@ -417,7 +456,7 @@ class EvaluationTemplate
 
     public function changeCriteriaType($criteriaID, $dataType)
     {
-        if (!in_array($dataType, array('text', 'date', 'number')))
+        if (!in_array($dataType, self::$DATA_TYPES))
         {
             return;
         }
@@ -429,6 +468,18 @@ class EvaluationTemplate
             (int) $criteriaID,
             $this->_siteID
         ));
+    }
+
+    /* Mirrors Evaluations::_sanitizeWeight(). Negative weights would invert a
+     * criterion's contribution; they clamp to zero. */
+    private function _sanitizeWeight($weight)
+    {
+        $weight = (float) $weight;
+
+        if ($weight < 0)       { $weight = 0; }
+        if ($weight > 9999.99) { $weight = 9999.99; }
+
+        return sprintf('%.2f', $weight);
     }
 }
 ?>

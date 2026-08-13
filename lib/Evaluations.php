@@ -11,12 +11,22 @@
  * are COPIED from a job order's template once, at seed time, and are editable
  * afterwards with no effect on the template. Nothing here references
  * evaluation_template / evaluation_stage / evaluation_criteria.
+ *
+ * Stages and criteria carry a WEIGHT. Weights are raw user input, not required
+ * to sum to anything; EvaluationScore turns them into shares. Only criteria of
+ * data_type 'score' carry a meaningful weight - see EvaluationScore.php for the
+ * full model.
  */
 
 include_once(LEGACY_ROOT . '/lib/DatabaseConnection.php');
+include_once(LEGACY_ROOT . '/lib/EvaluationScore.php');
 
 class Evaluations
 {
+    /* text/date/number are informational. 'score' is a 1-5 graded criterion
+     * and the only type that enters the scoring arithmetic. */
+    public static $DATA_TYPES = array('text', 'date', 'number', 'score');
+
     private $_db;
     private $_siteID;
 
@@ -57,6 +67,39 @@ class Evaluations
             (int) $candidateID,
             $this->_siteID
         ));
+    }
+
+    /*
+     * Same list, with each row's computed score attached.
+     *
+     * The score is NOT stored - it is derived on read, every time. That means
+     * changing a weight instantly reflows every existing evaluation with no
+     * recalculation job and no possibility of a stale number sitting in a
+     * column. The cost is one getFullEvaluation() per evaluation, which is
+     * four queries each; fine for a candidate's handful of evaluations, and
+     * the reason the export builds its own single joined query instead of
+     * calling this in a loop.
+     */
+    public function getInstancesForCandidateScored($candidateID)
+    {
+        $rows = $this->getInstancesForCandidate($candidateID);
+
+        foreach ($rows as $index => $row)
+        {
+            $scoring = $this->getScore((int) $row['instance_id']);
+
+            $rows[$index]['score']        = $scoring['score'];
+            $rows[$index]['scoreDisplay'] = EvaluationScore::format($scoring['score']);
+            $rows[$index]['scorePercent'] = EvaluationScore::formatPercent($scoring['score']);
+        }
+
+        return $rows;
+    }
+
+    /* Convenience: full scoring result for one evaluation. */
+    public function getScore($instanceID)
+    {
+        return EvaluationScore::scoreEvaluation($this->getFullEvaluation($instanceID));
     }
 
     public function createInstance($candidateID, $title = 'Evaluation')
@@ -163,32 +206,42 @@ class Evaluations
         return $map;
     }
 
-    public function isLocked($instanceID)
-{
-    $rs = $this->_db->getAssoc(sprintf(
-        "SELECT is_locked FROM evaluation_instance
-         WHERE instance_id = %s AND site_id = %s",
-        (int) $instanceID,
-        $this->_siteID
-    ));
-    return (!empty($rs) && (int) $rs['is_locked'] === 1);
-}
+    /*
+     * FIXED: CandidatesUI::onEvaluationCandidateSearch() calls this name, but
+     * only getCandidatesWithEvaluations() existed - so the Generic type-ahead
+     * fataled on every keystroke. Same query, both names.
+     */
+    public function getCandidatesFiledUnder($jobOrderID)
+    {
+        return $this->getCandidatesWithEvaluations($jobOrderID);
+    }
 
-/* Deliberately does NOT touchInstance() - locking isn't a content change,
-   and bumping date_modified would make the list misreport last edit. */
-public function setLocked($instanceID, $lockState, $userID)
-{
-    $this->_db->query(sprintf(
-        "UPDATE evaluation_instance
-            SET is_locked = %s, locked_by = %s, locked_date = %s
-          WHERE instance_id = %s AND site_id = %s",
-        ($lockState ? 1 : 0),
-        ($lockState ? (int) $userID : 'NULL'),
-        ($lockState ? 'NOW()' : 'NULL'),
-        (int) $instanceID,
-        $this->_siteID
-    ));
-}
+    public function isLocked($instanceID)
+    {
+        $rs = $this->_db->getAssoc(sprintf(
+            "SELECT is_locked FROM evaluation_instance
+             WHERE instance_id = %s AND site_id = %s",
+            (int) $instanceID,
+            $this->_siteID
+        ));
+        return (!empty($rs) && (int) $rs['is_locked'] === 1);
+    }
+
+    /* Deliberately does NOT touchInstance() - locking isn't a content change,
+       and bumping date_modified would make the list misreport last edit. */
+    public function setLocked($instanceID, $lockState, $userID)
+    {
+        $this->_db->query(sprintf(
+            "UPDATE evaluation_instance
+                SET is_locked = %s, locked_by = %s, locked_date = %s
+              WHERE instance_id = %s AND site_id = %s",
+            ($lockState ? 1 : 0),
+            ($lockState ? (int) $userID : 'NULL'),
+            ($lockState ? 'NOW()' : 'NULL'),
+            (int) $instanceID,
+            $this->_siteID
+        ));
+    }
 
     // No foreign keys in this schema, so the cascade is done by hand,
     // deepest table first.
@@ -216,7 +269,7 @@ public function setLocked($instanceID, $lockState, $userID)
     public function getStages($instanceID)
     {
         return $this->_db->getAllAssoc(sprintf(
-            "SELECT instance_stage_id, stage_name, position
+            "SELECT instance_stage_id, stage_name, position, weight
              FROM evaluation_instance_stage
              WHERE instance_id = %s AND site_id = %s
              ORDER BY position ASC, instance_stage_id ASC",
@@ -228,7 +281,7 @@ public function setLocked($instanceID, $lockState, $userID)
     public function getStage($instanceStageID)
     {
         $rs = $this->_db->getAssoc(sprintf(
-            "SELECT instance_stage_id, instance_id, stage_name, position
+            "SELECT instance_stage_id, instance_id, stage_name, position, weight
              FROM evaluation_instance_stage
              WHERE instance_stage_id = %s AND site_id = %s",
             (int) $instanceStageID,
@@ -239,7 +292,11 @@ public function setLocked($instanceID, $lockState, $userID)
 
     // Mirrors EvaluationTemplate::addStage(): every new stage starts with
     // Rating and Comments, Comments pinned last by its high position.
-    public function addStage($instanceID, $stageName, $position = null)
+    //
+    // Rating now arrives as a 'score' criterion carrying the full weight, so a
+    // brand new stage is immediately scoreable rather than needing the type
+    // changed by hand first. Comments stays text and weightless.
+    public function addStage($instanceID, $stageName, $position = null, $weight = 100)
     {
         if ($position === null)
         {
@@ -248,17 +305,18 @@ public function setLocked($instanceID, $lockState, $userID)
 
         $this->_db->query(sprintf(
             "INSERT INTO evaluation_instance_stage
-                (instance_id, site_id, stage_name, position)
-             VALUES (%s, %s, '%s', %s)",
+                (instance_id, site_id, stage_name, position, weight)
+             VALUES (%s, %s, '%s', %s, %s)",
             (int) $instanceID,
             $this->_siteID,
             $this->_db->escapeString($stageName),
-            (int) $position
+            (int) $position,
+            $this->_sanitizeWeight($weight)
         ));
         $instanceStageID = $this->_db->getLastInsertID();
 
-        $this->addCriteria($instanceStageID, 'Rating', 'number', 0);
-        $this->addCriteria($instanceStageID, 'Comments', 'text', 99);
+        $this->addCriteria($instanceStageID, 'Rating', 'score', 0, 100);
+        $this->addCriteria($instanceStageID, 'Comments', 'text', 99, 0);
 
         return ($instanceStageID);
     }
@@ -269,6 +327,17 @@ public function setLocked($instanceID, $lockState, $userID)
             "UPDATE evaluation_instance_stage SET stage_name = '%s'
              WHERE instance_stage_id = %s AND site_id = %s",
             $this->_db->escapeString($newName),
+            (int) $instanceStageID,
+            $this->_siteID
+        ));
+    }
+
+    public function setStageWeight($instanceStageID, $weight)
+    {
+        $this->_db->query(sprintf(
+            "UPDATE evaluation_instance_stage SET weight = %s
+             WHERE instance_stage_id = %s AND site_id = %s",
+            $this->_sanitizeWeight($weight),
             (int) $instanceStageID,
             $this->_siteID
         ));
@@ -361,12 +430,16 @@ public function setLocked($instanceID, $lockState, $userID)
             (int) $posA, (int) $stages[$swapIdx]['instance_stage_id'], $this->_siteID
         ));
     }
-    
-    
+
+
+    /* ------------------------------------------------------------------ */
+    /* Criteria                                                           */
+    /* ------------------------------------------------------------------ */
+
     public function getCriteria($instanceStageID)
     {
         return $this->_db->getAllAssoc(sprintf(
-            "SELECT instance_criteria_id, criteria_name, data_type, position
+            "SELECT instance_criteria_id, criteria_name, data_type, position, weight
              FROM evaluation_instance_criteria
              WHERE instance_stage_id = %s AND site_id = %s
              ORDER BY position ASC, instance_criteria_id ASC",
@@ -375,9 +448,10 @@ public function setLocked($instanceID, $lockState, $userID)
         ));
     }
 
-    public function addCriteria($instanceStageID, $criteriaName, $dataType = 'text', $position = null)
+    public function addCriteria($instanceStageID, $criteriaName, $dataType = 'text',
+                                $position = null, $weight = 0)
     {
-        if (!in_array($dataType, array('text', 'date', 'number')))
+        if (!in_array($dataType, self::$DATA_TYPES))
         {
             $dataType = 'text';
         }
@@ -389,13 +463,14 @@ public function setLocked($instanceID, $lockState, $userID)
 
         $this->_db->query(sprintf(
             "INSERT INTO evaluation_instance_criteria
-                (instance_stage_id, site_id, criteria_name, data_type, position)
-             VALUES (%s, %s, '%s', '%s', %s)",
+                (instance_stage_id, site_id, criteria_name, data_type, position, weight)
+             VALUES (%s, %s, '%s', '%s', %s, %s)",
             (int) $instanceStageID,
             $this->_siteID,
             $this->_db->escapeString($criteriaName),
             $this->_db->escapeString($dataType),
-            (int) $position
+            (int) $position,
+            $this->_sanitizeWeight($weight)
         ));
         return ($this->_db->getLastInsertID());
     }
@@ -413,7 +488,7 @@ public function setLocked($instanceID, $lockState, $userID)
 
     public function changeCriteriaType($instanceCriteriaID, $dataType)
     {
-        if (!in_array($dataType, array('text', 'date', 'number')))
+        if (!in_array($dataType, self::$DATA_TYPES))
         {
             return;
         }
@@ -422,6 +497,17 @@ public function setLocked($instanceID, $lockState, $userID)
             "UPDATE evaluation_instance_criteria SET data_type = '%s'
              WHERE instance_criteria_id = %s AND site_id = %s",
             $this->_db->escapeString($dataType),
+            (int) $instanceCriteriaID,
+            $this->_siteID
+        ));
+    }
+
+    public function setCriteriaWeight($instanceCriteriaID, $weight)
+    {
+        $this->_db->query(sprintf(
+            "UPDATE evaluation_instance_criteria SET weight = %s
+             WHERE instance_criteria_id = %s AND site_id = %s",
+            $this->_sanitizeWeight($weight),
             (int) $instanceCriteriaID,
             $this->_siteID
         ));
@@ -661,13 +747,14 @@ public function setLocked($instanceID, $lockState, $userID)
     /*
      * Returns the full nested structure the evaluate page renders:
      *
-     *   [ instance_stage_id, stage_name, position,
-     *     criteria   => [ instance_criteria_id, criteria_name, data_type, position ],
+     *   [ instance_stage_id, stage_name, position, weight,
+     *     criteria   => [ instance_criteria_id, criteria_name, data_type,
+     *                     position, weight ],
      *     evaluators => [ evaluator_id, evaluator_name,
      *                     values => [ instance_criteria_id => value ] ] ]
      *
      * Four queries total regardless of how many stages there are, rather than
-     * looping per stage.
+     * looping per stage. This is exactly the shape EvaluationScore expects.
      */
     public function getFullEvaluation($instanceID)
     {
@@ -692,7 +779,7 @@ public function setLocked($instanceID, $lockState, $userID)
         /* Criteria for every stage at once. */
         $criteriaRows = $this->_db->getAllAssoc(sprintf(
             "SELECT instance_stage_id, instance_criteria_id, criteria_name,
-                    data_type, position
+                    data_type, position, weight
              FROM evaluation_instance_criteria
              WHERE instance_stage_id IN (%s) AND site_id = %s
              ORDER BY position ASC, instance_criteria_id ASC",
@@ -772,13 +859,13 @@ public function setLocked($instanceID, $lockState, $userID)
      *   - stage name already present  -> reuse it, only add its missing criteria
      *   - stage name absent           -> insert it plus all its criteria
      *   - criterion name already in that stage -> skip; the EXISTING data_type
-     *     wins, because retyping a criterion under saved answers would corrupt
-     *     them
+     *     AND WEIGHT win, because retyping or reweighting a criterion under
+     *     saved answers would silently change scores already recorded
      *   - nothing is ever deleted or renamed
      *
      * $templateStages is whatever EvaluationTemplate::getFullTemplate() returned
-     * (stage_name + nested criteria). This class never queries the template
-     * tables itself, which is what keeps the two sides independent.
+     * (stage_name + weight + nested criteria). This class never queries the
+     * template tables itself, which is what keeps the two sides independent.
      *
      * Name matching is done in PHP, case-insensitively on trimmed names, rather
      * than in SQL, so it can't trip over column collations.
@@ -813,15 +900,23 @@ public function setLocked($instanceID, $lockState, $userID)
             {
                 /* Insert the stage directly rather than via addStage(), which
                  * would inject its own Rating/Comments and duplicate whatever
-                 * the template already defines. */
+                 * the template already defines.
+                 *
+                 * weight rides across here exactly like stage_name. Omitting it
+                 * is the failure mode worth guarding: the evaluation would seed
+                 * cleanly, render fine, and score everything at equal weight
+                 * with nothing to indicate the template's weights were lost. */
                 $this->_db->query(sprintf(
                     "INSERT INTO evaluation_instance_stage
-                        (instance_id, site_id, stage_name, position)
-                     VALUES (%s, %s, '%s', %s)",
+                        (instance_id, site_id, stage_name, position, weight)
+                     VALUES (%s, %s, '%s', %s, %s)",
                     (int) $instanceID,
                     $this->_siteID,
                     $this->_db->escapeString($templateStage['stage_name']),
-                    $this->getNextStagePosition($instanceID)
+                    $this->getNextStagePosition($instanceID),
+                    $this->_sanitizeWeight(
+                        isset($templateStage['weight']) ? $templateStage['weight'] : 0
+                    )
                 ));
                 $instanceStageID = $this->_db->getLastInsertID();
                 $existingStages[$stageKey] = (int) $instanceStageID;
@@ -855,6 +950,7 @@ public function setLocked($instanceID, $lockState, $userID)
                 }
 
                 $dataType = isset($criterion['data_type']) ? $criterion['data_type'] : 'text';
+                $weight   = isset($criterion['weight'])    ? $criterion['weight']    : 0;
 
                 /* Keep the template's own ordering on a brand new stage;
                  * append to the end of an existing one. */
@@ -862,7 +958,10 @@ public function setLocked($instanceID, $lockState, $userID)
                     ? (int) $criterion['position']
                     : $this->getNextCriteriaPosition($instanceStageID);
 
-                $this->addCriteria($instanceStageID, $criterion['criteria_name'], $dataType, $position);
+                $this->addCriteria(
+                    $instanceStageID, $criterion['criteria_name'],
+                    $dataType, $position, $weight
+                );
 
                 $existingCriteria[$criteriaKey] = true;
                 $added['criteria']++;
@@ -877,6 +976,20 @@ public function setLocked($instanceID, $lockState, $userID)
     private function _nameKey($name)
     {
         return mb_strtolower(trim($name), 'UTF-8');
+    }
+
+    /* Weights are raw user input. Negatives are meaningless here and would
+     * invert a criterion's contribution, so they clamp to zero. The column is
+     * DECIMAL(6,2); anything past that is capped rather than truncated by
+     * MySQL under a non-strict sql_mode. */
+    private function _sanitizeWeight($weight)
+    {
+        $weight = (float) $weight;
+
+        if ($weight < 0)      { $weight = 0; }
+        if ($weight > 9999.99) { $weight = 9999.99; }
+
+        return sprintf('%.2f', $weight);
     }
 }
 ?>
