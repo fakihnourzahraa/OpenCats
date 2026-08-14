@@ -169,14 +169,18 @@
         });
     };
 
+    /* Percent renders first, raw score second - the HTML markup below
+       already puts scorePercentDisplay before scoreDisplay, so this just
+       needs to keep writing the same two elements by ID; no reordering
+       logic needed here. */
     window.updateScoreDisplay = function (data) {
         var scoreEl = document.getElementById('scoreDisplay');
         var pctEl   = document.getElementById('scorePercentDisplay');
+        if (pctEl && data && typeof data.scorePercent !== 'undefined') {
+            pctEl.textContent = data.scorePercent;
+        }
         if (scoreEl && data && typeof data.scoreDisplay !== 'undefined') {
             scoreEl.textContent = data.scoreDisplay;
-        }
-        if (pctEl) {
-            pctEl.textContent = (data && data.scorePercent) ? '(' + data.scorePercent + ')' : '';
         }
     };
 
@@ -348,60 +352,63 @@
             addFieldRow(CATS_IsLocked ? 'Evaluator Name:' : 'Evaluator Name: *', nameInput);
 
             var fields = [];
+            /* Maps instance_criteria_id -> the ANSWER field (not the grade
+               input), so a post-save empty-field warning from the server can
+               find and highlight the right element without re-walking the
+               DOM. */
+            var fieldByCriteriaID = {};
 
             stage.criteria.forEach(function (criterion) {
                 var type = criterion.type || 'text';
-                var field;
+                var field = null;
+                var gradeInput = null;
+                var fieldWrap;
 
-                if (type === 'number') {
-                    field = document.createElement('input');
-                    field.type = 'number';
-                    field.step = 'any';
-                    field.style.width = '100px';
-                } else if (type === 'date') {
-                    field = document.createElement('input');
-                    field.type = 'date';
-                    field.style.width = '160px';
+                if (type === 'score') {
+                    /* Score criteria carry ONLY the grade - there is no
+                       separate free-text answer field anymore, since a
+                       single numeric input is all this type needs. */
+                    var maxRange = (criterion.maxRange !== undefined && criterion.maxRange !== null && criterion.maxRange > 0)
+                        ? criterion.maxRange : 5;
+
+                    gradeInput = document.createElement('input');
+                    gradeInput.type = 'number';
+                    gradeInput.name = 'grades[' + criterion.id + ']';
+                    gradeInput.className = 'inputbox';
+                    gradeInput.style.width = '80px';
+                    gradeInput.min = '0';
+                    gradeInput.max = String(maxRange);
+                    gradeInput.step = '0.01';
+                    gradeInput.placeholder = '0-' + maxRange;
+
+                    var gv = grades[criterion.id];
+                    gradeInput.value = (gv !== undefined && gv !== null && gv !== '') ? gv : '';
+
+                    fieldWrap = gradeInput;
+                    fieldByCriteriaID[criterion.id] = gradeInput;
                 } else {
-                    field = document.createElement('textarea');
-                    field.rows = 2;
-                    field.cols = 50;
-                }
-
-                field.name = 'values[' + criterion.id + ']';
-                field.style.paddingLeft = '0';
-                field.style.marginLeft = '0';
-                field.value = values[criterion.id] || '';
-
-                /* Answer and grade are independent - a gradeable criterion gets
-                   both an answer field and a 1-5 select beside it, wrapped
-                   together so they land in the same table cell. */
-                var fieldWrap = field;
-                var gradeSelect = null;
-
-                if (criterion.gradeable) {
-                    gradeSelect = document.createElement('select');
-                    gradeSelect.name = 'grades[' + criterion.id + ']';
-                    gradeSelect.className = 'inputbox';
-                    gradeSelect.style.width = '60px';
-                    gradeSelect.style.marginLeft = '8px';
-
-                    var blankOpt = document.createElement('option');
-                    blankOpt.value = '';
-                    blankOpt.textContent = '\u2014';
-                    gradeSelect.appendChild(blankOpt);
-
-                    for (var g = 1; g <= 5; g++) {
-                        var gOpt = document.createElement('option');
-                        gOpt.value = String(g);
-                        gOpt.textContent = String(g);
-                        if (String(grades[criterion.id] || '') === String(g)) { gOpt.selected = true; }
-                        gradeSelect.appendChild(gOpt);
+                    if (type === 'number') {
+                        field = document.createElement('input');
+                        field.type = 'number';
+                        field.step = 'any';
+                        field.style.width = '100px';
+                    } else if (type === 'date') {
+                        field = document.createElement('input');
+                        field.type = 'date';
+                        field.style.width = '160px';
+                    } else {
+                        field = document.createElement('textarea');
+                        field.rows = 2;
+                        field.cols = 50;
                     }
 
-                    fieldWrap = document.createElement('span');
-                    fieldWrap.appendChild(field);
-                    fieldWrap.appendChild(gradeSelect);
+                    field.name = 'values[' + criterion.id + ']';
+                    field.style.paddingLeft = '0';
+                    field.style.marginLeft = '0';
+                    field.value = values[criterion.id] || '';
+
+                    fieldByCriteriaID[criterion.id] = field;
+                    fieldWrap = field;
                 }
 
                 var labelWrap = document.createElement('span');
@@ -423,49 +430,70 @@
                     critNameInput.setAttribute('form', criteriaFormID);
                     labelEdit.appendChild(critNameInput);
 
+                    var typeLabelSpan = document.createElement('span');
+                    typeLabelSpan.className = 'fieldLabelInline';
+                    typeLabelSpan.style.marginLeft = '0';
+                    typeLabelSpan.textContent = 'Type:';
+                    labelEdit.appendChild(typeLabelSpan);
+
                     var critTypeSelect = document.createElement('select');
                     critTypeSelect.name = 'criteriaType[' + criterion.id + ']';
                     critTypeSelect.className = 'inputbox';
                     critTypeSelect.style.width = '75px';
                     critTypeSelect.setAttribute('form', criteriaFormID);
-                    ['text', 'date', 'number'].forEach(function (t) {
+
+                    var typeLabels = { text: 'Text', date: 'Date', number: 'Number', score: 'Score' };
+                    ['text', 'date', 'number', 'score'].forEach(function (t) {
                         var opt = document.createElement('option');
                         opt.value = t;
-                        opt.textContent = t;
+                        opt.textContent = typeLabels[t];
                         if ((criterion.type || 'text') === t) { opt.selected = true; }
                         critTypeSelect.appendChild(opt);
                     });
                     labelEdit.appendChild(critTypeSelect);
 
+                    /* Weight and max range are both meaningless outside
+                       'score' - wrapped together so they appear/disappear as
+                       one unit with the type dropdown, instead of a bare
+                       unlabeled weight box sitting there on every type. */
+                    var critScoreWrap = document.createElement('span');
+                    critScoreWrap.style.display = ((criterion.type || 'text') === 'score') ? '' : 'none';
+
+                    var weightLabelSpan = document.createElement('span');
+                    weightLabelSpan.className = 'fieldLabelInline';
+                    weightLabelSpan.textContent = 'Weight:';
+                    critScoreWrap.appendChild(weightLabelSpan);
+
                     var critWeightInput = document.createElement('input');
                     critWeightInput.type = 'text';
                     critWeightInput.name = 'criteriaWeight[' + criterion.id + ']';
                     critWeightInput.className = 'inputbox weightBox';
-                    critWeightInput.style.marginLeft = '6px';
+                    critWeightInput.title = 'Weight';
                     critWeightInput.value = String(criterion.weight || 0);
-                    critWeightInput.disabled = !criterion.gradeable;
                     critWeightInput.setAttribute('form', criteriaFormID);
+                    critScoreWrap.appendChild(critWeightInput);
 
-                    var critGradeableLabel = document.createElement('label');
-                    critGradeableLabel.style.marginLeft = '6px';
-                    critGradeableLabel.style.fontSize = '11px';
-                    critGradeableLabel.style.color = '#666';
+                    var maxLabelSpan = document.createElement('span');
+                    maxLabelSpan.className = 'fieldLabelInline';
+                    maxLabelSpan.textContent = 'Max:';
+                    critScoreWrap.appendChild(maxLabelSpan);
 
-                    var critGradeableInput = document.createElement('input');
-                    critGradeableInput.type = 'checkbox';
-                    critGradeableInput.name = 'criteriaGradeable[' + criterion.id + ']';
-                    critGradeableInput.value = '1';
-                    critGradeableInput.checked = !!criterion.gradeable;
-                    critGradeableInput.setAttribute('form', criteriaFormID);
-                    critGradeableInput.onchange = function () {
-                        critWeightInput.disabled = !critGradeableInput.checked;
+                    var critMaxRangeInput = document.createElement('input');
+                    critMaxRangeInput.type = 'text';
+                    critMaxRangeInput.name = 'criteriaMaxRange[' + criterion.id + ']';
+                    critMaxRangeInput.className = 'inputbox weightBox';
+                    critMaxRangeInput.title = 'Max range (grade runs 0..this)';
+                    critMaxRangeInput.value = String(
+                        (criterion.maxRange !== undefined && criterion.maxRange !== null) ? criterion.maxRange : 5
+                    );
+                    critMaxRangeInput.setAttribute('form', criteriaFormID);
+                    critScoreWrap.appendChild(critMaxRangeInput);
+
+                    labelEdit.appendChild(critScoreWrap);
+
+                    critTypeSelect.onchange = function () {
+                        critScoreWrap.style.display = (critTypeSelect.value === 'score') ? '' : 'none';
                     };
-
-                    critGradeableLabel.appendChild(critGradeableInput);
-                    critGradeableLabel.appendChild(document.createTextNode(' Gradeable'));
-
-                    labelEdit.appendChild(critGradeableLabel);
-                    labelEdit.appendChild(critWeightInput);
 
                     /* Share is computed once, server-side, the same way the
                        settings page computes it - not recalculated live here,
@@ -473,7 +501,7 @@
                        than something worth live JS feedback for. */
                     var critShareSpan = document.createElement('span');
                     critShareSpan.className = 'shareNote';
-                    critShareSpan.textContent = (criterion.gradeable && criterion.sharePercent !== null && criterion.sharePercent !== undefined)
+                    critShareSpan.textContent = (criterion.type === 'score' && criterion.sharePercent !== null && criterion.sharePercent !== undefined)
                         ? (criterion.sharePercent + '%') : '';
                     labelEdit.appendChild(critShareSpan);
 
@@ -484,8 +512,8 @@
                 }
 
                 addFieldRow(labelWrap, fieldWrap);
-                fields.push(field);
-                if (gradeSelect) { fields.push(gradeSelect); }
+                if (field) { fields.push(field); }
+                if (gradeInput) { fields.push(gradeInput); }
             });
 
             form.appendChild(table);
@@ -503,8 +531,9 @@
             addHidden(deleteForm, 'csrfToken', CSRF_Token);
 
             function applyFieldStyle(el, isEditable) {
-                /* readOnly has no effect on <select> - a grade dropdown needs
-                   'disabled' to actually stop being changeable. */
+                /* readOnly has no effect on <select> - kept for any future
+                   select-type field; every current field type honours
+                   readOnly directly. */
                 if (el.tagName === 'SELECT') {
                     el.disabled = !isEditable;
                 } else {
@@ -579,6 +608,27 @@
                         iconsWrap.style.display = '';
                         setEditable(false);
                         window.registerEvaluatorName(nameInput.value);
+
+                        /* Simple, non-blocking warning: highlight whichever
+                           answer fields the server saw as blank on this
+                           save. Clears any stale marks first so a field that
+                           got filled in stops being flagged. */
+                        Object.keys(fieldByCriteriaID).forEach(function (cid) {
+                            fieldByCriteriaID[cid].classList.remove('warningField');
+                        });
+                        if (data.emptyFields && data.emptyFields.length) {
+                            console.warn(
+                                'Evaluator "' + nameInput.value + '" saved with empty fields for criteria IDs:',
+                                data.emptyFields
+                            );
+                            data.emptyFields.forEach(function (cid) {
+                                var f = fieldByCriteriaID[cid];
+                                if (f) {
+                                    f.classList.add('warningField');
+                                    f.title = 'This field is empty.';
+                                }
+                            });
+                        }
                     } else if (data.locked) {
                         /* Locked after this page was opened. */
                         saveBtn.value = 'Locked';
@@ -587,7 +637,16 @@
                     } else {
                         saveBtn.value = 'Save (failed, try again)';
                     }
-                    if (data.success) { window.updateScoreDisplay(data); }
+                    if (data.success) {
+                        window.updateScoreDisplay(data);
+
+                        if (data.stageScores && data.stageScores[instanceStageID]) {
+                            var stagePctEl   = document.getElementById('stageScorePercentDisplay_' + instanceStageID);
+                            var stageScoreEl = document.getElementById('stageScoreDisplay_' + instanceStageID);
+                            if (stagePctEl)   { stagePctEl.textContent   = data.stageScores[instanceStageID].scorePercent; }
+                            if (stageScoreEl) { stageScoreEl.textContent = data.stageScores[instanceStageID].scoreDisplay; }
+                        }
+                    }
                     return data;
                 })
                 .catch(function () {
@@ -638,6 +697,18 @@
 <style type="text/css">
     .shareNote { color:#777; font-size:11px; margin-left:6px; white-space:nowrap; }
     .weightBox { width:46px; text-align:right; }
+    /* "Stage:" / "Criteria" labels - quiet, small, sit above/beside the
+       actual content rather than competing with it. */
+    .sectionLabel { color:#555; font-weight:normal; font-size:13px; margin-right:4px; }
+    .fieldLabelInline { color:#888; font-size:11px; margin:0 4px 0 8px; }
+    .criteriaSectionHeader {
+        margin-top:10px; margin-bottom:4px; font-weight:bold; font-size:11px;
+        color:#666; text-transform:uppercase; letter-spacing:0.5px;
+        border-bottom:1px solid #ddd; padding-bottom:2px;
+    }
+    /* Simple, non-blocking flag for a field the server saw as blank on the
+       last save - not a hard validation error, just a visual nudge. */
+    .warningField { border:1px solid #cc0000 !important; background:#fff5f5 !important; }
 </style>
 
 <div id="main">
@@ -665,7 +736,7 @@
         <p class="note">
             <?php echo htmlspecialchars($this->candidateName, ENT_QUOTES, 'UTF-8'); ?>
         </p>
-
+ <div class="sectionLabel" style="margin-bottom:2px;">Candidate View:</div>
         <!-- Navigation. Job order on top, its candidates below. This only MOVES
              between evaluations - it writes nothing, and is unrelated to the
              "Load stages from" line further down, which seeds structure. -->
@@ -691,6 +762,7 @@
             </select>
 
             <div style="margin-top:4px;">
+               
                 <?php if ($navJobOrderID === null): ?>
                     <select class="inputbox" style="width:340px;" disabled="disabled">
                         <option><?php echo htmlspecialchars($this->candidateName, ENT_QUOTES, 'UTF-8'); ?></option>
@@ -765,8 +837,12 @@
                     <?php endif; ?>
 
 <?php if (!$this->isEmpty): ?>
-    <br /><span id="scoreDisplay"><?php echo htmlspecialchars($this->scoreDisplay, ENT_QUOTES, 'UTF-8'); ?></span>
-    <span id="scorePercentDisplay" style="color:#777;"><?php echo $this->scorePercent !== '' ? '(' . htmlspecialchars($this->scorePercent, ENT_QUOTES, 'UTF-8') . ')' : ''; ?></span>
+    <!-- Percent leads, raw score follows in parens - "78% (3.90/5)". The /5
+         is a fixed display scale (see EvaluationScore::REPORT_SCALE), not
+         any one criterion's own max_range, so it's safe to write literally
+         here rather than pass another value through just for this. -->
+    <br /><span id="scorePercentDisplay"><?php echo htmlspecialchars($this->scorePercent, ENT_QUOTES, 'UTF-8'); ?></span>
+    <span style="color:#777;">(<span id="scoreDisplay"><?php echo htmlspecialchars($this->scoreDisplay, ENT_QUOTES, 'UTF-8'); ?></span>/5)</span>
     <?php if (!$this->isLocked): ?>
         <br /><input type="button" id="saveAllButton" value="Save All" class="button" style="margin-top:6px;"
                      onclick="saveAllEvaluators();" />
@@ -833,7 +909,9 @@
 
             <!-- Stage header. Icons sit to the LEFT of the name and stay
                  visible while the name is being edited, same as the settings
-                 template editor. -->
+                 template editor. A small "Stage:" label sits before the name
+                 so this section reads as a labelled block rather than a bare
+                 heading, matching the template editor's layout. -->
             <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-top:20px;">
                 <tr>
                     <td class="subHeading">
@@ -845,7 +923,7 @@
                             <a href="javascript:void(0);" style="margin-left:4px;"
                                onclick="showStageEditor(<?php echo $instanceStageID; ?>);">
                                 <img src="images/edit.gif" border="0" alt="edit" />
-                            </a>&nbsp;<?php endif; ?><span id="stageDisplay_<?php echo $instanceStageID; ?>"><?php echo htmlspecialchars($stage['stage_name'], ENT_QUOTES, 'UTF-8'); ?></span>
+                            </a>&nbsp;<?php endif; ?><span class="sectionLabel">Stage:</span> <span id="stageDisplay_<?php echo $instanceStageID; ?>"><?php echo htmlspecialchars($stage['stage_name'], ENT_QUOTES, 'UTF-8'); ?></span>
 
                         <?php if (!$this->isLocked): ?>
                             <span id="stageNameEdit_<?php echo $instanceStageID; ?>" style="display:none;">
@@ -860,7 +938,14 @@
                             </span>
                         <?php endif; ?>
 
+                        <?php $stageScoreVal = (isset($stage['scoring']) && array_key_exists('score', $stage['scoring'])) ? $stage['scoring']['score'] : null; ?>
                         <div style="margin-top:4px; font-weight:normal; font-size:11px; color:#666;">
+                            Score:
+                            <span id="stageScorePercentDisplay_<?php echo $instanceStageID; ?>"><?php echo htmlspecialchars(EvaluationScore::formatPercent($stageScoreVal), ENT_QUOTES, 'UTF-8'); ?></span>
+                            <span style="color:#999;">(<span id="stageScoreDisplay_<?php echo $instanceStageID; ?>"><?php echo htmlspecialchars(EvaluationScore::format($stageScoreVal), ENT_QUOTES, 'UTF-8'); ?></span>/5)</span>
+                        </div>
+
+                        <div style="margin-top:2px; font-weight:normal; font-size:11px; color:#666;">
                             Weight:
                             <span id="stageWeightDisplay_<?php echo $instanceStageID; ?>"><?php echo evalWeight(isset($stage['weight']) ? $stage['weight'] : 0); ?></span>
                             <?php if (!$this->isLocked): ?>
@@ -918,8 +1003,8 @@
                             'id'           => (int) $c['instance_criteria_id'],
                             'name'         => $c['criteria_name'],
                             'type'         => isset($c['data_type']) ? $c['data_type'] : 'text',
-                            'gradeable'    => !empty($c['is_gradeable']),
                             'weight'       => isset($c['weight']) ? (float) $c['weight'] : 0,
+                            'maxRange'     => isset($c['max_range']) ? (float) $c['max_range'] : 5,
                             'sharePercent' => isset($c['sharePercent']) ? $c['sharePercent'] : null,
                         );
                     }, $stage['criteria'])); ?>
@@ -967,17 +1052,21 @@
                         <input type="hidden" name="instanceStageID" value="<?php echo $instanceStageID; ?>" />
                         <input type="hidden" name="command" value="addCriteria" />
                         <input type="text" id="addCriteriaInput_<?php echo $instanceStageID; ?>" name="criteriaName" class="inputbox" style="width:160px;" />
-                        <select name="dataType" class="inputbox" style="width:90px;">
+                        <span class="fieldLabelInline">Type:</span>
+                        <select name="dataType" id="addCriteriaType_<?php echo $instanceStageID; ?>" class="inputbox" style="width:90px;"
+                                onchange="document.getElementById('addCriteriaScoreWrap_<?php echo $instanceStageID; ?>').style.display = (this.value === 'score') ? '' : 'none';">
                             <option value="text">Text</option>
                             <option value="date">Date</option>
                             <option value="number">Number</option>
+                            <option value="score">Score</option>
                         </select>
-                        <label style="font-size:11px; color:#666; margin-left:4px;">
-                            <input type="checkbox" name="isGradeable" value="1"
-                                   onchange="document.getElementById('addCriteriaWeight_<?php echo $instanceStageID; ?>').disabled = !this.checked;" /> Gradeable
-                        </label>
-                        <input id="addCriteriaWeight_<?php echo $instanceStageID; ?>" type="text" name="weight"
-                               class="inputbox weightBox" value="0" title="Weight" disabled="disabled" />
+                        <span id="addCriteriaScoreWrap_<?php echo $instanceStageID; ?>" style="display:none;">
+                            <span class="fieldLabelInline">Weight:</span>
+                            <input type="text" name="weight" class="inputbox weightBox" value="0" title="Weight" />
+                            <span class="fieldLabelInline">Max:</span>
+                            <input id="addCriteriaMaxRange_<?php echo $instanceStageID; ?>" type="text" name="maxRange"
+                                   class="inputbox weightBox" value="5" title="Max range (grade runs 0..this)" />
+                        </span>
                         <input type="submit" class="button" value="Add Criteria" />
                         <input type="button" class="button" value="Cancel"
                                onclick="hideEdit('addCriteriaLink_<?php echo $instanceStageID; ?>', 'addCriteriaArea_<?php echo $instanceStageID; ?>');" />

@@ -13,11 +13,22 @@ $allTemplates = array_merge(
 $selectedJobOrderID = isset($_GET['jobOrderID']) ? (int) $_GET['jobOrderID'] : 0;
 
 /* Weight is stored as DECIMAL(6,2). Trailing zeros in the editor read as
-   noise, so 100.00 shows as 100 and 12.50 as 12.5. */
+   noise, so 100.00 shows as 100 and 12.50 as 12.5. Score max uses the same
+   DECIMAL(6,2) column and the same trimming. */
 function evalTplWeight($value)
 {
     return rtrim(rtrim(number_format((float) $value, 2, '.', ''), '0'), '.') ?: '0';
 }
+
+/* A criterion is only "gradeable" - only carries weight, only enters the
+   stage's weight share - when its type is Score. There is no separate
+   checkbox anymore; the type IS the switch. */
+function evalTplIsScore($criterion)
+{
+    return isset($criterion['data_type']) && $criterion['data_type'] === 'score';
+}
+
+define('EVAL_TPL_DEFAULT_SCORE_MAX', 5);
 ?>
     <?php TemplateUtility::printQuickSearch(); ?>
 
@@ -27,6 +38,7 @@ function evalTplWeight($value)
             .shareNote { color:#777; font-size:11px; margin-left:4px; white-space:nowrap; }
             .shareNote.inactive { color:#bbb; }
             .weightBox { width:46px; text-align:right; }
+            .scoreMaxBox { width:46px; text-align:right; }
         </style>
 
         <table>
@@ -107,6 +119,11 @@ function evalTplWeight($value)
                    is its SHARE. These recompute that share live, so an
                    unbalanced set is visible while it's being typed rather than
                    after saving.
+
+                   Only Score-type criteria carry weight. Typing a Score
+                   criterion is what makes it gradeable now - there's no
+                   separate flag - so a row only enters this arithmetic when
+                   its type is 'score'.
 
                    Deleted rows are hidden, not removed, so anything hidden is
                    excluded here too - otherwise a deleted criterion would keep
@@ -200,8 +217,8 @@ function evalTplWeight($value)
                             <?php foreach ($stage['criteria'] as $criteriaIdx => $criterion): ?>
                             window[<?php echo json_encode('criteriaName_' . $joID . '_' . $stageIdx . '_' . $criteriaIdx); ?>] = <?php echo json_encode($criterion['criteria_name']); ?>;
                             window[<?php echo json_encode('criteriaType_' . $joID . '_' . $stageIdx . '_' . $criteriaIdx); ?>] = <?php echo json_encode(isset($criterion['data_type']) ? $criterion['data_type'] : 'text'); ?>;
-                            window[<?php echo json_encode('criteriaGradeable_' . $joID . '_' . $stageIdx . '_' . $criteriaIdx); ?>] = <?php echo json_encode(!empty($criterion['is_gradeable'])); ?>;
                             window[<?php echo json_encode('criteriaWeight_' . $joID . '_' . $stageIdx . '_' . $criteriaIdx); ?>] = <?php echo json_encode(evalTplWeight(isset($criterion['weight']) ? $criterion['weight'] : 0)); ?>;
+                            window[<?php echo json_encode('criteriaScoreMax_' . $joID . '_' . $stageIdx . '_' . $criteriaIdx); ?>] = <?php echo json_encode(evalTplWeight(isset($criterion['score_max']) && $criterion['score_max'] !== null ? $criterion['score_max'] : EVAL_TPL_DEFAULT_SCORE_MAX)); ?>;
                             <?php endforeach; ?>
                             <?php endforeach; ?>
 
@@ -212,15 +229,15 @@ function evalTplWeight($value)
                                 var total = 0;
                                 var i;
 
-                                /* Only GRADEABLE criteria carry weight - typing
-                                   (text/date/number) is unrelated to whether a
-                                   criterion is scored, so text/number rows that
-                                   happen to be gradeable are counted, and
-                                   gradeable rows that aren't ticked are not. */
+                                /* Only Score-type criteria carry weight now - the
+                                   type itself is what makes a row gradeable, so a
+                                   text/date/number row is never part of this
+                                   arithmetic even if it happens to have a weight
+                                   value left over from before it was retyped. */
                                 for (i = 0; i < count; i++) {
                                     var key = stageIdx + '_' + i;
                                     if (!isRowVisible('criteriaRow_<?php echo $joID; ?>_' + key)) { continue; }
-                                    if (!window['criteriaGradeable_<?php echo $joID; ?>_' + key]) { continue; }
+                                    if (window['criteriaType_<?php echo $joID; ?>_' + key] !== 'score') { continue; }
 
                                     var box = document.getElementById('criteriaWeightInput_<?php echo $joID; ?>_' + key);
                                     if (box) { total += parseWeight(box.value); }
@@ -231,7 +248,7 @@ function evalTplWeight($value)
                                     var span = document.getElementById('criteriaShare_<?php echo $joID; ?>_' + key2);
                                     if (!span) { continue; }
 
-                                    if (!window['criteriaGradeable_<?php echo $joID; ?>_' + key2]) {
+                                    if (window['criteriaType_<?php echo $joID; ?>_' + key2] !== 'score') {
                                         /* Not part of the arithmetic - nothing to show. */
                                         span.className   = 'shareNote';
                                         span.textContent = '';
@@ -268,7 +285,7 @@ function evalTplWeight($value)
                                 }
                             }
 
-                            /* Weight boxes are hidden until the row's pencil is
+                            /* Weight/max boxes are hidden until the row's pencil is
                                clicked, but they stay in the DOM the whole time -
                                the share recalculation above reads their .value
                                whether or not they are visible. That is what lets
@@ -289,14 +306,46 @@ function evalTplWeight($value)
                                 if (display) { display.style.display = '';     }
                             }
 
-                            /* The gradeable checkbox is what makes the weight box
-                               next to it mean anything, so it drives whether that
-                               box can be typed into. Shared by every place a
-                               criteria row gets built and by the edit/cancel/save
-                               handlers below, so this rule lives in one place. */
-                            function onCriteriaGradeableToggle_<?php echo $joID; ?>(checkbox, key) {
+                            /* The criteria TYPE is what makes weight/max mean
+                               anything now - only Score criteria use them.
+                               Shared by every place a criteria row gets built
+                               and by the edit/cancel/save handlers below, so
+                               this rule lives in one place. */
+                            function onCriteriaTypeChange_<?php echo $joID; ?>(select, key) {
+                                var isScore = (select.value === 'score');
+
                                 var wBox = document.getElementById('criteriaWeightInput_<?php echo $joID; ?>_' + key);
-                                if (wBox) { wBox.disabled = !checkbox.checked; }
+                                if (wBox) { wBox.disabled = !isScore; }
+
+                                var mBox = document.getElementById('criteriaScoreMaxInput_<?php echo $joID; ?>_' + key);
+                                if (mBox) {
+                                    mBox.disabled = !isScore;
+                                    if (isScore && (!mBox.value || parseFloat(mBox.value) <= 0)) {
+                                        mBox.value = '<?php echo EVAL_TPL_DEFAULT_SCORE_MAX; ?>';
+                                    }
+                                }
+
+                                var stageIdx = key.split('_')[0];
+                                recalcCriteriaShares_<?php echo $joID; ?>(stageIdx);
+                            }
+
+                            /* Same toggle, for the "add criteria" row before it has
+                               been committed - there's no key yet, just the
+                               stage's add-form inputs. */
+                            function onAddCriteriaTypeChange_<?php echo $joID; ?>(stageIdx) {
+                                var typeSel = document.getElementById('addCriteriaType_<?php echo $joID; ?>_' + stageIdx);
+                                var isScore = typeSel && typeSel.value === 'score';
+
+                                var wBox = document.getElementById('addCriteriaWeight_<?php echo $joID; ?>_' + stageIdx);
+                                if (wBox) { wBox.disabled = !isScore; }
+
+                                var mBox = document.getElementById('addCriteriaScoreMax_<?php echo $joID; ?>_' + stageIdx);
+                                if (mBox) {
+                                    mBox.disabled = !isScore;
+                                    if (isScore && (!mBox.value || parseFloat(mBox.value) <= 0)) {
+                                        mBox.value = '<?php echo EVAL_TPL_DEFAULT_SCORE_MAX; ?>';
+                                    }
+                                }
                             }
 
                             /* ---------- Stage: delete / edit / move ---------- */
@@ -406,17 +455,17 @@ function evalTplWeight($value)
                                     document.getElementById('criteriaTypeDisplay_<?php echo $joID; ?>_' + key).style.display = 'none';
                                 }
 
+                                var isScore = (window['criteriaType_<?php echo $joID; ?>_' + key] === 'score');
+
                                 var wBox = document.getElementById('criteriaWeightInput_<?php echo $joID; ?>_' + key);
-                                if (wBox) { wBox.value = window['criteriaWeight_<?php echo $joID; ?>_' + key]; }
+                                if (wBox) { wBox.value = window['criteriaWeight_<?php echo $joID; ?>_' + key]; wBox.disabled = !isScore; }
                                 showWeightEditor('criteriaWeightDisplay_<?php echo $joID; ?>_' + key,
                                                  'criteriaWeightEdit_<?php echo $joID; ?>_' + key);
 
-                                var gBox = document.getElementById('criteriaGradeableInput_<?php echo $joID; ?>_' + key);
-                                if (gBox) {
-                                    gBox.disabled = false;
-                                    gBox.checked  = !!window['criteriaGradeable_<?php echo $joID; ?>_' + key];
-                                    onCriteriaGradeableToggle_<?php echo $joID; ?>(gBox, key);
-                                }
+                                var mBox = document.getElementById('criteriaScoreMaxInput_<?php echo $joID; ?>_' + key);
+                                if (mBox) { mBox.value = window['criteriaScoreMax_<?php echo $joID; ?>_' + key] || '<?php echo EVAL_TPL_DEFAULT_SCORE_MAX; ?>'; mBox.disabled = !isScore; }
+                                showWeightEditor('criteriaScoreMaxDisplay_<?php echo $joID; ?>_' + key,
+                                                 'criteriaScoreMaxEdit_<?php echo $joID; ?>_' + key);
 
                                 document.getElementById('criteriaNameInput_<?php echo $joID; ?>_' + key).focus();
                             }
@@ -430,22 +479,24 @@ function evalTplWeight($value)
                                 if (typeSel) {
                                     typeSel.style.display = 'none';
                                     document.getElementById('criteriaTypeDisplay_<?php echo $joID; ?>_' + key).style.display = '';
+                                    /* Restore in case the select was changed but never saved. */
+                                    typeSel.value = window['criteriaType_<?php echo $joID; ?>_' + key] || 'text';
                                 }
+
+                                var isScore = (window['criteriaType_<?php echo $joID; ?>_' + key] === 'score');
 
                                 /* Restore before hiding: an abandoned edit must not
                                    leave the shares reflecting an uncommitted number. */
                                 var wBox = document.getElementById('criteriaWeightInput_<?php echo $joID; ?>_' + key);
-                                if (wBox) { wBox.value = window['criteriaWeight_<?php echo $joID; ?>_' + key]; }
+                                if (wBox) { wBox.value = window['criteriaWeight_<?php echo $joID; ?>_' + key]; wBox.disabled = !isScore; }
 
-                                var gBox = document.getElementById('criteriaGradeableInput_<?php echo $joID; ?>_' + key);
-                                if (gBox) {
-                                    gBox.checked  = !!window['criteriaGradeable_<?php echo $joID; ?>_' + key];
-                                    gBox.disabled = true;
-                                }
-                                if (wBox) { wBox.disabled = !window['criteriaGradeable_<?php echo $joID; ?>_' + key]; }
+                                var mBox = document.getElementById('criteriaScoreMaxInput_<?php echo $joID; ?>_' + key);
+                                if (mBox) { mBox.value = window['criteriaScoreMax_<?php echo $joID; ?>_' + key] || '<?php echo EVAL_TPL_DEFAULT_SCORE_MAX; ?>'; mBox.disabled = !isScore; }
 
                                 hideWeightEditor('criteriaWeightDisplay_<?php echo $joID; ?>_' + key,
                                                  'criteriaWeightEdit_<?php echo $joID; ?>_' + key);
+                                hideWeightEditor('criteriaScoreMaxDisplay_<?php echo $joID; ?>_' + key,
+                                                 'criteriaScoreMaxEdit_<?php echo $joID; ?>_' + key);
                                 recalcCriteriaShares_<?php echo $joID; ?>(stageIdx);
                             }
 
@@ -464,46 +515,50 @@ function evalTplWeight($value)
                                 }
 
                                 var typeSel = document.getElementById('criteriaTypeInput_<?php echo $joID; ?>_' + key);
-                                if (typeSel) {
-                                    var newType = typeSel.value;
-                                    var oldType = window['criteriaType_<?php echo $joID; ?>_' + key] || 'text';
-                                    if (newType !== oldType) {
-                                        /* newName, not oldName: the RENAMECRITERIA above is
-                                           processed first server-side, so by the time this
-                                           command runs the criterion has the new name. */
-                                        appendCommand(<?php echo $joID; ?>, 'CHANGECRITERIATYPE ' + encodeURIComponent(stageName) + ' ' + encodeURIComponent(newName) + ' ' + encodeURIComponent(newType));
-                                        window['criteriaType_<?php echo $joID; ?>_' + key] = newType;
-                                        document.getElementById('criteriaTypeDisplay_<?php echo $joID; ?>_' + key).textContent = newType;
-                                    }
-                                }
+                                var newType = typeSel ? typeSel.value : (window['criteriaType_<?php echo $joID; ?>_' + key] || 'text');
+                                var oldType = window['criteriaType_<?php echo $joID; ?>_' + key] || 'text';
 
                                 var wBox = document.getElementById('criteriaWeightInput_<?php echo $joID; ?>_' + key);
-                                if (wBox) {
-                                    var newWeight = String(parseWeight(wBox.value));
-                                    if (newWeight !== window['criteriaWeight_<?php echo $joID; ?>_' + key]) {
-                                        /* newName for the same reason as the type
-                                           command above: the rename lands first. */
-                                        appendCommand(<?php echo $joID; ?>, 'SETCRITERIAWEIGHT ' + encodeURIComponent(stageName) + ' ' + encodeURIComponent(newName) + ' ' + newWeight);
-                                        window['criteriaWeight_<?php echo $joID; ?>_' + key] = newWeight;
-                                        document.getElementById('criteriaWeightDisplay_<?php echo $joID; ?>_' + key).textContent = newWeight;
-                                    }
+                                var mBox = document.getElementById('criteriaScoreMaxInput_<?php echo $joID; ?>_' + key);
+
+                                var newWeight = wBox ? String(parseWeight(wBox.value)) : window['criteriaWeight_<?php echo $joID; ?>_' + key];
+                                var newMax    = mBox ? String(parseWeight(mBox.value)) : (window['criteriaScoreMax_<?php echo $joID; ?>_' + key] || '<?php echo EVAL_TPL_DEFAULT_SCORE_MAX; ?>');
+                                if (newType === 'score' && parseFloat(newMax) <= 0) {
+                                    newMax = '<?php echo EVAL_TPL_DEFAULT_SCORE_MAX; ?>';
                                 }
 
-                                var gBox = document.getElementById('criteriaGradeableInput_<?php echo $joID; ?>_' + key);
-                                if (gBox) {
-                                    var newGradeable = gBox.checked;
-                                    var oldGradeable = !!window['criteriaGradeable_<?php echo $joID; ?>_' + key];
-                                    if (newGradeable !== oldGradeable) {
-                                        /* newName for the same reason as the other
-                                           commands above: the rename lands first. */
-                                        appendCommand(<?php echo $joID; ?>, 'SETGRADEABLE ' + encodeURIComponent(stageName) + ' ' + encodeURIComponent(newName) + ' ' + (newGradeable ? 1 : 0));
-                                        window['criteriaGradeable_<?php echo $joID; ?>_' + key] = newGradeable;
+                                if (newType !== oldType) {
+                                    /* Type change carries the current max along in one
+                                       command - gradeable is derived server-side from
+                                       the type itself, there's no separate flag to set.
+                                       newName, not oldName: RENAMECRITERIA above is
+                                       processed first server-side. */
+                                    appendCommand(<?php echo $joID; ?>, 'CHANGECRITERIATYPE ' + encodeURIComponent(stageName) + ' ' + encodeURIComponent(newName) + ' ' + encodeURIComponent(newType) + ' ' + newMax);
+                                    window['criteriaType_<?php echo $joID; ?>_' + key] = newType;
+                                    document.getElementById('criteriaTypeDisplay_<?php echo $joID; ?>_' + key).textContent = newType;
 
-                                        /* This is what actually changes which rows
-                                           share the stage's weight, so every share
-                                           in the stage moves. */
-                                        recalcCriteriaShares_<?php echo $joID; ?>(stageIdx);
+                                    if (newType === 'score') {
+                                        window['criteriaScoreMax_<?php echo $joID; ?>_' + key] = newMax;
+                                        document.getElementById('criteriaScoreMaxDisplay_<?php echo $joID; ?>_' + key).textContent = newMax;
                                     }
+
+                                    /* This is what actually changes which rows share
+                                       the stage's weight, so every share in the stage
+                                       moves. */
+                                    recalcCriteriaShares_<?php echo $joID; ?>(stageIdx);
+                                }
+                                else if (newType === 'score' && newMax !== window['criteriaScoreMax_<?php echo $joID; ?>_' + key]) {
+                                    appendCommand(<?php echo $joID; ?>, 'SETSCORERANGE ' + encodeURIComponent(stageName) + ' ' + encodeURIComponent(newName) + ' ' + newMax);
+                                    window['criteriaScoreMax_<?php echo $joID; ?>_' + key] = newMax;
+                                    document.getElementById('criteriaScoreMaxDisplay_<?php echo $joID; ?>_' + key).textContent = newMax;
+                                }
+
+                                if (newWeight !== window['criteriaWeight_<?php echo $joID; ?>_' + key]) {
+                                    /* newName for the same reason as the type command
+                                       above: the rename lands first. */
+                                    appendCommand(<?php echo $joID; ?>, 'SETCRITERIAWEIGHT ' + encodeURIComponent(stageName) + ' ' + encodeURIComponent(newName) + ' ' + newWeight);
+                                    window['criteriaWeight_<?php echo $joID; ?>_' + key] = newWeight;
+                                    document.getElementById('criteriaWeightDisplay_<?php echo $joID; ?>_' + key).textContent = newWeight;
                                 }
 
                                 cancelCriteriaEdit_<?php echo $joID; ?>(stageIdx, criteriaIdx);
@@ -537,10 +592,10 @@ function evalTplWeight($value)
                                 document.getElementById('addCriteriaInput_<?php echo $joID; ?>_' + stageIdx).value = '';
                                 var typeSel = document.getElementById('addCriteriaType_<?php echo $joID; ?>_' + stageIdx);
                                 if (typeSel) typeSel.value = 'text';
-                                var gBox = document.getElementById('addCriteriaGradeable_<?php echo $joID; ?>_' + stageIdx);
-                                if (gBox) gBox.checked = false;
                                 var wBox = document.getElementById('addCriteriaWeight_<?php echo $joID; ?>_' + stageIdx);
                                 if (wBox) { wBox.value = '0'; wBox.disabled = true; }
+                                var mBox = document.getElementById('addCriteriaScoreMax_<?php echo $joID; ?>_' + stageIdx);
+                                if (mBox) { mBox.value = '<?php echo EVAL_TPL_DEFAULT_SCORE_MAX; ?>'; mBox.disabled = true; }
                                 document.getElementById('addCriteriaInput_<?php echo $joID; ?>_' + stageIdx).focus();
                             }
 
@@ -555,16 +610,21 @@ function evalTplWeight($value)
                                 if (!name) return;
                                 var typeSel = document.getElementById('addCriteriaType_<?php echo $joID; ?>_' + stageIdx);
                                 var dataType = typeSel ? typeSel.value : 'text';
-                                var gBoxNew = document.getElementById('addCriteriaGradeable_<?php echo $joID; ?>_' + stageIdx);
-                                var isGradeable = gBoxNew ? gBoxNew.checked : false;
+                                var isScore = (dataType === 'score');
+
                                 var wBox = document.getElementById('addCriteriaWeight_<?php echo $joID; ?>_' + stageIdx);
                                 var weight = wBox ? parseWeight(wBox.value) : 0;
+
+                                var mBox = document.getElementById('addCriteriaScoreMax_<?php echo $joID; ?>_' + stageIdx);
+                                var scoreMax = mBox ? parseWeight(mBox.value) : <?php echo EVAL_TPL_DEFAULT_SCORE_MAX; ?>;
+                                if (isScore && scoreMax <= 0) { scoreMax = <?php echo EVAL_TPL_DEFAULT_SCORE_MAX; ?>; }
 
                                 var criteriaIdx = window['criteriaCount_<?php echo $joID; ?>_' + stageIdx];
                                 var key = stageIdx + '_' + criteriaIdx;
                                 window['criteriaName_<?php echo $joID; ?>_' + key] = name;
                                 window['criteriaType_<?php echo $joID; ?>_' + key] = dataType;
-                                window['criteriaGradeable_<?php echo $joID; ?>_' + key] = isGradeable;
+                                window['criteriaWeight_<?php echo $joID; ?>_' + key] = String(weight);
+                                window['criteriaScoreMax_<?php echo $joID; ?>_' + key] = String(scoreMax);
 
                                 var tbody = document.getElementById('criteriaBody_<?php echo $joID; ?>_' + stageIdx);
                                 var row   = tbody.insertRow(tbody.rows.length);
@@ -642,38 +702,38 @@ function evalTplWeight($value)
                                 var cellType = row.insertCell(2);
                                 cellType.innerHTML =
                                     '<span id="criteriaTypeDisplay_<?php echo $joID; ?>_' + key + '"></span>' +
-                                    '<select id="criteriaTypeInput_<?php echo $joID; ?>_' + key + '" class="inputbox" style="display:none; width:90px;">' +
+                                    '<select id="criteriaTypeInput_<?php echo $joID; ?>_' + key + '" class="inputbox" style="display:none; width:90px;" onchange="onCriteriaTypeChange_<?php echo $joID; ?>(this, \'' + key + '\');">' +
                                         '<option value="text">text</option>' +
+                                        '<option value="score">score</option>' +
                                         '<option value="date">date</option>' +
                                         '<option value="number">number</option>' +
                                     '</select>';
                                 document.getElementById('criteriaTypeDisplay_<?php echo $joID; ?>_' + key).textContent = dataType;
 
-                                var cellGradeable = row.insertCell(3);
-                                cellGradeable.style.textAlign  = 'center';
-                                cellGradeable.style.whiteSpace = 'nowrap';
-                                cellGradeable.innerHTML =
-                                    '<input type="checkbox" id="criteriaGradeableInput_<?php echo $joID; ?>_' + key + '"' +
-                                        (isGradeable ? ' checked="checked"' : '') +
-                                        ' disabled="disabled"' +
-                                        ' onchange="onCriteriaGradeableToggle_<?php echo $joID; ?>(this, \'' + key + '\');" />';
-
-                                var cellWeight = row.insertCell(4);
+                                var cellWeight = row.insertCell(3);
                                 cellWeight.style.whiteSpace = 'nowrap';
                                 cellWeight.innerHTML =
                                     '<span id="criteriaWeightDisplay_<?php echo $joID; ?>_' + key + '">' + weight + '</span>' +
                                     '<span id="criteriaWeightEdit_<?php echo $joID; ?>_' + key + '" style="display:none;">' +
                                         '<input type="text" class="inputbox weightBox" id="criteriaWeightInput_<?php echo $joID; ?>_' + key + '" ' +
-                                            'value="' + weight + '" ' + (isGradeable ? '' : 'disabled="disabled" ') +
+                                            'value="' + weight + '" ' + (isScore ? '' : 'disabled="disabled" ') +
                                             'onkeyup="recalcCriteriaShares_<?php echo $joID; ?>(' + stageIdx + ');" />' +
                                     '</span>' +
                                     '<span class="shareNote" id="criteriaShare_<?php echo $joID; ?>_' + key + '"></span>';
 
-                                window['criteriaWeight_<?php echo $joID; ?>_' + key] = String(weight);
+                                var cellMax = row.insertCell(4);
+                                cellMax.style.whiteSpace = 'nowrap';
+                                cellMax.innerHTML =
+                                    '<span id="criteriaScoreMaxDisplay_<?php echo $joID; ?>_' + key + '">' + (isScore ? scoreMax : '') + '</span>' +
+                                    '<span id="criteriaScoreMaxEdit_<?php echo $joID; ?>_' + key + '" style="display:none;">' +
+                                        '<input type="text" class="inputbox scoreMaxBox" id="criteriaScoreMaxInput_<?php echo $joID; ?>_' + key + '" ' +
+                                            'value="' + scoreMax + '" ' + (isScore ? '' : 'disabled="disabled" ') + '/>' +
+                                    '</span>';
+
                                 window['criteriaCount_<?php echo $joID; ?>_' + stageIdx]++;
 
                                 var stageName = window['stageName_<?php echo $joID; ?>_' + stageIdx];
-                                appendCommand(<?php echo $joID; ?>, 'ADDCRITERIA ' + encodeURIComponent(stageName) + ' ' + encodeURIComponent(name) + ' ' + encodeURIComponent(dataType) + ' ' + weight + ' ' + (isGradeable ? 1 : 0));
+                                appendCommand(<?php echo $joID; ?>, 'ADDCRITERIA ' + encodeURIComponent(stageName) + ' ' + encodeURIComponent(name) + ' ' + encodeURIComponent(dataType) + ' ' + weight + ' ' + scoreMax);
                                 hideAddCriteria_<?php echo $joID; ?>(stageIdx);
                                 recalcCriteriaShares_<?php echo $joID; ?>(stageIdx);
                             }
@@ -687,20 +747,15 @@ function evalTplWeight($value)
                                 var stageWeight = wBoxNew ? parseWeight(wBoxNew.value) : 100;
 
                                 var idx = stageCount_<?php echo $joID; ?>++;
-                                window['criteriaCount_<?php echo $joID; ?>_' + idx] = 2;
+                                window['criteriaCount_<?php echo $joID; ?>_' + idx] = 1;
                                 window['stageName_<?php echo $joID; ?>_' + idx]     = stageName;
-                                window['criteriaName_<?php echo $joID; ?>_' + idx + '_0'] = 'Rating';
-                                window['criteriaName_<?php echo $joID; ?>_' + idx + '_1'] = 'Comments';
-                                window['criteriaType_<?php echo $joID; ?>_' + idx + '_0'] = 'text';
-                                window['criteriaType_<?php echo $joID; ?>_' + idx + '_1'] = 'text';
-                                /* Matches EvaluationTemplate::addStage(): the new
-                                   stage arrives with Rating already gradeable and
-                                   carrying the full weight, not needing the
-                                   checkbox ticked by hand first. */
-                                window['criteriaGradeable_<?php echo $joID; ?>_' + idx + '_0'] = true;
-                                window['criteriaGradeable_<?php echo $joID; ?>_' + idx + '_1'] = false;
-                                window['criteriaWeight_<?php echo $joID; ?>_' + idx + '_0'] = '100';
-                                window['criteriaWeight_<?php echo $joID; ?>_' + idx + '_1'] = '0';
+                                /* Only Comments is seeded now. A Score criterion is
+                                   no longer added automatically - the user adds one
+                                   explicitly if this stage should be graded. */
+                                window['criteriaName_<?php echo $joID; ?>_' + idx + '_0']     = 'Comments';
+                                window['criteriaType_<?php echo $joID; ?>_' + idx + '_0']     = 'text';
+                                window['criteriaWeight_<?php echo $joID; ?>_' + idx + '_0']   = '0';
+                                window['criteriaScoreMax_<?php echo $joID; ?>_' + idx + '_0'] = '<?php echo EVAL_TPL_DEFAULT_SCORE_MAX; ?>';
 
                                 var tbl = document.getElementById('stagesTable_<?php echo $joID; ?>');
                                 var row = tbl.insertRow(tbl.rows.length);
@@ -748,8 +803,8 @@ function evalTplWeight($value)
                                             '<th width="90"></th>' +
                                             '<th align="left">Criteria</th>' +
                                             '<th align="left" width="70">Type</th>' +
-                                            '<th align="left" width="70">Gradeable</th>' +
-                                            '<th align="left" width="110">Weight</th>' +
+                                            '<th align="left" width="80">Weight</th>' +
+                                            '<th align="left" width="70">Max</th>' +
                                         '</tr></thead>' +
                                         '<tr class="evenTableRow" id="criteriaRow_<?php echo $joID; ?>_' + idx + '_0">' +
                                             '<td style="white-space:nowrap;">' +
@@ -763,7 +818,7 @@ function evalTplWeight($value)
                                                 '</a>' +
                                             '</td>' +
                                             '<td>' +
-                                                '<span id="criteriaNameDisplay_<?php echo $joID; ?>_' + idx + '_0">Rating</span>' +
+                                                '<span id="criteriaNameDisplay_<?php echo $joID; ?>_' + idx + '_0">Comments</span>' +
                                                 '<span id="criteriaNameEditArea_<?php echo $joID; ?>_' + idx + '_0" style="display:none;">' +
                                                     '<input type="text" id="criteriaNameInput_<?php echo $joID; ?>_' + idx + '_0" class="inputbox" style="width:140px;" />' +
                                                     '<input type="button" class="button" value="Save" onclick="saveCriteriaEdit_<?php echo $joID; ?>(' + idx + ', 0);" />' +
@@ -772,63 +827,26 @@ function evalTplWeight($value)
                                             '</td>' +
                                             '<td>' +
                                                 '<span id="criteriaTypeDisplay_<?php echo $joID; ?>_' + idx + '_0">text</span>' +
-                                                '<select id="criteriaTypeInput_<?php echo $joID; ?>_' + idx + '_0" class="inputbox" style="display:none; width:90px;">' +
+                                                '<select id="criteriaTypeInput_<?php echo $joID; ?>_' + idx + '_0" class="inputbox" style="display:none; width:90px;" onchange="onCriteriaTypeChange_<?php echo $joID; ?>(this, \'' + idx + '_0\');">' +
                                                     '<option value="text">text</option>' +
+                                                    '<option value="score">score</option>' +
                                                     '<option value="date">date</option>' +
                                                     '<option value="number">number</option>' +
                                                 '</select>' +
                                             '</td>' +
-                                            '<td style="text-align:center; white-space:nowrap;">' +
-                                                '<input type="checkbox" id="criteriaGradeableInput_<?php echo $joID; ?>_' + idx + '_0" checked="checked" disabled="disabled" ' +
-                                                    'onchange="onCriteriaGradeableToggle_<?php echo $joID; ?>(this, \'' + idx + '_0\');" />' +
-                                            '</td>' +
                                             '<td style="white-space:nowrap;">' +
-                                                '<span id="criteriaWeightDisplay_<?php echo $joID; ?>_' + idx + '_0">100</span>' +
+                                                '<span id="criteriaWeightDisplay_<?php echo $joID; ?>_' + idx + '_0">0</span>' +
                                                 '<span id="criteriaWeightEdit_<?php echo $joID; ?>_' + idx + '_0" style="display:none;">' +
-                                                    '<input type="text" class="inputbox weightBox" id="criteriaWeightInput_<?php echo $joID; ?>_' + idx + '_0" value="100" ' +
+                                                    '<input type="text" class="inputbox weightBox" id="criteriaWeightInput_<?php echo $joID; ?>_' + idx + '_0" value="0" disabled="disabled" ' +
                                                         'onkeyup="recalcCriteriaShares_<?php echo $joID; ?>(' + idx + ');" />' +
                                                 '</span>' +
                                                 '<span class="shareNote" id="criteriaShare_<?php echo $joID; ?>_' + idx + '_0"></span>' +
                                             '</td>' +
-                                        '</tr>' +
-                                        '<tr class="oddTableRow" id="criteriaRow_<?php echo $joID; ?>_' + idx + '_1">' +
                                             '<td style="white-space:nowrap;">' +
-                                                '<a href="javascript:void(0);" onclick="deleteCriteria_<?php echo $joID; ?>(' + idx + ', 1);"><img src="images/actions/delete.gif" border="0"/></a>' +
-                                                '<a href="javascript:void(0);" style="margin-left:4px;" onclick="editCriteria_<?php echo $joID; ?>(' + idx + ', 1);"><img src="images/edit.gif" border="0"/></a>' +
-                                                '<a href="javascript:void(0);" style="padding:0px; margin-left:4px;" onclick="moveCriteriaUp_<?php echo $joID; ?>(' + idx + ', 1);">' +
-                                                    '<img src="images/scrollTop.jpg" width="12" height="12" border="0" style="padding:0px;" />' +
-                                                '</a>' +
-                                                '<a href="javascript:void(0);" style="padding:0px; margin-left:2px;" onclick="moveCriteriaDown_<?php echo $joID; ?>(' + idx + ', 1);">' +
-                                                    '<img src="images/scrollBottom.jpg" width="12" height="12" border="0" style="padding:0px;" />' +
-                                                '</a>' +
-                                            '</td>' +
-                                            '<td>' +
-                                                '<span id="criteriaNameDisplay_<?php echo $joID; ?>_' + idx + '_1">Comments</span>' +
-                                                '<span id="criteriaNameEditArea_<?php echo $joID; ?>_' + idx + '_1" style="display:none;">' +
-                                                    '<input type="text" id="criteriaNameInput_<?php echo $joID; ?>_' + idx + '_1" class="inputbox" style="width:140px;" />' +
-                                                    '<input type="button" class="button" value="Save" onclick="saveCriteriaEdit_<?php echo $joID; ?>(' + idx + ', 1);" />' +
-                                                    '<input type="button" class="button" value="Cancel" onclick="cancelCriteriaEdit_<?php echo $joID; ?>(' + idx + ', 1);" />' +
+                                                '<span id="criteriaScoreMaxDisplay_<?php echo $joID; ?>_' + idx + '_0"></span>' +
+                                                '<span id="criteriaScoreMaxEdit_<?php echo $joID; ?>_' + idx + '_0" style="display:none;">' +
+                                                    '<input type="text" class="inputbox scoreMaxBox" id="criteriaScoreMaxInput_<?php echo $joID; ?>_' + idx + '_0" value="<?php echo EVAL_TPL_DEFAULT_SCORE_MAX; ?>" disabled="disabled" />' +
                                                 '</span>' +
-                                            '</td>' +
-                                            '<td>' +
-                                                '<span id="criteriaTypeDisplay_<?php echo $joID; ?>_' + idx + '_1">text</span>' +
-                                                '<select id="criteriaTypeInput_<?php echo $joID; ?>_' + idx + '_1" class="inputbox" style="display:none; width:90px;">' +
-                                                    '<option value="text">text</option>' +
-                                                    '<option value="date">date</option>' +
-                                                    '<option value="number">number</option>' +
-                                                '</select>' +
-                                            '</td>' +
-                                            '<td style="text-align:center; white-space:nowrap;">' +
-                                                '<input type="checkbox" id="criteriaGradeableInput_<?php echo $joID; ?>_' + idx + '_1" disabled="disabled" ' +
-                                                    'onchange="onCriteriaGradeableToggle_<?php echo $joID; ?>(this, \'' + idx + '_1\');" />' +
-                                            '</td>' +
-                                            '<td style="white-space:nowrap;">' +
-                                                '<span id="criteriaWeightDisplay_<?php echo $joID; ?>_' + idx + '_1">0</span>' +
-                                                '<span id="criteriaWeightEdit_<?php echo $joID; ?>_' + idx + '_1" style="display:none;">' +
-                                                    '<input type="text" class="inputbox weightBox" id="criteriaWeightInput_<?php echo $joID; ?>_' + idx + '_1" value="0" disabled="disabled" ' +
-                                                        'onkeyup="recalcCriteriaShares_<?php echo $joID; ?>(' + idx + ');" />' +
-                                                '</span>' +
-                                                '<span class="shareNote" id="criteriaShare_<?php echo $joID; ?>_' + idx + '_1"></span>' +
                                             '</td>' +
                                         '</tr>' +
                                         '<tbody id="criteriaBody_<?php echo $joID; ?>_' + idx + '"></tbody>' +
@@ -841,16 +859,16 @@ function evalTplWeight($value)
                                     '<div id="addCriteriaArea_<?php echo $joID; ?>_' + idx + '" style="display:none; margin-top:4px; margin-bottom:10px;">' +
                                         '<input id="addCriteriaInput_<?php echo $joID; ?>_' + idx + '" type="text" class="inputbox" style="width:160px;" ' +
                                             'onkeypress="if(event.keyCode==13){doAddCriteria_<?php echo $joID; ?>(' + idx + ');return false;}"/>' +
-                                        '<select id="addCriteriaType_<?php echo $joID; ?>_' + idx + '" class="inputbox" style="width:90px;">' +
+                                        '<select id="addCriteriaType_<?php echo $joID; ?>_' + idx + '" class="inputbox" style="width:90px;" onchange="onAddCriteriaTypeChange_<?php echo $joID; ?>(' + idx + ');">' +
                                             '<option value="text">Text</option>' +
+                                            '<option value="score">Score</option>' +
                                             '<option value="date">Date</option>' +
                                             '<option value="number">Number</option>' +
                                         '</select>' +
-                                        '<label style="font-size:11px; color:#666; margin-left:4px;">' +
-                                            '<input type="checkbox" id="addCriteriaGradeable_<?php echo $joID; ?>_' + idx + '" ' +
-                                                'onchange="document.getElementById(\'addCriteriaWeight_<?php echo $joID; ?>_' + idx + '\').disabled = !this.checked;" /> Gradeable' +
-                                        '</label>' +
+                                        '<span style="font-size:11px; color:#666; margin-left:4px;">Weight</span>' +
                                         '<input id="addCriteriaWeight_<?php echo $joID; ?>_' + idx + '" type="text" class="inputbox weightBox" value="0" title="Weight" disabled="disabled" />' +
+                                        '<span style="font-size:11px; color:#666; margin-left:4px;">Max</span>' +
+                                        '<input id="addCriteriaScoreMax_<?php echo $joID; ?>_' + idx + '" type="text" class="inputbox scoreMaxBox" value="<?php echo EVAL_TPL_DEFAULT_SCORE_MAX; ?>" title="Max score" disabled="disabled" />' +
                                         '<input type="button" class="button" value="Add Criteria" onclick="doAddCriteria_<?php echo $joID; ?>(' + idx + ');"/>' +
                                         '<input type="button" class="button" value="Cancel" onclick="hideAddCriteria_<?php echo $joID; ?>(' + idx + ');"/>' +
                                     '</div>';
@@ -950,12 +968,18 @@ function evalTplWeight($value)
                                                             <th width="90"></th>
                                                             <th align="left">Criteria</th>
                                                             <th align="left" width="70">Type</th>
-                                                            <th align="left" width="70">Gradeable</th>
-                                                            <th align="left" width="110">Weight</th>
+                                                            <th align="left" width="80">Weight</th>
+                                                            <th align="left" width="70">Max</th>
                                                         </tr>
                                                     </thead>
                                                     <?php foreach ($stage['criteria'] as $criteriaIdx => $criterion): ?>
-                                                    <?php $criterionType = isset($criterion['data_type']) ? $criterion['data_type'] : 'text'; ?>
+                                                    <?php
+                                                        $criterionType   = isset($criterion['data_type']) ? $criterion['data_type'] : 'text';
+                                                        $criterionIsScore = evalTplIsScore($criterion);
+                                                        $criterionScoreMax = ($criterionIsScore)
+                                                            ? evalTplWeight(isset($criterion['score_max']) && $criterion['score_max'] !== null ? $criterion['score_max'] : EVAL_TPL_DEFAULT_SCORE_MAX)
+                                                            : evalTplWeight(EVAL_TPL_DEFAULT_SCORE_MAX);
+                                                    ?>
                                                     <tr class="<?php echo ($criteriaIdx % 2 === 0) ? 'evenTableRow' : 'oddTableRow'; ?>"
                                                         id="criteriaRow_<?php echo $joID; ?>_<?php echo $stageIdx; ?>_<?php echo $criteriaIdx; ?>">
                                                         <td style="white-space:nowrap;">
@@ -986,18 +1010,13 @@ function evalTplWeight($value)
                                                         </td>
                                                         <td>
                                                             <span id="criteriaTypeDisplay_<?php echo $joID; ?>_<?php echo $stageIdx; ?>_<?php echo $criteriaIdx; ?>"><?php echo htmlspecialchars($criterionType, ENT_QUOTES, 'UTF-8'); ?></span>
-                                                            <select id="criteriaTypeInput_<?php echo $joID; ?>_<?php echo $stageIdx; ?>_<?php echo $criteriaIdx; ?>" class="inputbox" style="display:none; width:90px;">
+                                                            <select id="criteriaTypeInput_<?php echo $joID; ?>_<?php echo $stageIdx; ?>_<?php echo $criteriaIdx; ?>" class="inputbox" style="display:none; width:90px;"
+                                                                    onchange="onCriteriaTypeChange_<?php echo $joID; ?>(this, '<?php echo $stageIdx; ?>_<?php echo $criteriaIdx; ?>');">
                                                                 <option value="text">text</option>
+                                                                <option value="score">score</option>
                                                                 <option value="date">date</option>
                                                                 <option value="number">number</option>
                                                             </select>
-                                                        </td>
-                                                        <td style="text-align:center; white-space:nowrap;">
-                                                            <input type="checkbox"
-                                                                   id="criteriaGradeableInput_<?php echo $joID; ?>_<?php echo $stageIdx; ?>_<?php echo $criteriaIdx; ?>"
-                                                                   <?php echo !empty($criterion['is_gradeable']) ? 'checked="checked"' : ''; ?>
-                                                                   disabled="disabled"
-                                                                   onchange="onCriteriaGradeableToggle_<?php echo $joID; ?>(this, '<?php echo $stageIdx; ?>_<?php echo $criteriaIdx; ?>');" />
                                                         </td>
                                                         <td style="white-space:nowrap;">
                                                             <span id="criteriaWeightDisplay_<?php echo $joID; ?>_<?php echo $stageIdx; ?>_<?php echo $criteriaIdx; ?>"><?php echo evalTplWeight(isset($criterion['weight']) ? $criterion['weight'] : 0); ?></span>
@@ -1005,10 +1024,19 @@ function evalTplWeight($value)
                                                                 <input type="text" class="inputbox weightBox"
                                                                        id="criteriaWeightInput_<?php echo $joID; ?>_<?php echo $stageIdx; ?>_<?php echo $criteriaIdx; ?>"
                                                                        value="<?php echo evalTplWeight(isset($criterion['weight']) ? $criterion['weight'] : 0); ?>"
-                                                                       <?php echo empty($criterion['is_gradeable']) ? 'disabled="disabled"' : ''; ?>
+                                                                       <?php echo !$criterionIsScore ? 'disabled="disabled"' : ''; ?>
                                                                        onkeyup="recalcCriteriaShares_<?php echo $joID; ?>(<?php echo $stageIdx; ?>);" />
                                                             </span>
                                                             <span class="shareNote" id="criteriaShare_<?php echo $joID; ?>_<?php echo $stageIdx; ?>_<?php echo $criteriaIdx; ?>"></span>
+                                                        </td>
+                                                        <td style="white-space:nowrap;">
+                                                            <span id="criteriaScoreMaxDisplay_<?php echo $joID; ?>_<?php echo $stageIdx; ?>_<?php echo $criteriaIdx; ?>"><?php echo $criterionIsScore ? $criterionScoreMax : ''; ?></span>
+                                                            <span id="criteriaScoreMaxEdit_<?php echo $joID; ?>_<?php echo $stageIdx; ?>_<?php echo $criteriaIdx; ?>" style="display:none;">
+                                                                <input type="text" class="inputbox scoreMaxBox"
+                                                                       id="criteriaScoreMaxInput_<?php echo $joID; ?>_<?php echo $stageIdx; ?>_<?php echo $criteriaIdx; ?>"
+                                                                       value="<?php echo $criterionScoreMax; ?>"
+                                                                       <?php echo !$criterionIsScore ? 'disabled="disabled"' : ''; ?> />
+                                                            </span>
                                                         </td>
                                                     </tr>
                                                     <?php endforeach; ?>
@@ -1026,17 +1054,19 @@ function evalTplWeight($value)
                                                     <input id="addCriteriaInput_<?php echo $joID; ?>_<?php echo $stageIdx; ?>"
                                                            type="text" class="inputbox" style="width:160px;"
                                                            onkeypress="if(event.keyCode==13){ doAddCriteria_<?php echo $joID; ?>(<?php echo $stageIdx; ?>); return false; }" />
-                                                    <select id="addCriteriaType_<?php echo $joID; ?>_<?php echo $stageIdx; ?>" class="inputbox" style="width:90px;">
+                                                    <select id="addCriteriaType_<?php echo $joID; ?>_<?php echo $stageIdx; ?>" class="inputbox" style="width:90px;"
+                                                            onchange="onAddCriteriaTypeChange_<?php echo $joID; ?>(<?php echo $stageIdx; ?>);">
                                                         <option value="text">Text</option>
+                                                        <option value="score">Score</option>
                                                         <option value="date">Date</option>
                                                         <option value="number">Number</option>
                                                     </select>
-                                                    <label style="font-size:11px; color:#666; margin-left:4px;">
-                                                        <input type="checkbox" id="addCriteriaGradeable_<?php echo $joID; ?>_<?php echo $stageIdx; ?>"
-                                                               onchange="document.getElementById('addCriteriaWeight_<?php echo $joID; ?>_<?php echo $stageIdx; ?>').disabled = !this.checked;" /> Gradeable
-                                                    </label>
+                                                    <span style="font-size:11px; color:#666; margin-left:4px;">Weight</span>
                                                     <input id="addCriteriaWeight_<?php echo $joID; ?>_<?php echo $stageIdx; ?>"
                                                            type="text" class="inputbox weightBox" value="0" title="Weight" disabled="disabled" />
+                                                    <span style="font-size:11px; color:#666; margin-left:4px;">Max</span>
+                                                    <input id="addCriteriaScoreMax_<?php echo $joID; ?>_<?php echo $stageIdx; ?>"
+                                                           type="text" class="inputbox scoreMaxBox" value="<?php echo EVAL_TPL_DEFAULT_SCORE_MAX; ?>" title="Max score" disabled="disabled" />
                                                     <input type="button" class="button" value="Add Criteria"
                                                            onclick="doAddCriteria_<?php echo $joID; ?>(<?php echo $stageIdx; ?>);" />
                                                     <input type="button" class="button" value="Cancel"

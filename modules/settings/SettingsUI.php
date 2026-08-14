@@ -1650,7 +1650,6 @@ class SettingsUI extends UserInterface
         $this->_template->assign('subActive', 'Administration');
         $this->_template->display('./modules/settings/CustomizeEvaluationTemplate.tpl');
     }
-
 private function onCustomizeEvaluationTemplate()
 {
     $jobOrderID     = isset($_POST['jobOrderID']) ? (int) $_POST['jobOrderID'] : 0;
@@ -1699,21 +1698,26 @@ private function onCustomizeEvaluationTemplate()
                     if ($stageID !== false)
                         $evalTemplate->deleteStage($stageID);
                     break;
+
                 case 'ADDCRITERIA':
+                    // ADDCRITERIA stageName criteriaName dataType weight scoreMax
+                    // isGradeable is no longer a separate argument - it's
+                    // derived server-side from dataType === 'score'.
                     if (!isset($args[2])) break;
                     $stageName    = urldecode($args[1]);
                     $criteriaName = urldecode($args[2]);
                     $dataType     = isset($args[3]) ? urldecode($args[3]) : 'text';
                     $weight       = isset($args[4]) ? (float) urldecode($args[4]) : 0;
-                    $isGradeable  = isset($args[5]) ? ((urldecode($args[5]) === '1') ? 1 : 0) : 0;
+                    $scoreMax     = isset($args[5]) ? (float) urldecode($args[5]) : null;
                     $stageID = $evalTemplate->getStageIDByName($templateID, $stageName);
                     if ($stageID !== false && $criteriaName !== '')
                     {
                         $position = $evalTemplate->getNextCriteriaPosition($stageID);
-                        $evalTemplate->addCriteria($stageID, $criteriaName, $position, $dataType, $weight, $isGradeable);
+                        $evalTemplate->addCriteria($stageID, $criteriaName, $position, $dataType, $weight, $scoreMax);
                     }
                     break;
- case 'SETSTAGEWEIGHT':
+
+                case 'SETSTAGEWEIGHT':
                     if (!isset($args[2])) break;
                     $stageName = urldecode($args[1]);
                     $weight    = (float) urldecode($args[2]);
@@ -1739,21 +1743,23 @@ private function onCustomizeEvaluationTemplate()
                         }
                     }
                     break;
-                    case 'SETGRADEABLE':
-                        if (!isset($args[3])) break;
-                        $stageName    = urldecode($args[1]);
-                        $criteriaName = urldecode($args[2]);
-                        $isGradeable  = (urldecode($args[3]) === '1') ? 1 : 0;
-                        $stageID = $evalTemplate->getStageIDByName($templateID, $stageName);
-                        if ($stageID !== false)
+
+                case 'SETSCORERANGE':
+                    // SETSCORERANGE stageName criteriaName max
+                    if (!isset($args[3])) break;
+                    $stageName    = urldecode($args[1]);
+                    $criteriaName = urldecode($args[2]);
+                    $max          = (float) urldecode($args[3]);
+                    $stageID = $evalTemplate->getStageIDByName($templateID, $stageName);
+                    if ($stageID !== false)
+                    {
+                        $criteriaID = $evalTemplate->getCriteriaIDByName($stageID, $criteriaName);
+                        if ($criteriaID !== false)
                         {
-                            $criteriaID = $evalTemplate->getCriteriaIDByName($stageID, $criteriaName);
-                            if ($criteriaID !== false)
-                            {
-                                $evalTemplate->setCriteriaGradeable($criteriaID, $isGradeable);
-                            }
+                            $evalTemplate->setCriteriaScoreMax($criteriaID, $max);
                         }
-                        break;
+                    }
+                    break;
 
                 case 'DELETECRITERIA':
                     if (!isset($args[2])) break;
@@ -1767,6 +1773,7 @@ private function onCustomizeEvaluationTemplate()
                             $evalTemplate->deleteCriteria($criteriaID);
                     }
                     break;
+
                 case 'RENAMESTAGE':
                     if (!isset($args[1])) break;
                     $parts = explode(':', urldecode($args[1]), 2);
@@ -1793,150 +1800,53 @@ private function onCustomizeEvaluationTemplate()
                             $evalTemplate->renameCriteria($criteriaID, $newName);
                     }
                     break;
-                    
+
                 case 'CHANGECRITERIATYPE':
-                    // CHANGECRITERIATYPE stageName criteriaName dataType
+                    // CHANGECRITERIATYPE stageName criteriaName dataType scoreMax
+                    // is_gradeable is derived from dataType server-side;
+                    // scoreMax is only applied when dataType is 'score'.
                     if (!isset($args[3])) break;
                     $stageName    = urldecode($args[1]);
                     $criteriaName = urldecode($args[2]);
                     $dataType     = urldecode($args[3]);
+                    $scoreMax     = isset($args[4]) ? (float) urldecode($args[4]) : null;
                     $stageID = $evalTemplate->getStageIDByName($templateID, $stageName);
                     if ($stageID !== false)
                     {
                         $criteriaID = $evalTemplate->getCriteriaIDByName($stageID, $criteriaName);
                         if ($criteriaID !== false)
                         {
-                            $evalTemplate->changeCriteriaType($criteriaID, $dataType);
+                            $evalTemplate->changeCriteriaType($criteriaID, $dataType, $scoreMax);
                         }
                     }
                     break;
 
-            case 'MOVESTAGEUP':
-            case 'MOVESTAGEDOWN':
-                $stageName = isset($args[1]) ? urldecode($args[1]) : '';
-                $stageID   = $evalTemplate->getStageIDByName($templateID, $stageName);
-                if ($stageID !== false)
-                    $evalTemplate->moveStage($templateID, $stageID, $args[0] === 'MOVESTAGEUP' ? 'up' : 'down');
-                break;
+                case 'MOVESTAGEUP':
+                case 'MOVESTAGEDOWN':
+                    $stageName = isset($args[1]) ? urldecode($args[1]) : '';
+                    $stageID   = $evalTemplate->getStageIDByName($templateID, $stageName);
+                    if ($stageID !== false)
+                        $evalTemplate->moveStage($templateID, $stageID, $args[0] === 'MOVESTAGEUP' ? 'up' : 'down');
+                    break;
 
-            case 'MOVECRITERIAUP':
-            case 'MOVECRITERIADOWN':
-                if (!isset($args[2])) break;
-                $stageName    = urldecode($args[1]);
-                $criteriaName = urldecode($args[2]);
-                $stageID = $evalTemplate->getStageIDByName($templateID, $stageName);
-                if ($stageID !== false)
-                {
-                    $criteriaID = $evalTemplate->getCriteriaIDByName($stageID, $criteriaName);
-                    if ($criteriaID !== false)
-                        $evalTemplate->moveCriteria($stageID, $criteriaID, $args[0] === 'MOVECRITERIAUP' ? 'up' : 'down');
-                }
-                break;
+                case 'MOVECRITERIAUP':
+                case 'MOVECRITERIADOWN':
+                    if (!isset($args[2])) break;
+                    $stageName    = urldecode($args[1]);
+                    $criteriaName = urldecode($args[2]);
+                    $stageID = $evalTemplate->getStageIDByName($templateID, $stageName);
+                    if ($stageID !== false)
+                    {
+                        $criteriaID = $evalTemplate->getCriteriaIDByName($stageID, $criteriaName);
+                        if ($criteriaID !== false)
+                            $evalTemplate->moveCriteria($stageID, $criteriaID, $args[0] === 'MOVECRITERIAUP' ? 'up' : 'down');
+                    }
+                    break;
             }
         }
 
        CATSUtility::transferRelativeURI('m=settings&a=customizeEvaluationTemplate&jobOrderID=' . $jobOrderID);
     }
-
-    //FIXME: Document me.
-    private function emailTemplates()
-    {
-        $emailTemplates = new EmailTemplates($this->_siteID);
-        $emailTemplatesRS = $emailTemplates->getAll();
-        $emailTemplatesRS = array_values(array_filter($emailTemplatesRS, function($tpl) {
-            return strpos($tpl['emailTemplateTag'], 'EMAIL_TEMPLATE_STATUSCHANGE_') !== 0;
-        }));
-        $pipelines = new Pipelines($this->_siteID);
-        $candidateStatusesRS = $pipelines->getStatusesForPicking();
-        $statusChangeFallbackText = '';
-        $statusChangePossibleVariables = '';
-        foreach ($emailTemplatesRS as $tpl) {
-            if ($tpl['emailTemplateTag'] === 'EMAIL_TEMPLATE_STATUSCHANGE') {
-                $statusChangeFallbackText      = $tpl['text'];
-                $statusChangePossibleVariables = $tpl['possibleVariables'];
-                break;
-            }
-        }
-        $emailTemplates = new EmailTemplates($this->_siteID);
-        $allTemplatesRS = $emailTemplates->getAll();
-        $emailTemplatesRS = array_values(array_filter($allTemplatesRS, function($tpl) {
-            return strpos($tpl['emailTemplateTag'], 'EMAIL_TEMPLATE_STATUSCHANGE_') !== 0;
-        }));
-        $statusChangeTemplatesRS = array();
-        foreach ($allTemplatesRS as $tpl) {
-            if (strpos($tpl['emailTemplateTag'], 'EMAIL_TEMPLATE_STATUSCHANGE_') === 0) {
-                $sid = (int) substr($tpl['emailTemplateTag'], strlen('EMAIL_TEMPLATE_STATUSCHANGE_'));
-                $statusChangeTemplatesRS[$sid] = $tpl;
-            }
-        }
-        if (!eval(Hooks::get('SETTINGS_EMAIL_TEMPLATES'))) return;
-	
-        $this->_template->assign('candidateStatusesRS',        $candidateStatusesRS);
-        $this->_template->assign('statusChangeTemplatesRS',     $statusChangeTemplatesRS);
-        $this->_template->assign('statusChangeFallbackText',    $statusChangeFallbackText);
-        $this->_template->assign('statusChangePossibleVariables', $statusChangePossibleVariables);
-        $this->_template->assign('active', $this);
-        $this->_template->assign('subActive', 'Administration');
-        $this->_template->assign('emailTemplatesRS', $emailTemplatesRS);
-        $this->_template->display('./modules/settings/EmailTemplates.tpl');
-    }
-
-    //FIXME: Document me.
-    private function onEmailTemplates()
-    {
-        $isStatusSub = !empty($_POST['isStatusSubTemplate']);
-        if (!$isStatusSub && !$this->isRequiredIDValid('templateID', $_POST)) {
-            CommonErrors::fatal(COMMONERROR_BADINDEX, $this, 'Invalid template ID.');
-        }
-        if (!isset($_POST['templateID']))
-        {
-            CommonErrors::fatal(COMMONERROR_MISSINGFIELDS, $this, 'Required fields are missing.');
-        }
-
-        $templateID = $_POST['templateID'];
-        
-        if(isset($_POST['emailTemplateTitle']))
-        {
-             $templateTitle = $_POST['emailTemplateTitle'];
-        }
-        else
-        {
-             $templateTitle = "";
-        }
-        
-        $useThisTemplate = isset($_POST['useThisTemplate']);
-
-        if ($useThisTemplate)
-        {
-            $text = $this->getTrimmedInput('messageText', $_POST);
-            $disabled = 0;
-        }
-        else
-        {
-            $text = $this->getTrimmedInput('messageTextOrigional', $_POST);
-            $disabled = 1;
-        }
-
-        if (!isset($_POST['templateID']))
-        {
-            CommonErrors::fatal(COMMONERROR_MISSINGFIELDS, $this, 'Required fields are missing.');
-        }
-
-        $emailTemplates = new EmailTemplates($this->_siteID);
-       // $emailTemplates->update($templateID, $templateTitle, $text, $disabled);
-        $genericTpl = $emailTemplates->getByTag('EMAIL_TEMPLATE_STATUSCHANGE');
-        $statusChangePossibleVariables = $genericTpl['possibleVariables'] ?? '';
-       
-        if ($isStatusSub && (int)$templateID === 0) {
-            $statusID = (int) $_POST['statusID'];
-            $tag      = 'EMAIL_TEMPLATE_STATUSCHANGE_' . $statusID;
-            $emailTemplates->add($text, $tag, $tag, $this->_siteID, $statusChangePossibleVariables);
-        } else {
-            $emailTemplates->update($templateID, $templateTitle, $text, $disabled);
-        }
-        CATSUtility::transferRelativeURI('m=settings&a=emailTemplates');
-    }
-
     /*
      * Called by handleRequest() to show a page with a message in the top frame
      * with a close window button.

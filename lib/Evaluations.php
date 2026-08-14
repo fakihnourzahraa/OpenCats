@@ -12,19 +12,21 @@
  * afterwards with no effect on the template. Nothing here references
  * evaluation_template / evaluation_stage / evaluation_criteria.
  *
- * Every criterion has TWO independent things:
+ * data_type is what the ANSWER input looks like: text / date / number /
+ * score. 'score' is the only type that also carries a GRADE - is_gradeable
+ * is DERIVED from data_type (see _deriveGradeable()), never set directly, so
+ * the two can never drift apart. A score criterion also carries its own
+ * max_range (the grade runs 0..max_range, a double) - two score criteria in
+ * the same stage can have different ranges (a /5 and a /10), which is why
+ * scoring normalizes each grade against its own criterion's range before
+ * weighting them together. See EvaluationScore.php for that arithmetic.
  *
- *   data_type      what the ANSWER input looks like (text / date / number)
- *   is_gradeable   whether this criterion ALSO carries a 1-5 GRADE
+ * The answer (`value`) and the grade (`grade`) are stored as two separate
+ * columns on the same evaluation_criteria_value row, so changing a
+ * criterion's type away from and back to 'score' never loses either one.
  *
- * They are unrelated - a date criterion can be graded, a text criterion can
- * be graded. The answer (`value`) and the grade (`grade`) are stored as two
- * separate columns on the same evaluation_criteria_value row, so switching
- * the gradeable checkbox off and back on never loses either one.
- *
- * Stages and gradeable criteria carry a WEIGHT. Weights are raw user input,
- * not required to sum to anything; EvaluationScore turns them into shares.
- * See EvaluationScore.php for the full scoring model.
+ * Stages and score criteria carry a WEIGHT. Weights are raw user input, not
+ * required to sum to anything; EvaluationScore turns them into shares.
  */
 
 include_once(LEGACY_ROOT . '/lib/DatabaseConnection.php');
@@ -32,9 +34,13 @@ include_once(LEGACY_ROOT . '/lib/EvaluationScore.php');
 
 class Evaluations
 {
-    /* What an answer can look like. Grading is a separate flag
-     * (is_gradeable), not a type - see the class doc comment above. */
-    public static $DATA_TYPES = array('text', 'date', 'number');
+    /* What an answer can look like. 'score' is the one type that also grades
+     * - see _deriveGradeable(). */
+    public static $DATA_TYPES = array('text', 'date', 'number', 'score');
+
+    /* Fallback max_range for a score criterion that predates this column, or
+     * whose posted value didn't parse. */
+    const DEFAULT_MAX_RANGE = 5;
 
     private $_db;
     private $_siteID;
@@ -43,6 +49,15 @@ class Evaluations
     {
         $this->_siteID = (int) $siteID;
         $this->_db = DatabaseConnection::getInstance();
+    }
+
+    /* is_gradeable is a pure function of data_type now - 'score' criteria
+     * grade, everything else doesn't. Centralised here so addCriteria(),
+     * changeCriteriaType(), and seedFromStages() can't disagree with each
+     * other about what a given type means. */
+    private static function _deriveGradeable($dataType)
+    {
+        return ($dataType === 'score') ? 1 : 0;
     }
 
 
@@ -302,9 +317,10 @@ class Evaluations
     // Mirrors EvaluationTemplate::addStage(): every new stage starts with
     // Rating and Comments, Comments pinned last by its high position.
     //
-    // Rating arrives gradeable, carrying the full weight, so a brand new
-    // stage is immediately scoreable without anyone having to tick a box
-    // first. Comments stays plain text and ungradeable.
+    // Rating arrives as a 'score' criterion carrying the full weight, so a
+    // brand new stage is immediately scoreable with no extra step - gradeable
+    // follows automatically from the type, per _deriveGradeable(). Comments
+    // stays plain text.
     public function addStage($instanceID, $stageName, $position = null, $weight = 100)
     {
         if ($position === null)
@@ -324,8 +340,8 @@ class Evaluations
         ));
         $instanceStageID = $this->_db->getLastInsertID();
 
-        $this->addCriteria($instanceStageID, 'Rating',   'text', 0,  100, 1);
-        $this->addCriteria($instanceStageID, 'Comments', 'text', 99, 0,   0);
+        $this->addCriteria($instanceStageID, 'Rating',   'score', 0,  100, 1, self::DEFAULT_MAX_RANGE);
+        $this->addCriteria($instanceStageID, 'Comments', 'text',  99, 0,   0, self::DEFAULT_MAX_RANGE);
 
         return ($instanceStageID);
     }
@@ -449,7 +465,7 @@ class Evaluations
     {
         return $this->_db->getAllAssoc(sprintf(
             "SELECT instance_criteria_id, criteria_name, data_type, is_gradeable,
-                    position, weight
+                    position, weight, max_range
              FROM evaluation_instance_criteria
              WHERE instance_stage_id = %s AND site_id = %s
              ORDER BY position ASC, instance_criteria_id ASC",
@@ -458,8 +474,13 @@ class Evaluations
         ));
     }
 
+    /* $isGradeable is accepted but IGNORED - kept only so existing call
+     * sites (CandidatesUI::addCriteria command, seedFromStages() below)
+     * don't break before they're patched to stop passing it. is_gradeable
+     * is always derived from $dataType via _deriveGradeable(). */
     public function addCriteria($instanceStageID, $criteriaName, $dataType = 'text',
-                                $position = null, $weight = 0, $isGradeable = 0)
+                                $position = null, $weight = 0, $isGradeable = 0,
+                                $maxRange = self::DEFAULT_MAX_RANGE)
     {
         if (!in_array($dataType, self::$DATA_TYPES))
         {
@@ -473,15 +494,17 @@ class Evaluations
 
         $this->_db->query(sprintf(
             "INSERT INTO evaluation_instance_criteria
-                (instance_stage_id, site_id, criteria_name, data_type, is_gradeable, position, weight)
-             VALUES (%s, %s, '%s', '%s', %s, %s, %s)",
+                (instance_stage_id, site_id, criteria_name, data_type, is_gradeable,
+                 position, weight, max_range)
+             VALUES (%s, %s, '%s', '%s', %s, %s, %s, %s)",
             (int) $instanceStageID,
             $this->_siteID,
             $this->_db->escapeString($criteriaName),
             $this->_db->escapeString($dataType),
-            ($isGradeable ? 1 : 0),
+            self::_deriveGradeable($dataType),
             (int) $position,
-            $this->_sanitizeWeight($weight)
+            $this->_sanitizeWeight($weight),
+            $this->_sanitizeMaxRange($maxRange)
         ));
         return ($this->_db->getLastInsertID());
     }
@@ -497,6 +520,9 @@ class Evaluations
         ));
     }
 
+    /* Changing the type is the ONLY way is_gradeable moves - switching to
+     * 'score' turns grading on, switching away turns it off. No separate
+     * checkbox exists anymore. */
     public function changeCriteriaType($instanceCriteriaID, $dataType)
     {
         if (!in_array($dataType, self::$DATA_TYPES))
@@ -505,9 +531,11 @@ class Evaluations
         }
 
         $this->_db->query(sprintf(
-            "UPDATE evaluation_instance_criteria SET data_type = '%s'
+            "UPDATE evaluation_instance_criteria
+                SET data_type = '%s', is_gradeable = %s
              WHERE instance_criteria_id = %s AND site_id = %s",
             $this->_db->escapeString($dataType),
+            self::_deriveGradeable($dataType),
             (int) $instanceCriteriaID,
             $this->_siteID
         ));
@@ -524,17 +552,15 @@ class Evaluations
         ));
     }
 
-    // The checkbox that decides whether this criterion enters the scoring
-    // arithmetic at all. Flipping it off does NOT clear the weight or any
-    // grade already saved - only isScored() (EvaluationScore.php) stops
-    // reading them, so re-ticking the box restores scoring with whatever was
-    // there before.
-    public function setCriteriaGradeable($instanceCriteriaID, $isGradeable)
+    /* The ceiling a 'score' criterion's grade runs 0..max_range against.
+     * Meaningless on a non-score criterion, but harmless to set - it just
+     * sits unused until/unless the type is switched to 'score'. */
+    public function setCriteriaMaxRange($instanceCriteriaID, $maxRange)
     {
         $this->_db->query(sprintf(
-            "UPDATE evaluation_instance_criteria SET is_gradeable = %s
+            "UPDATE evaluation_instance_criteria SET max_range = %s
              WHERE instance_criteria_id = %s AND site_id = %s",
-            ($isGradeable ? 1 : 0),
+            $this->_sanitizeMaxRange($maxRange),
             (int) $instanceCriteriaID,
             $this->_siteID
         ));
@@ -706,10 +732,14 @@ class Evaluations
     // A criterion is only writable by an evaluator sitting on the SAME stage.
     // Without this check a posted criteria_id could write into another
     // evaluation's criteria, since the IDs are just integers off the form.
+    //
+    // Returns the criterion's own data_type/max_range on success (saveCriteriaValue()
+    // needs both to validate/store a grade correctly), or false if it doesn't
+    // belong to this evaluator.
     private function _criteriaBelongsToEvaluator($evaluatorID, $instanceCriteriaID)
     {
         $rs = $this->_db->getAssoc(sprintf(
-            "SELECT eic.instance_criteria_id
+            "SELECT eic.instance_criteria_id, eic.data_type, eic.max_range
              FROM evaluation_instance_criteria eic
              INNER JOIN evaluation_stage_evaluator ese
                      ON ese.instance_stage_id = eic.instance_stage_id
@@ -720,30 +750,7 @@ class Evaluations
             (int) $evaluatorID,
             $this->_siteID
         ));
-        return (!empty($rs));
-    }
-
-    /* Same blank/non-numeric/out-of-range -> unanswered rule as
-       EvaluationScore::parseGrade(), applied here so a garbage value never
-       reaches the grade column in the first place. Kept as a private
-       duplicate rather than calling parseGrade() directly, because that
-       method returns a float for arithmetic and this one needs an int (or
-       NULL) for storage - same rule, different return shape. */
-    private function _sanitizeGradeForStorage($grade)
-    {
-        if ($grade === null || $grade === '' || !is_numeric($grade))
-        {
-            return null;
-        }
-
-        $grade = (int) $grade;
-
-        if ($grade < 1 || $grade > 5)
-        {
-            return null;
-        }
-
-        return $grade;
+        return (!empty($rs) ? $rs : false);
     }
 
     /*
@@ -752,18 +759,25 @@ class Evaluations
      * they're always written for the same criterion at the same time.
      * Returns false if the criterion isn't this evaluator's to write.
      *
-     * $grade is accepted (and stored) regardless of the criterion's current
-     * is_gradeable flag - harmless if unused, and it means re-ticking the
-     * checkbox later doesn't need the grade re-entered.
+     * $grade is validated against THIS criterion's own data_type/max_range
+     * (EvaluationScore::parseGrade() - 0..max_range, unanswered stays NULL
+     * rather than becoming a 0) and stored regardless of whether the
+     * criterion is currently 'score' - harmless if unused, and it means
+     * switching the type back to 'score' later doesn't need the grade
+     * re-entered.
      */
     public function saveCriteriaValue($evaluatorID, $instanceCriteriaID, $value, $grade = null)
     {
-        if (!$this->_criteriaBelongsToEvaluator($evaluatorID, $instanceCriteriaID))
+        $criterion = $this->_criteriaBelongsToEvaluator($evaluatorID, $instanceCriteriaID);
+        if ($criterion === false)
         {
             return false;
         }
 
-        $grade = $this->_sanitizeGradeForStorage($grade);
+        $maxRange = isset($criterion['max_range']) && is_numeric($criterion['max_range'])
+            ? (float) $criterion['max_range'] : self::DEFAULT_MAX_RANGE;
+
+        $grade = EvaluationScore::parseGrade($grade, $maxRange);
 
         $rs = $this->_db->getAssoc(sprintf(
             "SELECT value_id FROM evaluation_criteria_value
@@ -779,7 +793,7 @@ class Evaluations
                 "UPDATE evaluation_criteria_value SET value = '%s', grade = %s
                  WHERE value_id = %s AND site_id = %s",
                 $this->_db->escapeString($value),
-                ($grade === null ? 'NULL' : (int) $grade),
+                ($grade === null ? 'NULL' : sprintf('%.2f', $grade)),
                 (int) $rs['value_id'],
                 $this->_siteID
             ));
@@ -793,7 +807,7 @@ class Evaluations
                 (int) $evaluatorID,
                 (int) $instanceCriteriaID,
                 $this->_db->escapeString($value),
-                ($grade === null ? 'NULL' : (int) $grade),
+                ($grade === null ? 'NULL' : sprintf('%.2f', $grade)),
                 $this->_siteID
             ));
         }
@@ -838,7 +852,7 @@ public function getInstanceIDsFiledUnder($candidateID, $jobOrderID)
         /* Criteria for every stage at once. */
         $criteriaRows = $this->_db->getAllAssoc(sprintf(
             "SELECT instance_stage_id, instance_criteria_id, criteria_name,
-                    data_type, is_gradeable, position, weight
+                    data_type, is_gradeable, position, weight, max_range
              FROM evaluation_instance_criteria
              WHERE instance_stage_id IN (%s) AND site_id = %s
              ORDER BY position ASC, instance_criteria_id ASC",
@@ -907,7 +921,7 @@ public function getInstanceIDsFiledUnder($candidateID, $jobOrderID)
 
             if ($row['grade'] !== null)
             {
-                $stages[$i]['evaluators'][$j]['grades'][$criteriaID] = (int) $row['grade'];
+                $stages[$i]['evaluators'][$j]['grades'][$criteriaID] = (float) $row['grade'];
             }
         }
 
@@ -993,9 +1007,16 @@ public function getInstanceIDsFiledUnder($candidateID, $jobOrderID)
                     continue;
                 }
 
-                $dataType    = isset($criterion['data_type'])    ? $criterion['data_type']    : 'text';
-                $weight      = isset($criterion['weight'])       ? $criterion['weight']       : 0;
-                $isGradeable = isset($criterion['is_gradeable']) ? $criterion['is_gradeable']  : 0;
+                $dataType = isset($criterion['data_type']) ? $criterion['data_type'] : 'text';
+                $weight   = isset($criterion['weight'])    ? $criterion['weight']    : 0;
+                /* max_range rides across the same way weight does - miss it
+                 * here and a seeded /10 criterion silently becomes a /5. */
+                $maxRange = isset($criterion['max_range']) ? $criterion['max_range'] : self::DEFAULT_MAX_RANGE;
+
+                /* is_gradeable is NOT copied from the template - it's
+                 * re-derived from data_type on this side, same as everywhere
+                 * else, so the two can never disagree even if a template row
+                 * is somehow stale. */
 
                 /* Keep the template's own ordering on a brand new stage;
                  * append to the end of an existing one. */
@@ -1005,7 +1026,7 @@ public function getInstanceIDsFiledUnder($candidateID, $jobOrderID)
 
                 $this->addCriteria(
                     $instanceStageID, $criterion['criteria_name'],
-                    $dataType, $position, $weight, $isGradeable
+                    $dataType, $position, $weight, 0, $maxRange
                 );
 
                 $existingCriteria[$criteriaKey] = true;
@@ -1030,6 +1051,21 @@ public function getInstanceIDsFiledUnder($candidateID, $jobOrderID)
         if ($weight > 9999.99) { $weight = 9999.99; }
 
         return sprintf('%.2f', $weight);
+    }
+
+    /* max_range must be strictly positive - a 0 or negative range would make
+     * every grade on that criterion unparseable (nothing satisfies
+     * 0 <= grade <= 0 except a real 0, and dividing by it in scoring blows
+     * up). Falls back to DEFAULT_MAX_RANGE rather than silently clamping to
+     * some arbitrary minimum. */
+    private function _sanitizeMaxRange($maxRange)
+    {
+        $maxRange = is_numeric($maxRange) ? (float) $maxRange : self::DEFAULT_MAX_RANGE;
+
+        if ($maxRange <= 0)       { $maxRange = self::DEFAULT_MAX_RANGE; }
+        if ($maxRange > 9999.99)  { $maxRange = 9999.99; }
+
+        return sprintf('%.2f', $maxRange);
     }
 }
 ?>

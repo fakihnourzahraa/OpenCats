@@ -3335,8 +3335,7 @@ class CandidatesUI extends UserInterface
 
     fputcsv($out, array('Evaluation', $instance['title']));
     fputcsv($out, array('Candidate', $candidateName));
-    fputcsv($out, array('Score', EvaluationScore::format($scoring['score'])
-        . ' ' . EvaluationScore::formatPercent($scoring['score'])));
+fputcsv($out, array('Score', EvaluationScore::formatFull($scoring['score'])));
     fputcsv($out, array());
 
     fputcsv($out, array(
@@ -3573,6 +3572,8 @@ if (!empty($stages))
 }
 
 $scoring = EvaluationScore::scoreEvaluation($stages);
+$stages  = $scoring['stages'];   // <-- new: each stage now carries ['scoring']['score']/['percent']
+
             $isLocked = $evaluations->isLocked($instanceID);
             $title    = $instance['title'];
 
@@ -3675,12 +3676,31 @@ $this->_template->assign('scorePercent', EvaluationScore::formatPercent($scoring
 
         if ($candidateID <= 0 || $instanceID <= 0 || $instanceStageID <= 0)
         {
-            if ($isAjax)
+if ($isAjax)
+        {
+            $scoring = EvaluationScore::scoreEvaluation($evaluations->getFullEvaluation($instanceID));
+
+            $stageScores = array();
+            foreach ($scoring['stages'] as $s)
             {
-                header('Content-Type: application/json');
-                echo json_encode(array('success' => false, 'error' => 'Invalid request.'));
-                die();
+                $stageScores[(int) $s['instance_stage_id']] = array(
+                    'scoreDisplay' => EvaluationScore::format($s['scoring']['score']),
+                    'scorePercent' => EvaluationScore::formatPercent($s['scoring']['score']),
+                );
             }
+
+            header('Content-Type: application/json');
+            echo json_encode(array(
+                'success'      => true,
+                'evaluatorID'  => (int) $evaluatorID,
+                'score'        => $scoring['score'],
+                'scoreDisplay' => EvaluationScore::format($scoring['score']),
+                'scorePercent' => EvaluationScore::formatPercent($scoring['score']),
+                'emptyFields'  => $emptyValueCriteriaIDs,
+                'stageScores'  => $stageScores,
+            ));
+            die();
+        }
             CommonErrors::fatal(COMMONERROR_BADFIELDS, $this, 'Invalid request.');
         }
 
@@ -3743,10 +3763,16 @@ $this->_template->assign('scorePercent', EvaluationScore::formatPercent($scoring
             $evaluations->renameEvaluator($evaluatorID, $evaluatorName);
         }
 
+/* Flagged for the client, not enforced here - a blank answer isn't
+         * an error, just something worth calling out. Save proceeds either
+         * way. */
+        $emptyValueCriteriaIDs = array();
         foreach ($values as $instanceCriteriaID => $value)
         {
-            $grade = isset($grades[$instanceCriteriaID]) ? $grades[$instanceCriteriaID] : null;
-            $evaluations->saveCriteriaValue((int) $evaluatorID, (int) $instanceCriteriaID, $value, $grade);
+            if (trim((string) $value) === '')
+            {
+                $emptyValueCriteriaIDs[] = (int) $instanceCriteriaID;
+            }
         }
 
         $evaluations->touchInstance($instanceID);
@@ -3756,12 +3782,13 @@ $this->_template->assign('scorePercent', EvaluationScore::formatPercent($scoring
             $scoring = EvaluationScore::scoreEvaluation($evaluations->getFullEvaluation($instanceID));
 
             header('Content-Type: application/json');
-            echo json_encode(array(
+echo json_encode(array(
                 'success'      => true,
                 'evaluatorID'  => (int) $evaluatorID,
                 'score'        => $scoring['score'],
                 'scoreDisplay' => EvaluationScore::format($scoring['score']),
                 'scorePercent' => EvaluationScore::formatPercent($scoring['score']),
+                'emptyFields'  => $emptyValueCriteriaIDs,
             ));
             die();
         }
@@ -3966,7 +3993,7 @@ $candidateID   = isset($_POST['candidateID']) ? (int) $_POST['candidateID'] : 0;
                     }
                 }
 
-                if (isset($_POST['criteriaWeight']) && is_array($_POST['criteriaWeight']))
+if (isset($_POST['criteriaWeight']) && is_array($_POST['criteriaWeight']))
                 {
                     foreach ($_POST['criteriaWeight'] as $rawID => $rawWeight)
                     {
@@ -3977,15 +4004,23 @@ $candidateID   = isset($_POST['candidateID']) ? (int) $_POST['candidateID'] : 0;
                     }
                 }
 
-
-                foreach ($owned as $criteriaID => $ignored)
+                /* Gradeable has no checkbox of its own anymore - the
+                 * criteriaType loop above already derives is_gradeable via
+                 * changeCriteriaType(). max_range is the only thing left to
+                 * carry here, and it's meaningless outside 'score' but
+                 * harmless to set regardless. */
+                if (isset($_POST['criteriaMaxRange']) && is_array($_POST['criteriaMaxRange']))
                 {
-                    if (isset($deleted[$criteriaID])) { continue; }
+                    foreach ($_POST['criteriaMaxRange'] as $rawID => $rawMaxRange)
+                    {
+                        $criteriaID = (int) $rawID;
+                        if (!isset($owned[$criteriaID]) || isset($deleted[$criteriaID])) { continue; }
 
-                    $isGradeable = isset($_POST['criteriaGradeable'][$criteriaID]) ? 1 : 0;
-                    $evaluations->setCriteriaGradeable($criteriaID, $isGradeable);
+                        $evaluations->setCriteriaMaxRange($criteriaID, $rawMaxRange);
+                    }
                 }
                 break;
+
             case 'deleteStage':
                 if ($instanceStageID > 0)
                 {
@@ -4005,10 +4040,18 @@ $candidateID   = isset($_POST['candidateID']) ? (int) $_POST['candidateID'] : 0;
                 $criteriaName = $this->getTrimmedInput('criteriaName', $_POST);
                 $dataType     = $this->getTrimmedInput('dataType', $_POST);
                 $weight       = $this->getTrimmedInput('weight', $_POST);
-                $isGradeable  = isset($_POST['isGradeable']) ? 1 : 0;
+                /* Gradeable is no longer a checkbox - it's implied by
+                 * dataType === 'score' (Evaluations::addCriteria() derives
+                 * it). maxRange only matters for that type but is read and
+                 * passed regardless; it's ignored harmlessly otherwise. */
+                $maxRange     = $this->getTrimmedInput('maxRange', $_POST);
+                if ($maxRange === '')
+                {
+                    $maxRange = 5;
+                }
                 if ($instanceStageID > 0 && $criteriaName !== '')
                 {
-                    $evaluations->addCriteria($instanceStageID, $criteriaName, $dataType, null, $weight, $isGradeable);
+                    $evaluations->addCriteria($instanceStageID, $criteriaName, $dataType, null, $weight, 0, $maxRange);
                 }
                 break;
 

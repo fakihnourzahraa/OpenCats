@@ -1,377 +1,537 @@
-<?php /* $Id: EmailTemplates.tpl 1929 2007-02-22 06:18:30Z will $ */ ?>
-<?php TemplateUtility::printHeader('Settings', array()); ?>
-<?php TemplateUtility::printHeaderBlock(); ?>
-<?php TemplateUtility::printTabs($this->active, $this->subActive); ?>
-    <div id="main">
-        <?php TemplateUtility::printQuickSearch(); ?>
+<?php
+/*
+ * Evaluation Template Library
+ */
 
-        <div id="contents">
-            <table>
-                <tr>
-                    <td width="3%">
-                        <img src="images/settings.gif" width="24" height="24" border="0" alt="Settings" style="margin-top: 3px;" />&nbsp;
-                    </td>
-                    <td><h2>Administration: E-Mail Templates</h2></td>
-                </tr>
-            </table>
+class EvaluationTemplate
+{
+    /* 'score' is the only type that carries weight / enters the stage's
+       weight share - there is no separate "gradeable" flag from the UI
+       anymore. is_gradeable is still stored (other code, e.g. scoring,
+       reads it) but it is now always derived from data_type here rather
+       than being set independently. */
+    public static $DATA_TYPES = array('text', 'date', 'number', 'score');
 
-            <p class="note">E-Mail Templates</p>
+    /* Default upper bound for a Score criterion when none is specified. */
+    const DEFAULT_SCORE_MAX = 5;
 
-            <script type="text/javascript">
-                <?php
-                    $statusChangeMainID=0;
-                    foreach ($this->emailTemplatesRS as $_tpl)
-                    {
-                        if ($_tpl['emailTemplateTag'] == 'EMAIL_TEMPLATE_STATUSCHANGE')
-                        {
-                            $statusChangeMainID = (int) $_tpl['emailTemplateID'];
-                            break;
-                        }
-                    }
-                ?>
+    private $_db;
+    private $_siteID;
 
-                var STATUS_CHANGE_TEMPLATE_ID = <?php echo $statusChangeMainID; ?>;
-                $(document).ready(function() { 
-                    $("select option:last").attr("selected", "selected");
-                    showTemplate(document.getElementById('titleSelect').value);
-                });
+    public function __construct($siteID)
+    {
+        $this->_siteID = (int) $siteID;
+        $this->_db     = DatabaseConnection::getInstance();
+    }
 
+    //returns template id for a joborder, else the generic template
+    public function getTemplateID($jobOrderID)
+    {
+        if ($jobOrderID > 0)
+        {
+            $rs = $this->_db->getAssoc(sprintf(
+                "SELECT template_id FROM evaluation_template
+                 WHERE site_id = %s AND job_order_id = %s",
+                $this->_siteID,
+                (int) $jobOrderID
+            ));
+            if (!empty($rs)) return $rs['template_id'];
+        }
 
-                function hideAllStatusSubForms()
-                {
-                    <?php foreach ($this->candidateStatusesRS as $status): ?>
-                        var _el = document.getElementById('editTableStatus_<?php echo (int) $status['statusID']; ?>');
-                        if (_el) _el.style.display = 'none';
-                    <?php endforeach; ?>
-                }
+        $rs = $this->_db->getAssoc(sprintf(
+            "SELECT template_id FROM evaluation_template
+             WHERE site_id = %s AND job_order_id IS NULL",
+            $this->_siteID
+        ));
+        return !empty($rs) ? $rs['template_id'] : false;
+    }
 
+    public function addTemplate($jobOrderID)
+    {
+        if ($jobOrderID > 0)
+        {
+            $this->_db->query(sprintf(
+                "INSERT INTO evaluation_template (site_id, job_order_id)
+                VALUES (%s, %s)",
+                $this->_siteID,
+                (int) $jobOrderID
+            ));
+            $templateID = $this->_db->getLastInsertID();
 
+            //inherit generic
+            $genericTemplateID = $this->getOwnTemplateID(0);
+            if ($genericTemplateID !== false)
+                $this->_copyStagesAndCriteria($genericTemplateID, $templateID);
+            return ($templateID);
+        }
+        else
+        {
+            $this->_db->query(sprintf(
+                "INSERT INTO evaluation_template (site_id, job_order_id)
+                VALUES (%s, NULL)",
+                $this->_siteID
+            ));
+            return ($this->_db->getLastInsertID());
+        }
+    }
 
-                function showTemplate(templateID)
-                {
-                    <?php foreach ($this->emailTemplatesRS as $data): ?>
-                        document.getElementById('editTable<?php echo($data['emailTemplateID']); ?>').style.display = 'none';
-                    <?php endforeach; ?>
-                    hideAllStatusSubForms();
-                    document.getElementById('statusSubSelectorRow').style.display = 'none';
-                    document.getElementById('statusSubSelect').value = '';
-                    document.getElementById('editTable' + templateID).style.display = '';
-                    if (parseInt(templateID) === STATUS_CHANGE_TEMPLATE_ID)
-                        document.getElementById('statusSubSelectorRow').style.display = '';
-                }
+    //Just used for copying generic for a new template
+    private function _copyStagesAndCriteria($sourceTemplateID, $destTemplateID)
+    {
+        $stages = $this->getStages($sourceTemplateID);
 
-                function showLastTemplate()
-                {
-                    <?php foreach ($this->emailTemplatesRS as $data): ?>
-                        document.getElementById('editTable<?php echo($data['emailTemplateID']); ?>').style.display = 'none';
-                    <?php endforeach; ?>
-                    <?php $templateID = end($this->emailTemplatesRS)['emailTemplateID'];?>
-                    document.getElementById('editTable' + <?php echo $templateID; ?>).style.display = '';
-                }
-                 function showStatusSubTemplate(statusID)
-                {
-                    /* Collapse the generic form and all per-status forms. */
-                    document.getElementById('editTable' + STATUS_CHANGE_TEMPLATE_ID).style.display = 'none';
-                    hideAllStatusSubForms();
+        foreach ($stages as $stage)
+        {
 
-                if (statusID === '') {
-                        document.getElementById('editTable' + STATUS_CHANGE_TEMPLATE_ID).style.display = '';
-                        return;
-                    }
-                    var target = document.getElementById('editTableStatus_' + statusID);
-                    if (target) target.style.display = '';
-                }
-                function insertAtCursor(myField, myValue)
-                {
-                    if (document.selection)
-                    {
-                        myField.focus();
-                        sel = document.selection.createRange();
-                        sel.text = myValue;
-                    }
-                    else if (myField.selectionStart || myField.selectionStart == 0)
-                    {
-                        var startPos = myField.selectionStart;
-                        var endPos = myField.selectionEnd;
-                        myField.value = myField.value.substring(0, startPos)
-                            + myValue
-                            + myField.value.substring(endPos, myField.value.length);
-                    }
-                    else
-                    {
-                        myField.value += myValue;
-                    }
-                }
-                <?php function generateInsertAtCursorLink($data, $description, $value)
-                {
-                    echo('<input type="button" class="button" style="width:235px;" value="'.$description.'" onclick="insertAtCursor(document.getElementById(\'messageText'.$data['emailTemplateID'].'\'),  \''.$value.'\');"><br />');
-                } ?>
-                <?php function generateInsertAtCursorLinkConditional($data, $description, $value)
-                {
-                    if (strrpos($data['possibleVariables'], $value) !== false)
-                    {
-                        generateInsertAtCursorLink($data, $description, $value);
-                    }
-                } ?>
-            </script>
+            $this->_db->query(sprintf(
+                "INSERT INTO evaluation_stage (template_id, site_id, stage_name, position, weight)
+                VALUES (%s, %s, '%s', %s, %s)",
+                (int) $destTemplateID,
+                $this->_siteID,
+                $this->_db->escapeString($stage['stage_name']),
+                (int) $stage['position'],
+                $this->_sanitizeWeight(isset($stage['weight']) ? $stage['weight'] : 0)
+            ));
+            $newStageID = $this->_db->getLastInsertID();
 
-            <table style="width:850px;" class="searchTable">
-                <tr>
-                    <td>
-                        <form method="post" action="<?php echo(CATSUtility::getIndexName()); ?>?m=settings&amp;a=addEmailTemplate" style="display:inline;">
-                            <input type="hidden" name="postback" value="postback" />
-                            <input type="submit" class="button" value="Add a Template" />
-                        </form>
-                    </td>
-                </tr>
-                <tr>
-                    <td>
-                        <table>
-                            <tr>
-                                <td style="width:210px;">
-                                    <div style="font-weight:bold;">
-                                        Template:
-                                    </div>
-                                </td>
-                                <td>
-                                    <span id="selectorSpan">
-                                        <select id="titleSelect" style="width:550px;" onclick="showTemplate(this.value);">
-                                            <?php foreach ($this->emailTemplatesRS as $data): ?>
-                                                <option value="<?php echo($data['emailTemplateID']); ?>"><?php echo($data['emailTemplateTitle']); ?></option>
-                                            <?php endforeach; ?>
-                                        </select>
-                                    </span>
-                                    <?php foreach ($this->emailTemplatesRS as $data): ?>
-                                        <span id="templateTitleSpan<?php echo($data['emailTemplateID']); ?>" style="display:none; border:1px solid #000000; background-color:#ffffff; padding:5px;">
-                                            Editing: <?php echo($data['emailTemplateTitle']); ?>
-                                        </span>
-                                    <?php endforeach; ?>
-                                    <!--&nbsp;&nbsp;&nbsp;&nbsp;
-                                    <input type="button" class="button" value="New">-->
-                                </td>
-                            </tr>
-                             <tr id="statusSubSelectorRow" style="display:none;">
-                                <td style="width:210px;">
-                                    <div style="font-weight:bold;">
-                                        Status:
-                                    </div>
-                                </td>
-                                <td>
-                                    <select id="statusSubSelect" style="width:550px;" onchange="showStatusSubTemplate(this.value);">
-                                        <option value="">Generic </option>
-                                        <?php foreach ($this->candidateStatusesRS as $status): ?>
-                                            <option value="<?php echo((int) $status['statusID']);?>">
-                                                <?php echo(htmlspecialchars($status['status'])); ?>
-                                            </option>
-                                        <?php endforeach; ?>
-                                    </select>
-                                    <span style="color:#666; font-size:0.85em;">
-                                        &nbsp;<br>If no template is saved for a status, the generic template above is used.
-                                    </span>
-                                </td>
-                                </tr>
-                        </table>
-                    </td>
-                </tr>
-                <tr>
-                    <td>
+            $criteria = $this->getCriteria($stage['stage_id']);
+            foreach ($criteria as $criterion)
+            {
+                $isScore = (isset($criterion['data_type']) && $criterion['data_type'] === 'score');
 
-                        <?php foreach ($this->emailTemplatesRS as $index => $data): ?>
-                            <form action="<?php echo(CATSUtility::getIndexName()); ?>?m=settings&amp;a=emailTemplates" method="post">
-                                <input type="hidden" name="postback" value="postback" />
-                                <input type="hidden" name="templateID"  value="<?php echo($data['emailTemplateID']); ?>" />
-                                <table id="editTable<?php echo($data['emailTemplateID']); ?>" class="editTable" width="850" <?php if ($index != 0): ?>style="display:none;"<?php endif; ?>>
-                                    <tr>
-                                        <!--<td class="tdVertical" style="width:150px;">
-                                            Email Tag:
-                                        </td>
-                                        <td class="tdData">
-                                            <?php echo($data['emailTemplateTag']); ?>
-                                        </td>-->
-                                    </tr>
-                                    <tr>
-                                        <td class="tdVertical" style="width:150px;">
-                                            Message:
-                                        </td>
-                                        <td class="tdData">
-                                            <table>
-                                                <?php if(strpos($data['emailTemplateTag'], "CUSTOM") === 0): ?>
-                                                <tr>
-                                                    <td>
-                                                        <input type="text" name="emailTemplateTitle" value="<?php echo($data['emailTemplateTitle']); ?>"/>
-                                                        <input type="hidden" name="id" value="<?php echo $data['emailTemplateID']?>"/>
-                                                        <input type="submit" value="Delete Template" onclick="if (!confirm('Delete this template?')) { return false; } this.form.action='<?php echo(CATSUtility::getIndexName()); ?>?m=settings&amp;a=deleteEmailTemplate';" />
-                                                    </td>
-                                                </tr>
-                                                <?php endif; ?>
-                                                
-                                                <tr style="vertical-align:top;">
-                                                    <td>
-                                                        <textarea class="inputbox" name="messageText" <?php if ($data['disabled'] == 1) echo('disabled'); ?> id="messageText<?php echo($data['emailTemplateID']); ?>" style="width:450px; height:280px;" onclick="document.getElementById('selectorSpan').style.display='none'; document.getElementById('templateTitleSpan<?php echo($data['emailTemplateID']); ?>').style.display='';" ><?php echo($this->_($data['text'])); ?></textarea>
-                                                        <input type="hidden" name="messageTextOrigional" id="messageTextOrigional<?php echo($data['emailTemplateID']); ?>" value="<?php echo($this->_($data['text'])); ?>">
-                                                        <br /><br />
-                                                        <input type="checkbox" name="useThisTemplate" id="useThisTemplate<?php echo($data['emailTemplateID']); ?>" <?php if ($data['disabled'] == 0) echo('checked'); ?> onclick="if (this.checked) {document.getElementById('messageText<?php echo($data['emailTemplateID']); ?>').disabled=false;} else {document.getElementById('messageText<?php echo($data['emailTemplateID']); ?>').disabled=true;} document.getElementById('selectorSpan').style.display='none'; document.getElementById('templateTitleSpan<?php echo($data['emailTemplateID']); ?>').style.display='';"> Use this Template / Feature<br />
-                                                    </td>
-                                                    <td style="text-align: center;">
-                                                    <div style="font-weight:bold;">Insert Formatting:</div>
-                                                        <?php generateInsertAtCursorLink($data, 'Bold', '<B></B>'); ?>
-                                                        <?php generateInsertAtCursorLink($data, 'Italics', '<I></I>'); ?>
-                                                        <?php generateInsertAtCursorLink($data, 'Underline', '<U></U>'); ?>
-                                                        <br />
-                                                        <div style="font-weight:bold;">Insert Mail Merge Fields:</div>
-                                                        <?php /* Global vars */ ?>
-                                                        <?php if(!isset($this->noGlobalTemplates)): ?>
-                                                            <?php generateInsertAtCursorLink($data, 'Current Date/Time', '%DATETIME%'); ?>
-                                                            <?php generateInsertAtCursorLink($data, 'Site Name', '%SITENAME%'); ?>
-                                                            <?php generateInsertAtCursorLink($data, 'Recruiter/Current User Name', '%USERFULLNAME%'); ?>
-                                                            <?php generateInsertAtCursorLink($data, 'Recruiter/Current User E-Mail Link', '%USERMAIL%'); ?>
-                                                        <?php endif; ?>
+                $this->_db->query(sprintf(
+                    "INSERT INTO evaluation_criteria
+                        (stage_id, site_id, criteria_name, data_type, is_gradeable, position, weight, score_max)
+                    VALUES (%s, %s, '%s', '%s', %s, %s, %s, %s)",
+                    (int) $newStageID,
+                    $this->_siteID,
+                    $this->_db->escapeString($criterion['criteria_name']),
+                    $this->_db->escapeString($criterion['data_type']),
+                    ($isScore ? 1 : 0),
+                    (int) $criterion['position'],
+                    $this->_sanitizeWeight(isset($criterion['weight']) ? $criterion['weight'] : 0),
+                    ($isScore
+                        ? $this->_sanitizeScoreMax(isset($criterion['score_max']) ? $criterion['score_max'] : null)
+                        : 'NULL')
+                ));
+            }
+        }
+    }
 
-                                                        <?php /* Template specific vars */ ?>
-                                                        <?php generateInsertAtCursorLinkConditional($data, 'Previous Candidate Status', '%CANDPREVSTATUS%'); ?>
-                                                        <?php generateInsertAtCursorLinkConditional($data, 'Current Candidate Status', '%CANDSTATUS%'); ?>
-                                                        <?php generateInsertAtCursorLinkConditional($data, 'Candidate Owner', '%CANDOWNER%'); ?>
-                                                        <?php generateInsertAtCursorLinkConditional($data, 'Candidate First Name', '%CANDFIRSTNAME%'); ?>
-                                                        <?php generateInsertAtCursorLinkConditional($data, 'Candidate Full Name', '%CANDFULLNAME%'); ?>
-                                                        <?php generateInsertAtCursorLinkConditional($data, 'CATS Candidate URL', '%CANDCATSURL%'); ?>
+    public function getStages($templateID)
+    {
+        return $this->_db->getAllAssoc(sprintf(
+            "SELECT stage_id, stage_name, position, weight
+             FROM evaluation_stage
+             WHERE template_id = %s AND site_id = %s
+             ORDER BY position ASC",
+            (int) $templateID,
+            $this->_siteID
+        ));
+    }
 
-                                                        <?php generateInsertAtCursorLinkConditional($data, 'Company Owner', '%CLNTOWNER%'); ?>
-                                                        <?php generateInsertAtCursorLinkConditional($data, 'Company Name', '%CLNTNAME%'); ?>
-                                                        <?php generateInsertAtCursorLinkConditional($data, 'CATS Company URL', '%CLNTCATSURL%'); ?>
+    public function getCriteria($stageID)
+    {
+        return $this->_db->getAllAssoc(sprintf(
+            "SELECT criteria_id, criteria_name, data_type, is_gradeable, position, weight, score_max
+             FROM evaluation_criteria
+             WHERE stage_id = %s AND site_id = %s
+             ORDER BY position ASC",
+            (int) $stageID,
+            $this->_siteID
+        ));
+    }
 
-                                                        <?php generateInsertAtCursorLinkConditional($data, 'Contact Owner', '%CONTOWNER%'); ?>
-                                                        <?php generateInsertAtCursorLinkConditional($data, 'Contact First Name', '%CONTFIRSTNAME%'); ?>
-                                                        <?php generateInsertAtCursorLinkConditional($data, 'Contact Full Name', '%CONTFULLNAME%'); ?>
-                                                        <?php generateInsertAtCursorLinkConditional($data, 'Contacts Company Name', '%CONTCLIENTNAME%'); ?>
-                                                        <?php generateInsertAtCursorLinkConditional($data, 'CATS Contact URL', '%CONTCATSURL%'); ?>
+    public function getOwnTemplateID($jobOrderID)
+    {
+        if ($jobOrderID > 0)
+        {
+            $rs = $this->_db->getAssoc(sprintf(
+                "SELECT template_id FROM evaluation_template
+                WHERE site_id = %s AND job_order_id = %s",
+                $this->_siteID, (int) $jobOrderID
+            ));
+        }
+        else
+        {
+            $rs = $this->_db->getAssoc(sprintf(
+                "SELECT template_id FROM evaluation_template
+                WHERE site_id = %s AND job_order_id IS NULL",
+                $this->_siteID
+            ));
+        }
+        return (!empty($rs) ? $rs['template_id'] : false);
+    }
 
-                                                        <?php generateInsertAtCursorLinkConditional($data, 'Job Order Owner', '%JBODOWNER%'); ?>
-                                                        <?php generateInsertAtCursorLinkConditional($data, 'Job Order Title', '%JBODTITLE%'); ?>
-                                                        <?php generateInsertAtCursorLinkConditional($data, 'Job Order Company', '%JBODCLIENT%'); ?>
-                                                        <?php generateInsertAtCursorLinkConditional($data, 'Job Order ID', '%JBODID%'); ?>
-                                                        <?php generateInsertAtCursorLinkConditional($data, 'CATS Job Order URL', '%JBODCATSURL%'); ?>
-                                                    </td>
-                                                 </tr>
-                                             </table>
-                                        </td>
-                                    </tr>
-                                    <tr>
-                                        <td class="tdVertical" style="width:150px;">
-                                        </td>
-                                        <td>
-                                            <input type="submit" class="button" value="Save Template">
-                                            <input type="reset" class="button" value="Reset Template" onclick="document.getElementById('selectorSpan').style.display=''; document.getElementById('templateTitleSpan<?php echo($data['emailTemplateID']); ?>').style.display='none'; document.getElementById('messageText<?php echo($data['emailTemplateID']); ?>').disabled=<?php if ($data['disabled'] == 0) {echo('false'); } else {echo('true'); } ?>;">
-                                        </td>
-                                    </tr>
-                                </table>
-                            </form>
-                        <?php endforeach; ?>
-                                                                        <?php foreach ($this->candidateStatusesRS as $status):
-                            $statusID       = (int) $status['statusID'];
-                            $statusLabel    = htmlspecialchars($status['status']);
-                            /* Either the saved per-status row, or null if it hasn't been created yet. */
-                            $statusTpl      = isset($this->statusChangeTemplatesRS[$statusID])
-                                                ? $this->statusChangeTemplatesRS[$statusID]
-                                                : null;
-                            $tplDBID        = $statusTpl ? (int) $statusTpl['emailTemplateID'] : 0;
-                            $tplText        = $statusTpl ? $statusTpl['text'] : $this->statusChangeFallbackText;
-                            $tplDisabled    = $statusTpl ? (int) $statusTpl['disabled'] : 0;
-                            /*
-                             * The generateInsertAtCursor* functions key their JS element references on
-                             * $data['emailTemplateID'], so we pass a synthetic string ID here.
-                             * The string 'Status_N' is valid in an HTML id attribute and in
-                             * getElementById(), and is guaranteed not to clash with numeric IDs.
-                             */
-                            $syntheticID    = 'Status_' . $statusID;
-                            $subData        = array(
-                                'emailTemplateID'   => $syntheticID,
-                                'possibleVariables' => $this->statusChangePossibleVariables,
-                            );
-                        ?>
-                        <form action="<?php echo(CATSUtility::getIndexName()); ?>?m=settings&amp;a=emailTemplates" method="post">
-                            <input type="hidden" name="postback"            value="postback" />
-                            <!-- templateID = 0 when the row doesn't exist yet; controller INSERTs in that case. -->
-                            <input type="hidden" name="templateID"          value="<?php echo $tplDBID; ?>" />
-                            <!-- statusID lets the controller build/look up the correct tag. -->
-                            <input type="hidden" name="statusID"            value="<?php echo $statusID; ?>" />
-                            <input type="hidden" name="isStatusSubTemplate" value="1" />
-                            <table id="editTableStatus_<?php echo $statusID; ?>" class="editTable" width="850" style="display:none;">
-                                <tr>
-                                    <td colspan="2" style="padding:6px 0 2px 0;">
-                                        <strong>Status-specific template: <?php echo $statusLabel; ?></strong>
-                                        <?php if (!$statusTpl): ?>
-                                            <span style="color:#888; font-size:0.85em; margin-left:8px;">
-                                                (not yet saved — showing generic fallback as starting point)
-                                            </span>
-                                        <?php endif; ?>
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td class="tdVertical" style="width:150px;">
-                                        Message:
-                                    </td>
-                                    <td class="tdData">
-                                        <table>
-                                            <tr style="vertical-align:top;">
-                                                <td>
-                                                    <textarea
-                                                        class="inputbox"
-                                                        name="messageText"
-                                                        <?php if ($tplDisabled == 1) echo('disabled'); ?>
-                                                        id="messageText<?php echo $syntheticID; ?>"
-                                                        style="width:450px; height:280px;"
-                                                    ><?php echo htmlspecialchars($tplText); ?></textarea>
-                                                    <input type="hidden"
-                                                        name="messageTextOrigional"
-                                                        id="messageTextOrigional<?php echo $syntheticID; ?>"
-                                                        value="<?php echo htmlspecialchars($tplText); ?>">
-                                                    <br /><br />
-                                                    <input
-                                                        type="checkbox"
-                                                        name="useThisTemplate"
-                                                        id="useThisTemplate<?php echo $syntheticID; ?>"
-                                                        <?php if ($tplDisabled == 0) echo('checked'); ?>
-                                                        onclick="if (this.checked) {document.getElementById('messageText<?php echo $syntheticID; ?>').disabled=false;} else {document.getElementById('messageText<?php echo $syntheticID; ?>').disabled=true;}"
-                                                    > Use this Template / Feature<br />
-                                                </td>
-                                                <td style="text-align:center;">
-                                                    <div style="font-weight:bold;">Insert Formatting:</div>
-                                                    <?php generateInsertAtCursorLink($subData, 'Bold',      '<B></B>'); ?>
-                                                    <?php generateInsertAtCursorLink($subData, 'Italics',   '<I></I>'); ?>
-                                                    <?php generateInsertAtCursorLink($subData, 'Underline', '<U></U>'); ?>
-                                                    <br />
-                                                    <div style="font-weight:bold;">Insert Mail Merge Fields:</div>
-                                                    <?php generateInsertAtCursorLink($subData, 'Current Date/Time',                '%DATETIME%'); ?>
-                                                    <?php generateInsertAtCursorLink($subData, 'Site Name',                        '%SITENAME%'); ?>
-                                                    <?php generateInsertAtCursorLink($subData, 'Recruiter/Current User Name',      '%USERFULLNAME%'); ?>
-                                                    <?php generateInsertAtCursorLink($subData, 'Recruiter/Current User E-Mail Link', '%USERMAIL%'); ?>
-                                                    <?php generateInsertAtCursorLinkConditional($subData, 'Previous Candidate Status', '%CANDPREVSTATUS%'); ?>
-                                                    <?php generateInsertAtCursorLinkConditional($subData, 'Current Candidate Status',  '%CANDSTATUS%'); ?>
-                                                    <?php generateInsertAtCursorLinkConditional($subData, 'Candidate Owner',           '%CANDOWNER%'); ?>
-                                                    <?php generateInsertAtCursorLinkConditional($subData, 'Candidate First Name',      '%CANDFIRSTNAME%'); ?>
-                                                    <?php generateInsertAtCursorLinkConditional($subData, 'Candidate Full Name',       '%CANDFULLNAME%'); ?>
-                                                    <?php generateInsertAtCursorLinkConditional($subData, 'Job Order Title',           '%JBODTITLE%'); ?>
-                                                    <?php generateInsertAtCursorLinkConditional($subData, 'Job Order Company',         '%JBODCLIENT%'); ?>
-                                                </td>
-                                            </tr>
-                                        </table>
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td class="tdVertical" style="width:150px;"></td>
-                                    <td>
-                                        <input type="submit" class="button" value="Save Template">
-                                        <input type="reset"  class="button" value="Reset Template"
-                                            onclick="document.getElementById('messageText<?php echo $syntheticID; ?>').disabled=<?php echo ($tplDisabled == 0) ? 'false' : 'true'; ?>;">
-                                    </td>
-                                </tr>
-                            </table>
-                        </form>
-                        <?php endforeach; ?>
-                .
-                    </td>
-                </tr>
-            </table>
-        </div>
-    </div>
-<?php TemplateUtility::printFooter(); ?>
+    public function getJobOrdersWithTemplates()
+    {
+        $rows = $this->_db->getAllAssoc(sprintf(
+            "SELECT job_order_id FROM evaluation_template
+             WHERE site_id = %s AND job_order_id IS NOT NULL",
+            $this->_siteID
+        ));
+
+        $map = array();
+        foreach ($rows as $row)
+        {
+            $map[(int) $row['job_order_id']] = true;
+        }
+        return $map;
+    }
+
+    /* A new stage now only seeds "Comments" (plain text, no weight). A
+       gradeable / Score criterion is no longer created automatically -
+       the user adds one explicitly, via the Type dropdown, when the stage
+       should actually be scored. */
+    public function addStage($templateID, $stageName, $position, $weight = 100)
+    {
+        $this->_db->query(sprintf(
+            "INSERT INTO evaluation_stage (template_id, site_id, stage_name, position, weight)
+            VALUES (%s, %s, '%s', %s, %s)",
+            (int) $templateID, $this->_siteID,
+            $this->_db->escapeString($stageName), (int) $position,
+            $this->_sanitizeWeight($weight)
+        ));
+        $stageID = $this->_db->getLastInsertID();
+
+        $this->_db->query(sprintf(
+            "INSERT INTO evaluation_criteria (stage_id, site_id, criteria_name, data_type, is_gradeable, position, weight, score_max)
+            VALUES (%s, %s, 'Comments', 'text', 0, 0, 0, NULL)",
+            (int) $stageID, $this->_siteID
+        ));
+        return ($stageID);
+    }
+
+    public function deleteStage($stageID)
+    {
+        $this->_db->query(sprintf(
+            "DELETE FROM evaluation_criteria WHERE stage_id = %s AND site_id = %s",
+            (int) $stageID,
+            $this->_siteID
+        ));
+        $this->_db->query(sprintf(
+            "DELETE FROM evaluation_stage WHERE stage_id = %s AND site_id = %s",
+            (int) $stageID,
+            $this->_siteID
+        ));
+    }
+
+    public function getStageIDByName($templateID, $stageName)
+    {
+        $rs = $this->_db->getAssoc(sprintf(
+            "SELECT stage_id FROM evaluation_stage
+             WHERE template_id = %s AND site_id = %s AND stage_name = '%s'",
+            (int) $templateID,
+            $this->_siteID,
+            $this->_db->escapeString($stageName)
+        ));
+        return (!empty($rs) ? $rs['stage_id'] : false);
+    }
+
+    /* is_gradeable is derived from $dataType here, not accepted as a
+       separate argument - Score is what makes a criterion gradeable now.
+       $scoreMax is only persisted when $dataType is 'score'; it is
+       ignored (stored as NULL) for every other type. */
+    public function addCriteria($stageID, $criteriaName, $position, $dataType = 'text',
+                                 $weight = 0, $scoreMax = null)
+    {
+        if (!in_array($dataType, self::$DATA_TYPES))
+        {
+            $dataType = 'text';
+        }
+
+        $isScore = ($dataType === 'score');
+
+        $this->_db->query(sprintf(
+            "INSERT INTO evaluation_criteria
+                (stage_id, site_id, criteria_name, data_type, is_gradeable, position, weight, score_max)
+             VALUES (%s, %s, '%s', '%s', %s, %s, %s, %s)",
+            (int) $stageID,
+            $this->_siteID,
+            $this->_db->escapeString($criteriaName),
+            $this->_db->escapeString($dataType),
+            ($isScore ? 1 : 0),
+            (int) $position,
+            $this->_sanitizeWeight($weight),
+            ($isScore ? $this->_sanitizeScoreMax($scoreMax) : 'NULL')
+        ));
+        return ($this->_db->getLastInsertID());
+    }
+
+    public function deleteCriteria($criteriaID)
+    {
+        $this->_db->query(sprintf(
+            "DELETE FROM evaluation_criteria WHERE criteria_id = %s AND site_id = %s",
+            (int) $criteriaID,
+            $this->_siteID
+        ));
+    }
+
+    public function renameStage($stageID, $newName)
+    {
+        $this->_db->query(sprintf(
+            "UPDATE evaluation_stage SET stage_name = '%s'
+            WHERE stage_id = %s AND site_id = %s",
+            $this->_db->escapeString($newName),
+            (int) $stageID,
+            $this->_siteID
+        ));
+    }
+
+    public function setStageWeight($stageID, $weight)
+    {
+        $this->_db->query(sprintf(
+            "UPDATE evaluation_stage SET weight = %s
+            WHERE stage_id = %s AND site_id = %s",
+            $this->_sanitizeWeight($weight),
+            (int) $stageID,
+            $this->_siteID
+        ));
+    }
+
+    public function renameCriteria($criteriaID, $newName)
+    {
+        $this->_db->query(sprintf(
+            "UPDATE evaluation_criteria SET criteria_name = '%s'
+            WHERE criteria_id = %s AND site_id = %s",
+            $this->_db->escapeString($newName),
+            (int) $criteriaID,
+            $this->_siteID
+        ));
+    }
+
+    public function setCriteriaWeight($criteriaID, $weight)
+    {
+        $this->_db->query(sprintf(
+            "UPDATE evaluation_criteria SET weight = %s
+            WHERE criteria_id = %s AND site_id = %s",
+            $this->_sanitizeWeight($weight),
+            (int) $criteriaID,
+            $this->_siteID
+        ));
+    }
+
+    /* Upper bound of a Score criterion's range (the scale's floor stays a
+       fixed 1, matching the existing evaluation-scoring code - only the
+       ceiling is user-configurable). Only meaningful for 'score' type
+       criteria; calling this on a non-score criterion is harmless since
+       nothing reads score_max unless data_type is 'score', but it's the
+       caller's job not to bother. */
+    public function setCriteriaScoreMax($criteriaID, $max)
+    {
+        $this->_db->query(sprintf(
+            "UPDATE evaluation_criteria SET score_max = %s
+            WHERE criteria_id = %s AND site_id = %s",
+            $this->_sanitizeScoreMax($max),
+            (int) $criteriaID,
+            $this->_siteID
+        ));
+    }
+
+    public function getCriteriaIDByName($stageID, $criteriaName)
+    {
+        $rs = $this->_db->getAssoc(sprintf(
+            "SELECT criteria_id FROM evaluation_criteria
+             WHERE stage_id = %s AND site_id = %s AND criteria_name = '%s'",
+            (int) $stageID,
+            $this->_siteID,
+            $this->_db->escapeString($criteriaName)
+        ));
+        return (!empty($rs) ? $rs['criteria_id'] : false);
+    }
+
+    public function getNextStagePosition($templateID)
+    {
+        $rs = $this->_db->getAssoc(sprintf(
+            "SELECT MAX(position) AS max_pos FROM evaluation_stage
+             WHERE template_id = %s AND site_id = %s",
+            (int) $templateID,
+            $this->_siteID
+        ));
+        return (($rs && $rs['max_pos'] !== null) ? (int) $rs['max_pos'] + 1 : 0);
+    }
+
+    public function getNextCriteriaPosition($stageID)
+    {
+        $rs = $this->_db->getAssoc(sprintf(
+            "SELECT MAX(position) AS max_pos FROM evaluation_criteria
+            WHERE stage_id = %s AND site_id = %s AND criteria_name != 'Comments'",
+            (int) $stageID,
+            $this->_siteID
+        ));
+        return ($rs && $rs['max_pos'] !== null) ? (int) $rs['max_pos'] + 1 : 0;
+    }
+
+    public function getFullTemplate($jobOrderID)
+    {
+        $templateID = $this->getTemplateID($jobOrderID);
+        if (!$templateID) return array();
+
+        $stages = $this->getStages($templateID);
+        if (empty($stages)) return array();
+
+        foreach ($stages as $i => $stage)
+        {
+            $stages[$i]['criteria'] = $this->getCriteria($stage['stage_id']);
+        }
+        return $stages;
+    }
+
+    public function deleteTemplate($templateID)
+    {
+        $stages = $this->getStages($templateID);
+        foreach ($stages as $stage)
+        {
+            $this->_db->query(sprintf(
+                "DELETE FROM evaluation_criteria WHERE stage_id = %s AND site_id = %s",
+                (int) $stage['stage_id'],
+                $this->_siteID
+            ));
+        }
+
+        $this->_db->query(sprintf(
+            "DELETE FROM evaluation_stage WHERE template_id = %s AND site_id = %s",
+            (int) $templateID,
+            $this->_siteID
+        ));
+
+        $this->_db->query(sprintf(
+            "DELETE FROM evaluation_template WHERE template_id = %s AND site_id = %s",
+            (int) $templateID,
+            $this->_siteID
+        ));
+    }
+
+    public function moveStage($templateID, $stageID, $direction)
+    {
+        $stages = $this->getStages($templateID); //ordered by position asc
+        $idx = -1;
+        foreach ($stages as $i => $s)
+        {
+            if ((int) $s['stage_id'] === (int) $stageID)
+            {
+                $idx = $i;
+                break;
+            }
+        }
+        if ($idx === -1)
+            return;
+
+        $swapIdx = ($direction === 'up') ? $idx - 1 : $idx + 1;
+        if ($swapIdx < 0 || $swapIdx >= count($stages))
+            return;
+
+        $posA = $stages[$idx]['position'];
+        $posB = $stages[$swapIdx]['position'];
+
+        $this->_db->query(sprintf(
+            "UPDATE evaluation_stage SET position = %s WHERE stage_id = %s AND site_id = %s",
+            (int) $posB, (int) $stages[$idx]['stage_id'], $this->_siteID
+        ));
+        $this->_db->query(sprintf(
+            "UPDATE evaluation_stage SET position = %s WHERE stage_id = %s AND site_id = %s",
+            (int) $posA, (int) $stages[$swapIdx]['stage_id'], $this->_siteID
+        ));
+    }
+
+    public function moveCriteria($stageID, $criteriaID, $direction)
+    {
+        $criteria = $this->getCriteria($stageID); //ordered by position asc
+        $idx = -1;
+        foreach ($criteria as $i => $c)
+        {
+            if ((int) $c['criteria_id'] === (int) $criteriaID)
+            {
+                $idx = $i;
+                break;
+            }
+        }
+        if ($idx === -1)
+            return;
+
+        $swapIdx = ($direction === 'up') ? $idx - 1 : $idx + 1;
+        if ($swapIdx < 0 || $swapIdx >= count($criteria))
+            return;
+
+        $posA = $criteria[$idx]['position'];
+        $posB = $criteria[$swapIdx]['position'];
+
+        $this->_db->query(sprintf(
+            "UPDATE evaluation_criteria SET position = %s WHERE criteria_id = %s AND site_id = %s",
+            (int) $posB, (int) $criteria[$idx]['criteria_id'], $this->_siteID
+        ));
+        $this->_db->query(sprintf(
+            "UPDATE evaluation_criteria SET position = %s WHERE criteria_id = %s AND site_id = %s",
+            (int) $posA, (int) $criteria[$swapIdx]['criteria_id'], $this->_siteID
+        ));
+    }
+
+    /* is_gradeable now rides along with data_type instead of being set
+       independently: switching TO 'score' turns it on and stamps
+       score_max (defaulting if none given); switching AWAY from 'score'
+       turns it off but deliberately leaves score_max and weight alone in
+       the row, so switching back to Score restores them rather than
+       forcing re-entry. */
+    public function changeCriteriaType($criteriaID, $dataType, $scoreMax = null)
+    {
+        if (!in_array($dataType, self::$DATA_TYPES))
+        {
+            return;
+        }
+
+        $isScore = ($dataType === 'score');
+
+        if ($isScore)
+        {
+            $this->_db->query(sprintf(
+                "UPDATE evaluation_criteria
+                    SET data_type = '%s', is_gradeable = 1, score_max = %s
+                 WHERE criteria_id = %s AND site_id = %s",
+                $this->_db->escapeString($dataType),
+                $this->_sanitizeScoreMax($scoreMax),
+                (int) $criteriaID,
+                $this->_siteID
+            ));
+        }
+        else
+        {
+            $this->_db->query(sprintf(
+                "UPDATE evaluation_criteria
+                    SET data_type = '%s', is_gradeable = 0
+                 WHERE criteria_id = %s AND site_id = %s",
+                $this->_db->escapeString($dataType),
+                (int) $criteriaID,
+                $this->_siteID
+            ));
+        }
+    }
+
+    private function _sanitizeWeight($weight)
+    {
+        $weight = (float) $weight;
+
+        if ($weight < 0)       { $weight = 0; }
+        if ($weight > 9999.99) { $weight = 9999.99; }
+
+        return sprintf('%.2f', $weight);
+    }
+
+    /* Returns a ready-to-splice SQL literal ('5.00'), not a bare number -
+       callers use it directly in a VALUES/SET clause the same way
+       _sanitizeWeight()'s result is used elsewhere in this class. */
+    private function _sanitizeScoreMax($max)
+    {
+        if ($max === null || $max === '')
+        {
+            $max = self::DEFAULT_SCORE_MAX;
+        }
+
+        $max = (float) $max;
+
+        if ($max < 2)       { $max = 2; }
+        if ($max > 9999.99) { $max = 9999.99; }
+
+        return "'" . sprintf('%.2f', $max) . "'";
+    }
+}
+?>
