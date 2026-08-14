@@ -1,25 +1,11 @@
 <?php
 /*
- * CATS
  * Evaluation Template Library
- *
- * The Original Code is "CATS Standard Edition".
- * This file was added for IBC
- *
- * Template DEFINITIONS only. Nothing in this class knows that evaluations
- * exist; the evaluate page reads getFullTemplate() once and copies the result
- * into the evaluation's own tables. Editing a template here never touches an
- * evaluation that was previously seeded from it.
- *
- * Stages and criteria carry a WEIGHT, which seeds across into the evaluation
- * alongside data_type. See EvaluationScore.php for what the numbers mean.
  */
 
 class EvaluationTemplate
 {
-    /* Must match Evaluations::$DATA_TYPES - a criterion that is 'score' here
-     * and rejected there would seed as 'text' and silently stop counting. */
-    public static $DATA_TYPES = array('text', 'date', 'number', 'score');
+    public static $DATA_TYPES = array('text', 'date', 'number');
 
     private $_db;
     private $_siteID;
@@ -88,9 +74,7 @@ class EvaluationTemplate
 
         foreach ($stages as $stage)
         {
-            /* weight travels with the row. A job order template that inherited
-             * from generic without its weights would look identical in the
-             * editor and score differently. */
+
             $this->_db->query(sprintf(
                 "INSERT INTO evaluation_stage (template_id, site_id, stage_name, position, weight)
                 VALUES (%s, %s, '%s', %s, %s)",
@@ -105,13 +89,16 @@ class EvaluationTemplate
             $criteria = $this->getCriteria($stage['stage_id']);
             foreach ($criteria as $criterion)
             {
+
                 $this->_db->query(sprintf(
-                    "INSERT INTO evaluation_criteria (stage_id, site_id, criteria_name, data_type, position, weight)
-                    VALUES (%s, %s, '%s', '%s', %s, %s)",
+                    "INSERT INTO evaluation_criteria
+                        (stage_id, site_id, criteria_name, data_type, is_gradeable, position, weight)
+                    VALUES (%s, %s, '%s', '%s', %s, %s, %s)",
                     (int) $newStageID,
                     $this->_siteID,
                     $this->_db->escapeString($criterion['criteria_name']),
                     $this->_db->escapeString($criterion['data_type']),
+                    (!empty($criterion['is_gradeable']) ? 1 : 0),
                     (int) $criterion['position'],
                     $this->_sanitizeWeight(isset($criterion['weight']) ? $criterion['weight'] : 0)
                 ));
@@ -134,7 +121,7 @@ class EvaluationTemplate
     public function getCriteria($stageID)
     {
         return $this->_db->getAllAssoc(sprintf(
-            "SELECT criteria_id, criteria_name, data_type, position, weight
+            "SELECT criteria_id, criteria_name, data_type, is_gradeable, position, weight
              FROM evaluation_criteria
              WHERE stage_id = %s AND site_id = %s
              ORDER BY position ASC",
@@ -143,8 +130,6 @@ class EvaluationTemplate
         ));
     }
 
-
-    //Returns false if job order doesnt have a template (only use to write)
     public function getOwnTemplateID($jobOrderID)
     {
         if ($jobOrderID > 0)
@@ -166,14 +151,6 @@ class EvaluationTemplate
         return (!empty($rs) ? $rs['template_id'] : false);
     }
 
-    /* ------------------------------------------------------------------ *
-     * ADDED for the evaluate page's template dropdown.
-     *
-     * Returns [job_order_id => true] for every job order that has a template
-     * of its OWN (as opposed to falling back to generic). The dropdown uses
-     * this to mark which entries actually carry a dedicated template, so
-     * picking one isn't a guess.
-     * ------------------------------------------------------------------ */
     public function getJobOrdersWithTemplates()
     {
         $rows = $this->_db->getAllAssoc(sprintf(
@@ -190,9 +167,10 @@ class EvaluationTemplate
         return $map;
     }
 
-    /* A new stage arrives with Rating already set up as a graded criterion
-     * carrying the whole weight, so it scores immediately instead of needing
-     * its type changed by hand first. Comments stays text and weightless. */
+    /* A new stage arrives with Rating already gradeable and carrying the
+     * whole weight, so it scores immediately instead of needing the
+     * checkbox ticked by hand first. Comments stays plain text and
+     * ungradeable. */
     public function addStage($templateID, $stageName, $position, $weight = 100)
     {
         $this->_db->query(sprintf(
@@ -205,13 +183,13 @@ class EvaluationTemplate
         $stageID = $this->_db->getLastInsertID();
 
         $this->_db->query(sprintf(
-            "INSERT INTO evaluation_criteria (stage_id, site_id, criteria_name, data_type, position, weight)
-            VALUES (%s, %s, 'Rating', 'score', 0, 100)",
+            "INSERT INTO evaluation_criteria (stage_id, site_id, criteria_name, data_type, is_gradeable, position, weight)
+            VALUES (%s, %s, 'Rating', 'text', 1, 0, 100)",
             (int) $stageID, $this->_siteID
         ));
         $this->_db->query(sprintf(
-            "INSERT INTO evaluation_criteria (stage_id, site_id, criteria_name, data_type, position, weight)
-            VALUES (%s, %s, 'Comments', 'text', 99, 0)",
+            "INSERT INTO evaluation_criteria (stage_id, site_id, criteria_name, data_type, is_gradeable, position, weight)
+            VALUES (%s, %s, 'Comments', 'text', 0, 99, 0)",
             (int) $stageID, $this->_siteID
         ));
         return ($stageID);
@@ -243,7 +221,8 @@ class EvaluationTemplate
         return (!empty($rs) ? $rs['stage_id'] : false);
     }
 
-    public function addCriteria($stageID, $criteriaName, $position, $dataType = 'text', $weight = 0)
+    public function addCriteria($stageID, $criteriaName, $position, $dataType = 'text',
+                                 $weight = 0, $isGradeable = 0)
     {
         if (!in_array($dataType, self::$DATA_TYPES))
         {
@@ -251,12 +230,14 @@ class EvaluationTemplate
         }
 
         $this->_db->query(sprintf(
-            "INSERT INTO evaluation_criteria (stage_id, site_id, criteria_name, data_type, position, weight)
-             VALUES (%s, %s, '%s', '%s', %s, %s)",
+            "INSERT INTO evaluation_criteria
+                (stage_id, site_id, criteria_name, data_type, is_gradeable, position, weight)
+             VALUES (%s, %s, '%s', '%s', %s, %s, %s)",
             (int) $stageID,
             $this->_siteID,
             $this->_db->escapeString($criteriaName),
             $this->_db->escapeString($dataType),
+            ($isGradeable ? 1 : 0),
             (int) $position,
             $this->_sanitizeWeight($weight)
         ));
@@ -311,6 +292,20 @@ class EvaluationTemplate
             "UPDATE evaluation_criteria SET weight = %s
             WHERE criteria_id = %s AND site_id = %s",
             $this->_sanitizeWeight($weight),
+            (int) $criteriaID,
+            $this->_siteID
+        ));
+    }
+
+    // Whether this criterion enters the template's weight shares at all.
+    // Does not touch weight itself - unticking and re-ticking restores
+    // whatever number was already there.
+    public function setCriteriaGradeable($criteriaID, $isGradeable)
+    {
+        $this->_db->query(sprintf(
+            "UPDATE evaluation_criteria SET is_gradeable = %s
+            WHERE criteria_id = %s AND site_id = %s",
+            ($isGradeable ? 1 : 0),
             (int) $criteriaID,
             $this->_siteID
         ));
@@ -470,8 +465,6 @@ class EvaluationTemplate
         ));
     }
 
-    /* Mirrors Evaluations::_sanitizeWeight(). Negative weights would invert a
-     * criterion's contribution; they clamp to zero. */
     private function _sanitizeWeight($weight)
     {
         $weight = (float) $weight;

@@ -50,6 +50,7 @@ include_once(LEGACY_ROOT . '/lib/Tags.php');
 include_once(LEGACY_ROOT . '/lib/Search.php');
 include_once(LEGACY_ROOT . '/lib/EvaluationTemplate.php');
 include_once(LEGACY_ROOT . '/lib/Evaluations.php');
+include_once(LEGACY_ROOT . '/lib/EvaluationScore.php');
 
 class CandidatesUI extends UserInterface
 {
@@ -205,6 +206,13 @@ class CandidatesUI extends UserInterface
                 {
                     $this->lockEvaluation();
                 }
+                break;
+            case 'evaluationExport':
+                if ($this->getUserAccessLevel('candidates.edit') < ACCESS_LEVEL_EDIT)
+                {
+                    CommonErrors::fatal(COMMONERROR_PERMISSION, $this, 'Invalid user level for action.');
+                }
+                $this->onEvaluationExport();
                 break;
             case 'setFinalOpinion':
                 if ($this->getUserAccessLevel('candidates.edit') < ACCESS_LEVEL_EDIT)
@@ -3244,8 +3252,37 @@ class CandidatesUI extends UserInterface
 
         return $candidateID;
     }
+        private function onDeleteEvaluator()
+    {
+        $candidateID = isset($_POST['candidateID']) ? (int) $_POST['candidateID'] : 0;
+        $instanceID  = isset($_POST['instanceID'])  ? (int) $_POST['instanceID']  : 0;
+        $evaluatorID = isset($_POST['evaluatorID']) ? (int) $_POST['evaluatorID'] : 0;
 
-private function onDeleteEvaluation()
+        if ($candidateID <= 0 || $instanceID <= 0 || $evaluatorID <= 0)
+        {
+            CommonErrors::fatal(COMMONERROR_BADFIELDS, $this, 'Invalid request.');
+        }
+
+        $evaluations = new Evaluations($this->_siteID);
+        $this->_requireEvaluation($evaluations, $instanceID, $candidateID);
+        if ($evaluations->isLocked($instanceID))
+        {
+            CommonErrors::fatal(COMMONERROR_PERMISSION, $this, 'This evaluation is locked.');
+        }
+        if ($evaluations->getInstanceIDForEvaluator($evaluatorID) !== $instanceID)
+        {
+            CommonErrors::fatal(COMMONERROR_BADINDEX, $this, 'Invalid evaluator ID.');
+        }
+
+        $evaluations->deleteEvaluator($evaluatorID);
+        $evaluations->touchInstance($instanceID);
+
+        CATSUtility::transferRelativeURI(
+            'm=candidates&a=evaluate&candidateID=' . $candidateID . '&instanceID=' . $instanceID
+        );
+    }
+
+    private function onDeleteEvaluation()
     {
         $candidateID = isset($_POST['candidateID']) ? (int) $_POST['candidateID'] : 0;
         $instanceID  = isset($_POST['instanceID'])  ? (int) $_POST['instanceID']  : 0;
@@ -3261,22 +3298,90 @@ private function onDeleteEvaluation()
         /* Cascades by hand through stages, criteria, evaluators and values. */
         $evaluations->deleteInstance($instanceID);
 
-CATSUtility::transferRelativeURI(
-            $this->_evaluateURI($candidateID, $instanceID, $navJobOrderID)
+        CATSUtility::transferRelativeURI(
+            'cats=candidates&action=show&candidateID=' . $candidateID
         );
     }
-    
-    /* ------------------------------------------------------------------ *
-     * Evaluations
-     *
-     * An evaluation belongs to the candidate only. The job order dropdown on
-     * the page seeds stages/criteria from a template ONCE; after that the
-     * evaluation owns its structure and the job order is not recorded.
-     * ------------------------------------------------------------------ */
+  private function onEvaluationExport()
+{
+    $candidateID = isset($_GET['candidateID']) ? (int) $_GET['candidateID'] : 0;
+    $instanceID  = isset($_GET['instanceID'])  ? (int) $_GET['instanceID']  : 0;
 
-    // Loads $instanceID from the request and confirms it belongs to
-    // $candidateID at this site. Every evaluation action goes through here so
-    // a hand-edited instanceID can't reach another candidate's evaluation.
+    if ($candidateID <= 0 || $instanceID <= 0)
+    {
+        CommonErrors::fatal(COMMONERROR_BADFIELDS, $this, 'Invalid request.');
+    }
+
+    $evaluations = new Evaluations($this->_siteID);
+    $instance    = $this->_requireEvaluation($evaluations, $instanceID, $candidateID);
+
+    $candidates    = new Candidates($this->_siteID);
+    $candidateData = $candidates->get($candidateID);
+    $candidateName = $candidateData
+        ? trim($candidateData['firstName'] . ' ' . $candidateData['lastName'])
+        : '';
+
+    $stages  = $evaluations->getFullEvaluation($instanceID);
+    $scoring = EvaluationScore::scoreEvaluation($stages);
+
+    $filenameSafe = preg_replace('/[^A-Za-z0-9_\-]+/', '_', trim($candidateName . '_' . $instance['title']));
+
+    header('Content-Type: text/csv; charset=utf-8');
+    header('Content-Disposition: attachment; filename="evaluation_' . $filenameSafe . '.csv"');
+    header('Pragma: no-cache');
+    header('Expires: 0');
+
+    $out = fopen('php://output', 'w');
+
+    fputcsv($out, array('Evaluation', $instance['title']));
+    fputcsv($out, array('Candidate', $candidateName));
+    fputcsv($out, array('Score', EvaluationScore::format($scoring['score'])
+        . ' ' . EvaluationScore::formatPercent($scoring['score'])));
+    fputcsv($out, array());
+
+    fputcsv($out, array(
+        'Stage', 'Stage Weight', 'Criteria', 'Type',
+        'Gradeable', 'Criteria Weight', 'Evaluator', 'Value', 'Grade'
+    ));
+
+    foreach ($stages as $stage)
+    {
+        if (empty($stage['evaluators']))
+        {
+            foreach ($stage['criteria'] as $criterion)
+            {
+                fputcsv($out, array(
+                    $stage['stage_name'], $stage['weight'],
+                    $criterion['criteria_name'], $criterion['data_type'],
+                    $criterion['is_gradeable'] ? 'Yes' : 'No', $criterion['weight'],
+                    '', '', ''
+                ));
+            }
+            continue;
+        }
+
+        foreach ($stage['evaluators'] as $evaluator)
+        {
+            foreach ($stage['criteria'] as $criterion)
+            {
+                $criteriaID = $criterion['instance_criteria_id'];
+                $value = isset($evaluator['values'][$criteriaID]) ? $evaluator['values'][$criteriaID] : '';
+                $grade = isset($evaluator['grades'][$criteriaID]) ? $evaluator['grades'][$criteriaID] : '';
+
+                fputcsv($out, array(
+                    $stage['stage_name'], $stage['weight'],
+                    $criterion['criteria_name'], $criterion['data_type'],
+                    $criterion['is_gradeable'] ? 'Yes' : 'No', $criterion['weight'],
+                    $evaluator['evaluator_name'], $value, $grade
+                ));
+            }
+        }
+    }
+
+    fclose($out);
+    exit;
+}
+
     private function _requireEvaluation($evaluations, $instanceID, $candidateID)
     {
         $instance = $evaluations->getInstance($instanceID);
@@ -3288,9 +3393,7 @@ CATSUtility::transferRelativeURI(
 
         return $instance;
     }
-    /* The draft page has no evaluation row. The first structural edit creates
-     * one, filed under the job order in the nav dropdown - filed immediately,
-     * or selecting the same candidate again would make a second one. */
+
     private function _ensureInstance($evaluations, $candidateID, $navJobOrderID)
     {
         $candidates  = new Candidates($this->_siteID);
@@ -3303,8 +3406,6 @@ CATSUtility::transferRelativeURI(
 
         $instanceID = $evaluations->createInstance($candidateID, 'Evaluation');
 
-/* Generic isn't a filing bucket, so a draft created while browsing it
-           stays unfiled - which is exactly where Generic will find it again. */
         if ($navJobOrderID > 0)
         {
             $evaluations->setJobOrderID($instanceID, $navJobOrderID);
@@ -3335,9 +3436,7 @@ CATSUtility::transferRelativeURI(
             ? (int) $_POST['navJobOrderID'] : null;
     }
 
-    /* Type-ahead behind the Generic candidate box. A plain <select> of every
-     * candidate is ~50 bytes each on every page load and unusable past a few
-     * hundred names. */
+
     private function onEvaluationCandidateSearch()
     {
         $query         = isset($_GET['q'])             ? trim($_GET['q'])             : '';
@@ -3430,9 +3529,6 @@ CATSUtility::transferRelativeURI(
 
         $hasNav = (isset($_GET['navJobOrderID']) && $_GET['navJobOrderID'] !== '');
 
-        /* Arriving from the navigation dropdowns: a candidate and a job order,
-         * no instance. Resolve to whatever they have filed there; nothing found
-         * means a draft page, and nothing is written on this request. */
         if ($instanceID <= 0 && $hasNav)
         {
             $found = $evaluations->getLatestInstanceIDFor($candidateID, (int) $_GET['navJobOrderID']);
@@ -3446,6 +3542,37 @@ CATSUtility::transferRelativeURI(
         {
             $instance = $this->_requireEvaluation($evaluations, $instanceID, $candidateID);
             $stages   = $evaluations->getFullEvaluation($instanceID);
+
+if (!empty($stages))
+{
+    $stageWeights = array();
+    foreach ($stages as $s) {
+        $stageWeights[(int) $s['instance_stage_id']] = isset($s['weight']) ? $s['weight'] : 0;
+    }
+    $stageShares = EvaluationScore::normalizeWeights($stageWeights);
+
+    foreach ($stages as $i => $s)
+    {
+        $sid = (int) $s['instance_stage_id'];
+        $stages[$i]['sharePercent'] = isset($stageShares[$sid]) ? round($stageShares[$sid] * 100) : null;
+
+        $criteriaWeights = array();
+        foreach ($s['criteria'] as $c) {
+            if (!empty($c['is_gradeable'])) {
+                $criteriaWeights[(int) $c['instance_criteria_id']] = isset($c['weight']) ? $c['weight'] : 0;
+            }
+        }
+        $criteriaShares = EvaluationScore::normalizeWeights($criteriaWeights);
+
+        foreach ($stages[$i]['criteria'] as $j => $c)
+        {
+            $cid = (int) $c['instance_criteria_id'];
+            $stages[$i]['criteria'][$j]['sharePercent'] = isset($criteriaShares[$cid]) ? round($criteriaShares[$cid] * 100) : null;
+        }
+    }
+}
+
+$scoring = EvaluationScore::scoreEvaluation($stages);
             $isLocked = $evaluations->isLocked($instanceID);
             $title    = $instance['title'];
 
@@ -3494,9 +3621,7 @@ $navFiledMap      = $evaluations->getCandidatesWithEvaluations($navJobOrderID);
         }
         else
         {
-            /* Generic: every candidate at this site. One <option> each, so this
-               grows with the candidate table - see the note below if it ever
-               gets heavy. */
+
             $db = DatabaseConnection::getInstance();
 
             $navCandidates = $db->getAllAssoc(sprintf(
@@ -3509,9 +3634,10 @@ $navFiledMap      = $evaluations->getCandidatesWithEvaluations($navJobOrderID);
                 $this->_siteID
             ));
 
-            /* The current candidate is always in this list, so no prepended row. */
             $navCandidateHere = true;
         }
+        $this->_template->assign('scoreDisplay', EvaluationScore::format($scoring['score']));
+$this->_template->assign('scorePercent', EvaluationScore::formatPercent($scoring['score']));
 
         $this->_template->assign('isLocked',           $isLocked);
         $this->_template->assign('isDraft',            ($instanceID <= 0));
@@ -3535,8 +3661,7 @@ $navFiledMap      = $evaluations->getCandidatesWithEvaluations($navJobOrderID);
         $this->_template->assign('subActive',          '');
         $this->_template->display('./modules/candidates/Evaluate.tpl');
     }
-    // Saves one evaluator block (name + that stage's criteria values).
-    // Called over AJAX by Evaluate.tpl, same contract as before: JSON back.
+
     private function onEvaluate()
     {
         $candidateID     = isset($_POST['candidateID'])     ? (int) $_POST['candidateID']     : 0;
@@ -3545,6 +3670,7 @@ $navFiledMap      = $evaluations->getCandidatesWithEvaluations($navJobOrderID);
         $evaluatorID     = isset($_POST['evaluatorID'])     ? (int) $_POST['evaluatorID']     : 0;
         $evaluatorName   = isset($_POST['evaluatorName'])   ? trim($_POST['evaluatorName'])   : '';
         $values          = (isset($_POST['values']) && is_array($_POST['values'])) ? $_POST['values'] : array();
+        $grades          = (isset($_POST['grades']) && is_array($_POST['grades'])) ? $_POST['grades'] : array();
         $isAjax          = isset($_POST['ajax']) && $_POST['ajax'] == '1';
 
         if ($candidateID <= 0 || $instanceID <= 0 || $instanceStageID <= 0)
@@ -3560,16 +3686,18 @@ $navFiledMap      = $evaluations->getCandidatesWithEvaluations($navJobOrderID);
 
         $evaluations = new Evaluations($this->_siteID);
         $this->_requireEvaluation($evaluations, $instanceID, $candidateID);
-if ($evaluations->isLocked($instanceID))
-{
-    if ($isAjax)
-    {
-        header('Content-Type: application/json');
-        echo json_encode(array('success' => false, 'locked' => true, 'error' => 'This evaluation is locked.'));
-        die();
-    }
-    CommonErrors::fatal(COMMONERROR_PERMISSION, $this, 'This evaluation is locked.');
-}
+
+        if ($evaluations->isLocked($instanceID))
+        {
+            if ($isAjax)
+            {
+                header('Content-Type: application/json');
+                echo json_encode(array('success' => false, 'locked' => true, 'error' => 'This evaluation is locked.'));
+                die();
+            }
+            CommonErrors::fatal(COMMONERROR_PERMISSION, $this, 'This evaluation is locked.');
+        }
+
         /* The stage must belong to this evaluation. */
         $stage = $evaluations->getStage($instanceStageID);
         if ($stage === false || (int) $stage['instance_id'] !== $instanceID)
@@ -3582,8 +3710,7 @@ if ($evaluations->isLocked($instanceID))
             }
             CommonErrors::fatal(COMMONERROR_BADINDEX, $this, 'Invalid stage ID.');
         }
-/* Creating a nameless evaluator leaves a saved-but-blank block on the
-         * page, which is indistinguishable from a stray edit control. */
+
         if ($evaluatorID <= 0 && $evaluatorName === '')
         {
             if ($isAjax)
@@ -3594,6 +3721,7 @@ if ($evaluations->isLocked($instanceID))
             }
             CommonErrors::fatal(COMMONERROR_MISSINGFIELDS, $this, 'Evaluator name is required.');
         }
+
         if ($evaluatorID <= 0)
         {
             $evaluatorID = $evaluations->addEvaluator($instanceStageID, $evaluatorName);
@@ -3615,63 +3743,36 @@ if ($evaluations->isLocked($instanceID))
             $evaluations->renameEvaluator($evaluatorID, $evaluatorName);
         }
 
-        /* saveCriteriaValue() itself rejects any criterion that isn't on this
-         * evaluator's stage, so a forged criteria_id writes nothing. */
         foreach ($values as $instanceCriteriaID => $value)
         {
-            $evaluations->saveCriteriaValue((int) $evaluatorID, (int) $instanceCriteriaID, $value);
+            $grade = isset($grades[$instanceCriteriaID]) ? $grades[$instanceCriteriaID] : null;
+            $evaluations->saveCriteriaValue((int) $evaluatorID, (int) $instanceCriteriaID, $value, $grade);
         }
 
         $evaluations->touchInstance($instanceID);
 
         if ($isAjax)
         {
+            $scoring = EvaluationScore::scoreEvaluation($evaluations->getFullEvaluation($instanceID));
+
             header('Content-Type: application/json');
-            echo json_encode(array('success' => true, 'evaluatorID' => (int) $evaluatorID));
+            echo json_encode(array(
+                'success'      => true,
+                'evaluatorID'  => (int) $evaluatorID,
+                'score'        => $scoring['score'],
+                'scoreDisplay' => EvaluationScore::format($scoring['score']),
+                'scorePercent' => EvaluationScore::formatPercent($scoring['score']),
+            ));
             die();
         }
 
-CATSUtility::transferRelativeURI(
+        $navJobOrderID = $this->_postedNavJobOrderID();
+
+        CATSUtility::transferRelativeURI(
             $this->_evaluateURI($candidateID, $instanceID, $navJobOrderID)
         );
     }
 
-    private function onDeleteEvaluator()
-    {
-        $candidateID = isset($_POST['candidateID']) ? (int) $_POST['candidateID'] : 0;
-        $instanceID  = isset($_POST['instanceID'])  ? (int) $_POST['instanceID']  : 0;
-        $evaluatorID = isset($_POST['evaluatorID']) ? (int) $_POST['evaluatorID'] : 0;
-
-        if ($candidateID <= 0 || $instanceID <= 0 || $evaluatorID <= 0)
-        {
-            CommonErrors::fatal(COMMONERROR_BADFIELDS, $this, 'Invalid request.');
-        }
-
-        $evaluations = new Evaluations($this->_siteID);
-        $this->_requireEvaluation($evaluations, $instanceID, $candidateID);
-        if ($evaluations->isLocked($instanceID))
-        {
-            CommonErrors::fatal(COMMONERROR_PERMISSION, $this, 'This evaluation is locked.');
-        }
-        if ($evaluations->getInstanceIDForEvaluator($evaluatorID) !== $instanceID)
-        {
-            CommonErrors::fatal(COMMONERROR_BADINDEX, $this, 'Invalid evaluator ID.');
-        }
-
-        $evaluations->deleteEvaluator($evaluatorID);
-        $evaluations->touchInstance($instanceID);
-
-        CATSUtility::transferRelativeURI(
-            'm=candidates&a=evaluate&candidateID=' . $candidateID . '&instanceID=' . $instanceID
-        );
-    }
-
-    /*
-     * Every structural edit on the evaluate page: seeding from a template,
-     * and adding/renaming/deleting/reordering stages and criteria. One action
-     * with a 'command' switch rather than a dozen near-identical cases in
-     * handleRequest().
-     */
     private function onEvaluationCommand()
     {
 $candidateID   = isset($_POST['candidateID']) ? (int) $_POST['candidateID'] : 0;
@@ -3737,9 +3838,7 @@ $candidateID   = isset($_POST['candidateID']) ? (int) $_POST['candidateID'] : 0;
         }
         switch ($command)
         {
-            /* The job order dropdown. jobOrderID 0 = the generic template.
-             * Merges by name: existing stages/criteria are kept as-is and only
-             * what's missing gets added. The job order is not recorded. */
+ 
             case 'seedTemplate':
                 $jobOrderID = isset($_POST['jobOrderID']) ? (int) $_POST['jobOrderID'] : 0;
 
@@ -3748,8 +3847,6 @@ $candidateID   = isset($_POST['candidateID']) ? (int) $_POST['candidateID'] : 0;
 
                 $evaluations->seedFromStages($instanceID, $templateStages);
 
-                /* Name the evaluation after the job order the first time it's
-                 * seeded, while the title is still the untouched default. */
                 $instance = $evaluations->getInstance($instanceID);
                 if ($instance !== false && $instance['title'] === 'Evaluation' && $jobOrderID > 0)
                 {
@@ -3803,10 +3900,7 @@ $candidateID   = isset($_POST['candidateID']) ? (int) $_POST['candidateID'] : 0;
                     $evaluations->renameStage($instanceStageID, $stageName);
                 }
                 break;
-/* One Save on the stage header applies the stage name plus every
-             * criterion's name and type, and any criteria ticked for removal.
-             * IDs arrive off the form, so each is checked against this stage's
-             * own criteria before being touched. */
+
             case 'editStage':
                 if ($instanceStageID <= 0)
                 {
@@ -3817,6 +3911,12 @@ $candidateID   = isset($_POST['candidateID']) ? (int) $_POST['candidateID'] : 0;
                 if ($stageName !== '')
                 {
                     $evaluations->renameStage($instanceStageID, $stageName);
+                }
+
+                $stageWeight = $this->getTrimmedInput('stageWeight', $_POST);
+                if ($stageWeight !== '')
+                {
+                    $evaluations->setStageWeight($instanceStageID, $stageWeight);
                 }
 
                 $owned = array();
@@ -3845,10 +3945,7 @@ $candidateID   = isset($_POST['candidateID']) ? (int) $_POST['candidateID'] : 0;
                     foreach ($_POST['criteriaName'] as $rawID => $rawName)
                     {
                         $criteriaID = (int) $rawID;
-                        if (!isset($owned[$criteriaID]) || isset($deleted[$criteriaID]))
-                        {
-                            continue;
-                        }
+                        if (!isset($owned[$criteriaID]) || isset($deleted[$criteriaID])) { continue; }
 
                         $newName = trim($rawName);
                         if ($newName !== '')
@@ -3863,13 +3960,30 @@ $candidateID   = isset($_POST['candidateID']) ? (int) $_POST['candidateID'] : 0;
                     foreach ($_POST['criteriaType'] as $rawID => $rawType)
                     {
                         $criteriaID = (int) $rawID;
-                        if (!isset($owned[$criteriaID]) || isset($deleted[$criteriaID]))
-                        {
-                            continue;
-                        }
+                        if (!isset($owned[$criteriaID]) || isset($deleted[$criteriaID])) { continue; }
 
                         $evaluations->changeCriteriaType($criteriaID, $rawType);
                     }
+                }
+
+                if (isset($_POST['criteriaWeight']) && is_array($_POST['criteriaWeight']))
+                {
+                    foreach ($_POST['criteriaWeight'] as $rawID => $rawWeight)
+                    {
+                        $criteriaID = (int) $rawID;
+                        if (!isset($owned[$criteriaID]) || isset($deleted[$criteriaID])) { continue; }
+
+                        $evaluations->setCriteriaWeight($criteriaID, $rawWeight);
+                    }
+                }
+
+
+                foreach ($owned as $criteriaID => $ignored)
+                {
+                    if (isset($deleted[$criteriaID])) { continue; }
+
+                    $isGradeable = isset($_POST['criteriaGradeable'][$criteriaID]) ? 1 : 0;
+                    $evaluations->setCriteriaGradeable($criteriaID, $isGradeable);
                 }
                 break;
             case 'deleteStage':
@@ -3890,9 +4004,11 @@ $candidateID   = isset($_POST['candidateID']) ? (int) $_POST['candidateID'] : 0;
             case 'addCriteria':
                 $criteriaName = $this->getTrimmedInput('criteriaName', $_POST);
                 $dataType     = $this->getTrimmedInput('dataType', $_POST);
+                $weight       = $this->getTrimmedInput('weight', $_POST);
+                $isGradeable  = isset($_POST['isGradeable']) ? 1 : 0;
                 if ($instanceStageID > 0 && $criteriaName !== '')
                 {
-                    $evaluations->addCriteria($instanceStageID, $criteriaName, $dataType);
+                    $evaluations->addCriteria($instanceStageID, $criteriaName, $dataType, null, $weight, $isGradeable);
                 }
                 break;
 
@@ -3926,6 +4042,7 @@ $candidateID   = isset($_POST['candidateID']) ? (int) $_POST['candidateID'] : 0;
                     $evaluations->moveCriteria($instanceStageID, $instanceCriteriaID, $direction);
                 }
                 break;
+            
 
             default:
                 CommonErrors::fatal(COMMONERROR_BADFIELDS, $this, 'Unknown command.');
@@ -3959,6 +4076,23 @@ CATSUtility::transferRelativeURI(
     $this->_template->display('./modules/candidates/LockEvaluationModal.tpl');
 }
 
+private function _autoLockEvaluationsForStatus($candidateID, $jobOrderID, $statusID)
+{
+    if ($statusID != PIPELINE_STATUS_NOTINCONSIDERATION || $jobOrderID <= 0)
+    {
+        return;
+    }
+
+    $evaluations = new Evaluations($this->_siteID);
+
+    foreach ($evaluations->getInstanceIDsFiledUnder($candidateID, $jobOrderID) as $instanceID)
+    {
+        if (!$evaluations->isLocked($instanceID))
+        {
+            $evaluations->setLocked($instanceID, 1, $this->_userID);
+        }
+    }
+}
 private function onLockEvaluation()
 {
     $candidateID = isset($_POST['candidateID']) ? (int) $_POST['candidateID'] : 0;
@@ -4466,9 +4600,11 @@ private function onSetFinalOpinion()
                 $candidateID, $regardingID, $statusID, $email, $customMessage
             );
 
-            /* If status = placed, and open positions > 0, reduce number of open positions by one. */
-            if ($statusID == PIPELINE_STATUS_PLACED && is_numeric($data['openingsAvailable']) && $data['openingsAvailable'] > 0)
-            {
+ $this->_autoLockEvaluationsForStatus($candidateID, $regardingID, $statusID);
+
+    /* If status = placed, and open positions > 0, reduce number of open positions by one. */
+    if ($statusID == PIPELINE_STATUS_PLACED && is_numeric($data['openingsAvailable']) && $data['openingsAvailable'] > 0)
+    {
                 $jobOrders = new JobOrders($this->_siteID);
                 $jobOrders->updateOpeningsAvailable($regardingID, $data['openingsAvailable'] - 1);
             }

@@ -1681,8 +1681,7 @@ private function onCustomizeEvaluationTemplate()
         {
             $command = trim(urldecode($commandEncoded));
             if ($command === '') continue;
-
-              $args = explode(' ', $command, 5);
+            $args = explode(' ', $command, 6);
             if (empty($args[0])) continue;
 
             switch ($args[0])
@@ -1706,14 +1705,14 @@ private function onCustomizeEvaluationTemplate()
                     $criteriaName = urldecode($args[2]);
                     $dataType     = isset($args[3]) ? urldecode($args[3]) : 'text';
                     $weight       = isset($args[4]) ? (float) urldecode($args[4]) : 0;
+                    $isGradeable  = isset($args[5]) ? ((urldecode($args[5]) === '1') ? 1 : 0) : 0;
                     $stageID = $evalTemplate->getStageIDByName($templateID, $stageName);
                     if ($stageID !== false && $criteriaName !== '')
                     {
                         $position = $evalTemplate->getNextCriteriaPosition($stageID);
-                        $evalTemplate->addCriteria($stageID, $criteriaName, $position, $dataType, $weight);
+                        $evalTemplate->addCriteria($stageID, $criteriaName, $position, $dataType, $weight, $isGradeable);
                     }
                     break;
-
  case 'SETSTAGEWEIGHT':
                     if (!isset($args[2])) break;
                     $stageName = urldecode($args[1]);
@@ -1740,6 +1739,21 @@ private function onCustomizeEvaluationTemplate()
                         }
                     }
                     break;
+                    case 'SETGRADEABLE':
+                        if (!isset($args[3])) break;
+                        $stageName    = urldecode($args[1]);
+                        $criteriaName = urldecode($args[2]);
+                        $isGradeable  = (urldecode($args[3]) === '1') ? 1 : 0;
+                        $stageID = $evalTemplate->getStageIDByName($templateID, $stageName);
+                        if ($stageID !== false)
+                        {
+                            $criteriaID = $evalTemplate->getCriteriaIDByName($stageID, $criteriaName);
+                            if ($criteriaID !== false)
+                            {
+                                $evalTemplate->setCriteriaGradeable($criteriaID, $isGradeable);
+                            }
+                        }
+                        break;
 
                 case 'DELETECRITERIA':
                     if (!isset($args[2])) break;

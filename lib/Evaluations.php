@@ -12,10 +12,19 @@
  * afterwards with no effect on the template. Nothing here references
  * evaluation_template / evaluation_stage / evaluation_criteria.
  *
- * Stages and criteria carry a WEIGHT. Weights are raw user input, not required
- * to sum to anything; EvaluationScore turns them into shares. Only criteria of
- * data_type 'score' carry a meaningful weight - see EvaluationScore.php for the
- * full model.
+ * Every criterion has TWO independent things:
+ *
+ *   data_type      what the ANSWER input looks like (text / date / number)
+ *   is_gradeable   whether this criterion ALSO carries a 1-5 GRADE
+ *
+ * They are unrelated - a date criterion can be graded, a text criterion can
+ * be graded. The answer (`value`) and the grade (`grade`) are stored as two
+ * separate columns on the same evaluation_criteria_value row, so switching
+ * the gradeable checkbox off and back on never loses either one.
+ *
+ * Stages and gradeable criteria carry a WEIGHT. Weights are raw user input,
+ * not required to sum to anything; EvaluationScore turns them into shares.
+ * See EvaluationScore.php for the full scoring model.
  */
 
 include_once(LEGACY_ROOT . '/lib/DatabaseConnection.php');
@@ -23,9 +32,9 @@ include_once(LEGACY_ROOT . '/lib/EvaluationScore.php');
 
 class Evaluations
 {
-    /* text/date/number are informational. 'score' is a 1-5 graded criterion
-     * and the only type that enters the scoring arithmetic. */
-    public static $DATA_TYPES = array('text', 'date', 'number', 'score');
+    /* What an answer can look like. Grading is a separate flag
+     * (is_gradeable), not a type - see the class doc comment above. */
+    public static $DATA_TYPES = array('text', 'date', 'number');
 
     private $_db;
     private $_siteID;
@@ -293,9 +302,9 @@ class Evaluations
     // Mirrors EvaluationTemplate::addStage(): every new stage starts with
     // Rating and Comments, Comments pinned last by its high position.
     //
-    // Rating now arrives as a 'score' criterion carrying the full weight, so a
-    // brand new stage is immediately scoreable rather than needing the type
-    // changed by hand first. Comments stays text and weightless.
+    // Rating arrives gradeable, carrying the full weight, so a brand new
+    // stage is immediately scoreable without anyone having to tick a box
+    // first. Comments stays plain text and ungradeable.
     public function addStage($instanceID, $stageName, $position = null, $weight = 100)
     {
         if ($position === null)
@@ -315,8 +324,8 @@ class Evaluations
         ));
         $instanceStageID = $this->_db->getLastInsertID();
 
-        $this->addCriteria($instanceStageID, 'Rating', 'score', 0, 100);
-        $this->addCriteria($instanceStageID, 'Comments', 'text', 99, 0);
+        $this->addCriteria($instanceStageID, 'Rating',   'text', 0,  100, 1);
+        $this->addCriteria($instanceStageID, 'Comments', 'text', 99, 0,   0);
 
         return ($instanceStageID);
     }
@@ -439,7 +448,8 @@ class Evaluations
     public function getCriteria($instanceStageID)
     {
         return $this->_db->getAllAssoc(sprintf(
-            "SELECT instance_criteria_id, criteria_name, data_type, position, weight
+            "SELECT instance_criteria_id, criteria_name, data_type, is_gradeable,
+                    position, weight
              FROM evaluation_instance_criteria
              WHERE instance_stage_id = %s AND site_id = %s
              ORDER BY position ASC, instance_criteria_id ASC",
@@ -449,7 +459,7 @@ class Evaluations
     }
 
     public function addCriteria($instanceStageID, $criteriaName, $dataType = 'text',
-                                $position = null, $weight = 0)
+                                $position = null, $weight = 0, $isGradeable = 0)
     {
         if (!in_array($dataType, self::$DATA_TYPES))
         {
@@ -463,12 +473,13 @@ class Evaluations
 
         $this->_db->query(sprintf(
             "INSERT INTO evaluation_instance_criteria
-                (instance_stage_id, site_id, criteria_name, data_type, position, weight)
-             VALUES (%s, %s, '%s', '%s', %s, %s)",
+                (instance_stage_id, site_id, criteria_name, data_type, is_gradeable, position, weight)
+             VALUES (%s, %s, '%s', '%s', %s, %s, %s)",
             (int) $instanceStageID,
             $this->_siteID,
             $this->_db->escapeString($criteriaName),
             $this->_db->escapeString($dataType),
+            ($isGradeable ? 1 : 0),
             (int) $position,
             $this->_sanitizeWeight($weight)
         ));
@@ -513,7 +524,23 @@ class Evaluations
         ));
     }
 
-    // Deleting a criterion also discards every answer already given for it.
+    // The checkbox that decides whether this criterion enters the scoring
+    // arithmetic at all. Flipping it off does NOT clear the weight or any
+    // grade already saved - only isScored() (EvaluationScore.php) stops
+    // reading them, so re-ticking the box restores scoring with whatever was
+    // there before.
+    public function setCriteriaGradeable($instanceCriteriaID, $isGradeable)
+    {
+        $this->_db->query(sprintf(
+            "UPDATE evaluation_instance_criteria SET is_gradeable = %s
+             WHERE instance_criteria_id = %s AND site_id = %s",
+            ($isGradeable ? 1 : 0),
+            (int) $instanceCriteriaID,
+            $this->_siteID
+        ));
+    }
+
+    // Deleting a criterion also discards every answer/grade already given for it.
     public function deleteCriteria($instanceCriteriaID)
     {
         $this->_db->query(sprintf(
@@ -673,7 +700,7 @@ class Evaluations
 
 
     /* ------------------------------------------------------------------ */
-    /* Values                                                             */
+    /* Values / grades                                                    */
     /* ------------------------------------------------------------------ */
 
     // A criterion is only writable by an evaluator sitting on the SAME stage.
@@ -696,14 +723,47 @@ class Evaluations
         return (!empty($rs));
     }
 
-    // Update if a row for (evaluator, criterion) exists, insert otherwise.
-    // Returns false if the criterion isn't this evaluator's to write.
-    public function saveCriteriaValue($evaluatorID, $instanceCriteriaID, $value)
+    /* Same blank/non-numeric/out-of-range -> unanswered rule as
+       EvaluationScore::parseGrade(), applied here so a garbage value never
+       reaches the grade column in the first place. Kept as a private
+       duplicate rather than calling parseGrade() directly, because that
+       method returns a float for arithmetic and this one needs an int (or
+       NULL) for storage - same rule, different return shape. */
+    private function _sanitizeGradeForStorage($grade)
+    {
+        if ($grade === null || $grade === '' || !is_numeric($grade))
+        {
+            return null;
+        }
+
+        $grade = (int) $grade;
+
+        if ($grade < 1 || $grade > 5)
+        {
+            return null;
+        }
+
+        return $grade;
+    }
+
+    /*
+     * Update if a row for (evaluator, criterion) exists, insert otherwise.
+     * $value and $grade are stored together in one row/one operation, since
+     * they're always written for the same criterion at the same time.
+     * Returns false if the criterion isn't this evaluator's to write.
+     *
+     * $grade is accepted (and stored) regardless of the criterion's current
+     * is_gradeable flag - harmless if unused, and it means re-ticking the
+     * checkbox later doesn't need the grade re-entered.
+     */
+    public function saveCriteriaValue($evaluatorID, $instanceCriteriaID, $value, $grade = null)
     {
         if (!$this->_criteriaBelongsToEvaluator($evaluatorID, $instanceCriteriaID))
         {
             return false;
         }
+
+        $grade = $this->_sanitizeGradeForStorage($grade);
 
         $rs = $this->_db->getAssoc(sprintf(
             "SELECT value_id FROM evaluation_criteria_value
@@ -716,9 +776,10 @@ class Evaluations
         if (!empty($rs))
         {
             $this->_db->query(sprintf(
-                "UPDATE evaluation_criteria_value SET value = '%s'
+                "UPDATE evaluation_criteria_value SET value = '%s', grade = %s
                  WHERE value_id = %s AND site_id = %s",
                 $this->_db->escapeString($value),
+                ($grade === null ? 'NULL' : (int) $grade),
                 (int) $rs['value_id'],
                 $this->_siteID
             ));
@@ -727,11 +788,12 @@ class Evaluations
         {
             $this->_db->query(sprintf(
                 "INSERT INTO evaluation_criteria_value
-                    (evaluator_id, instance_criteria_id, value, site_id)
-                 VALUES (%s, %s, '%s', %s)",
+                    (evaluator_id, instance_criteria_id, value, grade, site_id)
+                 VALUES (%s, %s, '%s', %s, %s)",
                 (int) $evaluatorID,
                 (int) $instanceCriteriaID,
                 $this->_db->escapeString($value),
+                ($grade === null ? 'NULL' : (int) $grade),
                 $this->_siteID
             ));
         }
@@ -739,23 +801,20 @@ class Evaluations
         return true;
     }
 
+public function getInstanceIDsFiledUnder($candidateID, $jobOrderID)
+{
+    $rows = $this->_db->getAllAssoc(sprintf(
+        "SELECT instance_id FROM evaluation_instance
+         WHERE candidate_id = %s AND site_id = %s AND last_seed_job_order_id = %s",
+        (int) $candidateID,
+        $this->_siteID,
+        (int) $jobOrderID
+    ));
 
-    /* ------------------------------------------------------------------ */
-    /* Reading a whole evaluation                                         */
-    /* ------------------------------------------------------------------ */
+    return array_map(function ($row) { return (int) $row['instance_id']; }, $rows);
+}
 
-    /*
-     * Returns the full nested structure the evaluate page renders:
-     *
-     *   [ instance_stage_id, stage_name, position, weight,
-     *     criteria   => [ instance_criteria_id, criteria_name, data_type,
-     *                     position, weight ],
-     *     evaluators => [ evaluator_id, evaluator_name,
-     *                     values => [ instance_criteria_id => value ] ] ]
-     *
-     * Four queries total regardless of how many stages there are, rather than
-     * looping per stage. This is exactly the shape EvaluationScore expects.
-     */
+
     public function getFullEvaluation($instanceID)
     {
         $stages = $this->getStages($instanceID);
@@ -779,7 +838,7 @@ class Evaluations
         /* Criteria for every stage at once. */
         $criteriaRows = $this->_db->getAllAssoc(sprintf(
             "SELECT instance_stage_id, instance_criteria_id, criteria_name,
-                    data_type, position, weight
+                    data_type, is_gradeable, position, weight
              FROM evaluation_instance_criteria
              WHERE instance_stage_id IN (%s) AND site_id = %s
              ORDER BY position ASC, instance_criteria_id ASC",
@@ -817,7 +876,8 @@ class Evaluations
             $stages[$i]['evaluators'][] = array(
                 'evaluator_id'   => (int) $row['evaluator_id'],
                 'evaluator_name' => $row['evaluator_name'],
-                'values'         => array()
+                'values'         => array(),
+                'grades'         => array()
             );
 
             $evaluatorIDs[] = (int) $row['evaluator_id'];
@@ -826,9 +886,9 @@ class Evaluations
             );
         }
 
-        /* Every saved answer at once. */
+        /* Every saved answer/grade at once. */
         $valueRows = $this->_db->getAllAssoc(sprintf(
-            "SELECT evaluator_id, instance_criteria_id, value
+            "SELECT evaluator_id, instance_criteria_id, value, grade
              FROM evaluation_criteria_value
              WHERE evaluator_id IN (%s) AND site_id = %s",
             implode(',', $evaluatorIDs),
@@ -841,35 +901,19 @@ class Evaluations
             if (!isset($evaluatorIndex[$evaluatorID])) continue;
 
             list($i, $j) = $evaluatorIndex[$evaluatorID];
-            $stages[$i]['evaluators'][$j]['values'][$row['instance_criteria_id']] = $row['value'];
+            $criteriaID = $row['instance_criteria_id'];
+
+            $stages[$i]['evaluators'][$j]['values'][$criteriaID] = $row['value'];
+
+            if ($row['grade'] !== null)
+            {
+                $stages[$i]['evaluators'][$j]['grades'][$criteriaID] = (int) $row['grade'];
+            }
         }
 
         return $stages;
     }
 
-
-    /* ------------------------------------------------------------------ */
-    /* Seeding from a template                                            */
-    /* ------------------------------------------------------------------ */
-
-    /*
-     * Copies a template's stages/criteria into this evaluation, MERGING by
-     * name rather than replacing:
-     *
-     *   - stage name already present  -> reuse it, only add its missing criteria
-     *   - stage name absent           -> insert it plus all its criteria
-     *   - criterion name already in that stage -> skip; the EXISTING data_type
-     *     AND WEIGHT win, because retyping or reweighting a criterion under
-     *     saved answers would silently change scores already recorded
-     *   - nothing is ever deleted or renamed
-     *
-     * $templateStages is whatever EvaluationTemplate::getFullTemplate() returned
-     * (stage_name + weight + nested criteria). This class never queries the
-     * template tables itself, which is what keeps the two sides independent.
-     *
-     * Name matching is done in PHP, case-insensitively on trimmed names, rather
-     * than in SQL, so it can't trip over column collations.
-     */
     public function seedFromStages($instanceID, $templateStages)
     {
         $added = array('stages' => 0, 'criteria' => 0);
@@ -949,8 +993,9 @@ class Evaluations
                     continue;
                 }
 
-                $dataType = isset($criterion['data_type']) ? $criterion['data_type'] : 'text';
-                $weight   = isset($criterion['weight'])    ? $criterion['weight']    : 0;
+                $dataType    = isset($criterion['data_type'])    ? $criterion['data_type']    : 'text';
+                $weight      = isset($criterion['weight'])       ? $criterion['weight']       : 0;
+                $isGradeable = isset($criterion['is_gradeable']) ? $criterion['is_gradeable']  : 0;
 
                 /* Keep the template's own ordering on a brand new stage;
                  * append to the end of an existing one. */
@@ -960,7 +1005,7 @@ class Evaluations
 
                 $this->addCriteria(
                     $instanceStageID, $criterion['criteria_name'],
-                    $dataType, $position, $weight
+                    $dataType, $position, $weight, $isGradeable
                 );
 
                 $existingCriteria[$criteriaKey] = true;
@@ -977,11 +1022,6 @@ class Evaluations
     {
         return mb_strtolower(trim($name), 'UTF-8');
     }
-
-    /* Weights are raw user input. Negatives are meaningless here and would
-     * invert a criterion's contribution, so they clamp to zero. The column is
-     * DECIMAL(6,2); anything past that is capped rather than truncated by
-     * MySQL under a non-strict sql_mode. */
     private function _sanitizeWeight($weight)
     {
         $weight = (float) $weight;

@@ -10,17 +10,10 @@
     var CATS_CandidateID = <?php echo (int) $this->candidateID; ?>;
     var CATS_InstanceID = <?php echo (int) $this->instanceID; ?>;
 
-    /* A locked evaluation renders as a plain read-only record: no icons, no
-       Save, no editable fields. The server refuses the writes regardless -
-       this only keeps the page from offering controls that would fail. */
     var CATS_IsLocked = <?php echo $this->isLocked ? 'true' : 'false'; ?>;
 
-    /* Rides along on every write so the job order survives the redirect back
-       to this page. 0 is the Generic view, which files nothing. */
-    var CATS_NavJobOrderID = <?php echo (int) $this->navJobOrderID; ?>;
+    var CATS_NavJobOrderID = <?php echo $this->navJobOrderID === null ? "''" : (int) $this->navJobOrderID; ?>;
 
-    /* Navigation only. Unlike the template loader further down, this writes
-       nothing - it just moves to another candidate's evaluation. */
     window.evalNavGo = function (candidateID, jobOrderID) {
         window.location = CATS_IndexName + '?m=candidates&a=evaluate'
             + '&candidateID=' + encodeURIComponent(candidateID)
@@ -28,7 +21,9 @@
     };
 
     window.evalNavJobOrderChanged = function () {
-        evalNavGo(CATS_CandidateID, document.getElementById('navJobOrder').value);
+        var jo = document.getElementById('navJobOrder').value;
+        if (jo === '') { return; }
+        evalNavGo(CATS_CandidateID, jo);
     };
 
     window.evalNavCandidateChanged = function () {
@@ -37,14 +32,52 @@
         evalNavGo(sel.value, document.getElementById('navJobOrder').value);
     };
 
+    (function () {
+        var timer = null;
+
+        window.evalNavSearch = function (q) {
+            var box = document.getElementById('navCandidateResults');
+            if (!box) { return; }
+            if (timer) { clearTimeout(timer); }
+
+            if (q.trim().length < 2) {
+                box.style.display = 'none';
+                return;
+            }
+
+            timer = setTimeout(function () {
+                fetch(CATS_IndexName + '?m=candidates&a=evaluationCandidateSearch'
+                        + '&navJobOrderID=0&q=' + encodeURIComponent(q),
+                      { credentials: 'same-origin' })
+                    .then(function (r) { return r.json(); })
+                    .then(function (data) {
+                        box.innerHTML = '';
+                        if (!data.results || !data.results.length) {
+                            box.style.display = 'none';
+                            return;
+                        }
+                        data.results.forEach(function (row) {
+                            var a = document.createElement('a');
+                            a.href = '#';
+                            a.style.display = 'block';
+                            a.style.padding = '2px 4px';
+                            a.textContent = (row.filed ? '* ' : '') + row.name;
+                            a.onclick = function (e) {
+                                e.preventDefault();
+                                evalNavGo(row.id, 0);
+                            };
+                            box.appendChild(a);
+                        });
+                        box.style.display = '';
+                    })
+                    .catch(function () { box.style.display = 'none'; });
+            }, 250);
+        };
+    })();
+
     window.CATSStages = window.CATSStages || {};
     window.evaluatorBlocks = window.evaluatorBlocks || [];
 
-    /* Same swap the settings template editor uses: the display span is hidden
-       and an edit area takes its place, with the action icons left visible
-       either side of it. Two explicit functions rather than one toggle,
-       because a toggle can't tell "already open" from "never opened" once
-       display has been set back to ''. */
     window.showEdit = function (displayID, editID, focusID) {
         var display = document.getElementById(displayID);
         var edit    = document.getElementById(editID);
@@ -74,15 +107,11 @@
         display.style.display = '';
     };
 
-    /* Stage edit mode: the criterion labels inside the evaluator block turn
-       into inputs in place. Nothing new is drawn - it is the same table.
-       A stage with no evaluators yet has no labels to edit, so one empty
-       block is rendered first to edit them in. */
     window.showStageEditor = function (instanceStageID) {
         var stage = window.CATSStages[instanceStageID];
 
         if (!stage.editorBound) {
-            renderEvaluatorBlock(instanceStageID, 0, '', {});
+            renderEvaluatorBlock(instanceStageID, 0, '', {}, {});
         }
 
         stage.labelDisplays.forEach(function (el) { el.style.display = 'none'; });
@@ -90,6 +119,12 @@
 
         document.getElementById('stageDisplay_' + instanceStageID).style.display = 'none';
         document.getElementById('stageNameEdit_' + instanceStageID).style.display = '';
+
+        var wDisplay = document.getElementById('stageWeightDisplay_' + instanceStageID);
+        var wEdit    = document.getElementById('stageWeightEdit_' + instanceStageID);
+        if (wDisplay) { wDisplay.style.display = 'none'; }
+        if (wEdit)    { wEdit.style.display    = '';     }
+
         document.getElementById('stageNameInput_' + instanceStageID).focus();
     };
 
@@ -101,6 +136,11 @@
 
         document.getElementById('stageNameEdit_' + instanceStageID).style.display = 'none';
         document.getElementById('stageDisplay_' + instanceStageID).style.display = '';
+
+        var wDisplay = document.getElementById('stageWeightDisplay_' + instanceStageID);
+        var wEdit    = document.getElementById('stageWeightEdit_' + instanceStageID);
+        if (wEdit)    { wEdit.style.display    = 'none'; }
+        if (wDisplay) { wDisplay.style.display = '';     }
     };
 
     window.saveAllEvaluators = function () {
@@ -123,30 +163,23 @@
             btn.disabled = false;
             var anyFailed = results.some(function (r) { return !r || !r.success; });
             btn.value = anyFailed ? 'Save All (some failed, retry)' : originalLabel;
-            window.updateAverageRating();
+
+            var lastGood = results.filter(function (r) { return r && r.success; }).pop();
+            if (lastGood) { window.updateScoreDisplay(lastGood); }
         });
     };
 
-    window.updateAverageRating = function () {
-        var display = document.getElementById('avgRatingDisplay');
-        if (!display) {
-            return;
+    window.updateScoreDisplay = function (data) {
+        var scoreEl = document.getElementById('scoreDisplay');
+        var pctEl   = document.getElementById('scorePercentDisplay');
+        if (scoreEl && data && typeof data.scoreDisplay !== 'undefined') {
+            scoreEl.textContent = data.scoreDisplay;
         }
-
-        var values = window.evaluatorBlocks
-            .map(function (block) { return block.getRatingValue ? block.getRatingValue() : null; })
-            .filter(function (v) { return v !== null; });
-
-        if (values.length === 0) {
-            display.textContent = 'Empty';
-            return;
+        if (pctEl) {
+            pctEl.textContent = (data && data.scorePercent) ? '(' + data.scorePercent + ')' : '';
         }
-
-        var avg = values.reduce(function (a, b) { return a + b; }, 0) / values.length;
-        display.textContent = avg.toFixed(1);
     };
 
-    /* Keeps the evaluator-name autocomplete list current within the session. */
     window.registerEvaluatorName = function (name) {
         name = (name || '').trim();
         if (!name) {
@@ -169,11 +202,11 @@
         }
     };
 
-    /* evaluatorID 0 means "not saved yet". */
+    /* evaluatorID 0 means not saved yet */
     (function () {
         var uniqueCount = 0;
 
-        window.renderEvaluatorBlock = function (instanceStageID, evaluatorID, evaluatorName, values) {
+        window.renderEvaluatorBlock = function (instanceStageID, evaluatorID, evaluatorName, values, grades) {
             var stage = window.CATSStages[instanceStageID];
             var container = document.getElementById('evaluatorsContainer_' + instanceStageID);
             var uid = 'uid' + (++uniqueCount);
@@ -189,6 +222,7 @@
             }
 
             values = values || {};
+            grades = grades || {};
 
             function addHidden(form, name, value) {
                 var input = document.createElement('input');
@@ -314,10 +348,8 @@
             addFieldRow(CATS_IsLocked ? 'Evaluator Name:' : 'Evaluator Name: *', nameInput);
 
             var fields = [];
-            var ratingField = null;
 
             stage.criteria.forEach(function (criterion) {
-                var isRating = criterion.name.trim().toLowerCase() === 'rating';
                 var type = criterion.type || 'text';
                 var field;
 
@@ -341,10 +373,37 @@
                 field.style.marginLeft = '0';
                 field.value = values[criterion.id] || '';
 
-                /* The label is the criterion name, so this is where editing it
-                   belongs. Only the first block rendered for a stage carries the
-                   edit controls - the rest show the same criteria, and having
-                   several editable copies of one name would be ambiguous. */
+                /* Answer and grade are independent - a gradeable criterion gets
+                   both an answer field and a 1-5 select beside it, wrapped
+                   together so they land in the same table cell. */
+                var fieldWrap = field;
+                var gradeSelect = null;
+
+                if (criterion.gradeable) {
+                    gradeSelect = document.createElement('select');
+                    gradeSelect.name = 'grades[' + criterion.id + ']';
+                    gradeSelect.className = 'inputbox';
+                    gradeSelect.style.width = '60px';
+                    gradeSelect.style.marginLeft = '8px';
+
+                    var blankOpt = document.createElement('option');
+                    blankOpt.value = '';
+                    blankOpt.textContent = '\u2014';
+                    gradeSelect.appendChild(blankOpt);
+
+                    for (var g = 1; g <= 5; g++) {
+                        var gOpt = document.createElement('option');
+                        gOpt.value = String(g);
+                        gOpt.textContent = String(g);
+                        if (String(grades[criterion.id] || '') === String(g)) { gOpt.selected = true; }
+                        gradeSelect.appendChild(gOpt);
+                    }
+
+                    fieldWrap = document.createElement('span');
+                    fieldWrap.appendChild(field);
+                    fieldWrap.appendChild(gradeSelect);
+                }
+
                 var labelWrap = document.createElement('span');
 
                 var labelDisplay = document.createElement('span');
@@ -378,33 +437,56 @@
                     });
                     labelEdit.appendChild(critTypeSelect);
 
+                    var critWeightInput = document.createElement('input');
+                    critWeightInput.type = 'text';
+                    critWeightInput.name = 'criteriaWeight[' + criterion.id + ']';
+                    critWeightInput.className = 'inputbox weightBox';
+                    critWeightInput.style.marginLeft = '6px';
+                    critWeightInput.value = String(criterion.weight || 0);
+                    critWeightInput.disabled = !criterion.gradeable;
+                    critWeightInput.setAttribute('form', criteriaFormID);
+
+                    var critGradeableLabel = document.createElement('label');
+                    critGradeableLabel.style.marginLeft = '6px';
+                    critGradeableLabel.style.fontSize = '11px';
+                    critGradeableLabel.style.color = '#666';
+
+                    var critGradeableInput = document.createElement('input');
+                    critGradeableInput.type = 'checkbox';
+                    critGradeableInput.name = 'criteriaGradeable[' + criterion.id + ']';
+                    critGradeableInput.value = '1';
+                    critGradeableInput.checked = !!criterion.gradeable;
+                    critGradeableInput.setAttribute('form', criteriaFormID);
+                    critGradeableInput.onchange = function () {
+                        critWeightInput.disabled = !critGradeableInput.checked;
+                    };
+
+                    critGradeableLabel.appendChild(critGradeableInput);
+                    critGradeableLabel.appendChild(document.createTextNode(' Gradeable'));
+
+                    labelEdit.appendChild(critGradeableLabel);
+                    labelEdit.appendChild(critWeightInput);
+
+                    /* Share is computed once, server-side, the same way the
+                       settings page computes it - not recalculated live here,
+                       since weight editing on this page is occasional rather
+                       than something worth live JS feedback for. */
+                    var critShareSpan = document.createElement('span');
+                    critShareSpan.className = 'shareNote';
+                    critShareSpan.textContent = (criterion.gradeable && criterion.sharePercent !== null && criterion.sharePercent !== undefined)
+                        ? (criterion.sharePercent + '%') : '';
+                    labelEdit.appendChild(critShareSpan);
+
                     labelWrap.appendChild(labelEdit);
 
                     stage.labelDisplays.push(labelDisplay);
                     stage.labelEdits.push(labelEdit);
                 }
 
-                addFieldRow(labelWrap, field);
+                addFieldRow(labelWrap, fieldWrap);
                 fields.push(field);
-
-                if (isRating) {
-                    ratingField = field;
-                }
+                if (gradeSelect) { fields.push(gradeSelect); }
             });
-
-            if (ratingField && !CATS_IsLocked) {
-                ratingField.addEventListener('input', function () {
-                    window.updateAverageRating();
-                });
-            }
-
-            function getRatingValue() {
-                if (!ratingField) {
-                    return null;
-                }
-                var v = parseFloat(ratingField.value);
-                return isNaN(v) ? null : v;
-            }
 
             form.appendChild(table);
             formTd.appendChild(form);
@@ -421,7 +503,13 @@
             addHidden(deleteForm, 'csrfToken', CSRF_Token);
 
             function applyFieldStyle(el, isEditable) {
-                el.readOnly = !isEditable;
+                /* readOnly has no effect on <select> - a grade dropdown needs
+                   'disabled' to actually stop being changeable. */
+                if (el.tagName === 'SELECT') {
+                    el.disabled = !isEditable;
+                } else {
+                    el.readOnly = !isEditable;
+                }
                 el.classList.toggle('editableField', isEditable);
 
                 if (isEditable) {
@@ -499,7 +587,7 @@
                     } else {
                         saveBtn.value = 'Save (failed, try again)';
                     }
-                    window.updateAverageRating();
+                    if (data.success) { window.updateScoreDisplay(data); }
                     return data;
                 })
                 .catch(function () {
@@ -524,14 +612,11 @@
             window.evaluatorBlocks.push({
                 performSave: performSave,
                 hasContent: hasContent,
-                isSaved: function () { return Number(evaluatorIDInput.value) > 0; },
-                getRatingValue: getRatingValue
+                isSaved: function () { return Number(evaluatorIDInput.value) > 0; }
             });
 
             container.appendChild(outer);
             container.appendChild(deleteForm);
-
-            window.updateAverageRating();
 
             return outer;
         };
@@ -539,12 +624,21 @@
 </script>
 
 <?php
-    /* Emitted into every form that writes, so onEvaluationCommand() /
-       onEvaluate() / onDeleteEvaluator() redirect back here with the
-       navigation state intact. */
+
     $navJobOrderField = '<input type="hidden" name="navJobOrderID" value="'
-        . (int) $this->navJobOrderID . '" />';
+        . ($this->navJobOrderID === null ? '' : (int) $this->navJobOrderID)
+        . '" />';
+
+    function evalWeight($value)
+    {
+        return rtrim(rtrim(number_format((float) $value, 2, '.', ''), '0'), '.') ?: '0';
+    }
 ?>
+
+<style type="text/css">
+    .shareNote { color:#777; font-size:11px; margin-left:6px; white-space:nowrap; }
+    .weightBox { width:46px; text-align:right; }
+</style>
 
 <div id="main">
     <?php TemplateUtility::printQuickSearch(); ?>
@@ -572,19 +666,20 @@
             <?php echo htmlspecialchars($this->candidateName, ENT_QUOTES, 'UTF-8'); ?>
         </p>
 
-        <!-- Navigation. Job order on top, its candidates below; Generic means
-             every candidate and their latest evaluation regardless of filing.
-             This only MOVES between evaluations - it writes nothing, and is
-             unrelated to the "Load stages from" line further down, which is
-             what actually seeds structure. -->
-        <?php $navJobOrderID = (int) $this->navJobOrderID; ?>
+        <!-- Navigation. Job order on top, its candidates below. This only MOVES
+             between evaluations - it writes nothing, and is unrelated to the
+             "Load stages from" line further down, which seeds structure. -->
+        <?php
+            $navJobOrderID = $this->navJobOrderID;              /* null = unfiled */
+            $navSelected   = ($navJobOrderID === null) ? '' : (string) $navJobOrderID;
+        ?>
         <div style="margin-bottom:14px;">
             <select id="navJobOrder" class="inputbox" style="width:340px;"
                     onchange="evalNavJobOrderChanged();">
-                <option value="0"<?php echo $navJobOrderID === 0 ? ' selected="selected"' : ''; ?>>Generic (all candidates)</option>
+                <option value="0"<?php echo $navSelected === '0' ? ' selected="selected"' : ''; ?>>Generic</option>
                 <?php foreach ($this->jobOrdersRS as $jobOrderData): ?>
                     <?php $joID = (int) $jobOrderData['jobOrderID']; ?>
-                    <option value="<?php echo $joID; ?>"<?php echo $navJobOrderID === $joID ? ' selected="selected"' : ''; ?>>
+                    <option value="<?php echo $joID; ?>"<?php echo $navSelected === (string) $joID ? ' selected="selected"' : ''; ?>>
                         <?php echo htmlspecialchars($jobOrderData['title'], ENT_QUOTES, 'UTF-8'); ?><?php
                             if (!empty($jobOrderData['companyName']))
                             {
@@ -596,25 +691,37 @@
             </select>
 
             <div style="margin-top:4px;">
-                <select id="navCandidate" class="inputbox" style="width:340px;"
-                        onchange="evalNavCandidateChanged();">
-                    <?php if (!$this->navCandidateHere): ?>
-                        <option value="<?php echo (int) $this->candidateID; ?>" selected="selected">
-                            <?php echo htmlspecialchars($this->candidateName, ENT_QUOTES, 'UTF-8'); ?> (not in this pipeline)
-                        </option>
-                    <?php endif; ?>
-                    <?php foreach ($this->navCandidates as $navCandidate): ?>
-                        <?php
-                            $cID   = (int) $navCandidate['candidateID'];
-                            $label = ($navCandidate['firstName'] . ' ' . $navCandidate['lastName']);
-                            if (isset($this->navFiledMap[$cID])) { $label = '* ' . $label; }
-                        ?>
-                        <option value="<?php echo $cID; ?>"<?php echo $cID === (int) $this->candidateID ? ' selected="selected"' : ''; ?>>
-                            <?php echo htmlspecialchars($label, ENT_QUOTES, 'UTF-8'); ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-               
+                <?php if ($navJobOrderID === null): ?>
+                    <select class="inputbox" style="width:340px;" disabled="disabled">
+                        <option><?php echo htmlspecialchars($this->candidateName, ENT_QUOTES, 'UTF-8'); ?></option>
+                    </select>
+                <?php elseif ($navJobOrderID > 0): ?>
+                    <select id="navCandidate" class="inputbox" style="width:340px;"
+                            onchange="evalNavCandidateChanged();">
+                        <?php if (!$this->navCandidateHere): ?>
+                            <option value="<?php echo (int) $this->candidateID; ?>" selected="selected">
+                                <?php echo htmlspecialchars($this->candidateName, ENT_QUOTES, 'UTF-8'); ?> (not in joborder)
+                            </option>
+                        <?php endif; ?>
+                        <?php foreach ($this->navCandidates as $navCandidate): ?>
+                            <?php
+                                $cID   = (int) $navCandidate['candidateID'];
+                                $label = ($navCandidate['firstName'] . ' ' . $navCandidate['lastName']);
+                                if (isset($this->navFiledMap[$cID])) { $label = '* ' . $label; }
+                            ?>
+                            <option value="<?php echo $cID; ?>"<?php echo $cID === (int) $this->candidateID ? ' selected="selected"' : ''; ?>>
+                                <?php echo htmlspecialchars($label, ENT_QUOTES, 'UTF-8'); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                <?php else: ?>
+                    <input type="text" id="navCandidateSearch" class="inputbox" style="width:340px;"
+                           autocomplete="off" placeholder="Type a candidate name"
+                           value="<?php echo htmlspecialchars($this->candidateName, ENT_QUOTES, 'UTF-8'); ?>"
+                           onkeyup="evalNavSearch(this.value);" />
+                    <div id="navCandidateResults" class="ajaxSearchResults"
+                         style="display:none; width:340px; max-height:220px; overflow:auto; text-align:left;"></div>
+                <?php endif; ?>
             </div>
         </div>
 
@@ -622,12 +729,6 @@
             <div class="warning" style="margin-bottom:10px;">
                 <img src="images/key.png" width="16" height="16" border="0" class="absmiddle" alt="" />&nbsp;This
                 evaluation is locked. It is read-only and cannot be unlocked.
-            </div>
-        <?php endif; ?>
-
-        <?php if ($this->isDraft): ?>
-            <div class="note" style="margin-bottom:10px; color:#666;">
-                No evaluation here yet.
             </div>
         <?php endif; ?>
 
@@ -663,13 +764,20 @@
                         </span>
                     <?php endif; ?>
 
-                    <?php if (!$this->isEmpty): ?>
-                        <br /><span style="font-weight:normal; font-size:13px;">Rating: <span id="avgRatingDisplay">Empty</span></span>
-                        <?php if (!$this->isLocked): ?>
-                            <br /><input type="button" id="saveAllButton" value="Save All" class="button" style="margin-top:6px;"
-                                         onclick="saveAllEvaluators();" />
-                        <?php endif; ?>
-                    <?php endif; ?>
+<?php if (!$this->isEmpty): ?>
+    <br /><span id="scoreDisplay"><?php echo htmlspecialchars($this->scoreDisplay, ENT_QUOTES, 'UTF-8'); ?></span>
+    <span id="scorePercentDisplay" style="color:#777;"><?php echo $this->scorePercent !== '' ? '(' . htmlspecialchars($this->scorePercent, ENT_QUOTES, 'UTF-8') . ')' : ''; ?></span>
+    <?php if (!$this->isLocked): ?>
+        <br /><input type="button" id="saveAllButton" value="Save All" class="button" style="margin-top:6px;"
+                     onclick="saveAllEvaluators();" />
+    <?php endif; ?>
+    <br /><a href="<?php echo Template::escapeUrl(CATSUtility::getIndexName()
+        . '?m=candidates&a=evaluationExport&candidateID=' . $this->candidateID
+        . '&instanceID=' . $this->instanceID); ?>"
+       style="margin-top:6px; display:inline-block;">
+        Export to CSV
+    </a>
+<?php endif; ?>
                 </td>
             </tr>
         </table>
@@ -678,9 +786,8 @@
              COPIES stages/criteria in, merging by name: existing names are left
              alone and only what's missing gets added. It also FILES the
              evaluation under the job order picked here, replacing whatever it
-             was filed under before. Picking the Generic template files it
-             nowhere, which means it's only reachable through the Generic view.
-             On a draft page this is what creates the evaluation.
+             was filed under before - which is what the navigation dropdowns
+             above read. On a draft page this is what creates the evaluation.
 
              Kept as one plain line rather than a panel: it's an occasional
              setup action, not a section of the evaluation. -->
@@ -752,6 +859,21 @@
                                        onclick="hideStageEditor(<?php echo $instanceStageID; ?>);" />
                             </span>
                         <?php endif; ?>
+
+                        <div style="margin-top:4px; font-weight:normal; font-size:11px; color:#666;">
+                            Weight:
+                            <span id="stageWeightDisplay_<?php echo $instanceStageID; ?>"><?php echo evalWeight(isset($stage['weight']) ? $stage['weight'] : 0); ?></span>
+                            <?php if (!$this->isLocked): ?>
+                                <span id="stageWeightEdit_<?php echo $instanceStageID; ?>" style="display:none;">
+                                    <input type="text" class="inputbox weightBox"
+                                           id="stageWeightInput_<?php echo $instanceStageID; ?>"
+                                           name="stageWeight"
+                                           form="criteriaForm_<?php echo $instanceStageID; ?>"
+                                           value="<?php echo evalWeight(isset($stage['weight']) ? $stage['weight'] : 0); ?>" />
+                                </span>
+                            <?php endif; ?>
+                            <span class="shareNote"><?php echo isset($stage['sharePercent']) ? $stage['sharePercent'] . '%' : ''; ?></span>
+                        </div>
                     </td>
                 </tr>
             </table>
@@ -789,11 +911,16 @@
 
             <script type="text/javascript">
                 window.CATSStages[<?php echo $instanceStageID; ?>] = {
+                    weight: <?php echo json_encode(isset($stage['weight']) ? (float) $stage['weight'] : 0); ?>,
+                    sharePercent: <?php echo json_encode(isset($stage['sharePercent']) ? $stage['sharePercent'] : null); ?>,
                     criteria: <?php echo json_encode(array_map(function ($c) {
                         return array(
-                            'id'   => (int) $c['instance_criteria_id'],
-                            'name' => $c['criteria_name'],
-                            'type' => isset($c['data_type']) ? $c['data_type'] : 'text',
+                            'id'           => (int) $c['instance_criteria_id'],
+                            'name'         => $c['criteria_name'],
+                            'type'         => isset($c['data_type']) ? $c['data_type'] : 'text',
+                            'gradeable'    => !empty($c['is_gradeable']),
+                            'weight'       => isset($c['weight']) ? (float) $c['weight'] : 0,
+                            'sharePercent' => isset($c['sharePercent']) ? $c['sharePercent'] : null,
                         );
                     }, $stage['criteria'])); ?>
                 };
@@ -804,11 +931,12 @@
                             'id'     => (int) $e['evaluator_id'],
                             'name'   => $e['evaluator_name'],
                             'values' => (object) (isset($e['values']) ? $e['values'] : array()),
+                            'grades' => (object) (isset($e['grades']) ? $e['grades'] : array()),
                         );
                     }, $stage['evaluators'])); ?>;
 
                     evaluators.forEach(function (ev) {
-                        renderEvaluatorBlock(<?php echo $instanceStageID; ?>, ev.id, ev.name, ev.values);
+                        renderEvaluatorBlock(<?php echo $instanceStageID; ?>, ev.id, ev.name, ev.values, ev.grades);
                     });
                 })();
             </script>
@@ -816,7 +944,7 @@
             <?php if (!$this->isLocked): ?>
                 <div style="margin-top:12px;">
                     <input type="button" value="Add Evaluator" class="button"
-                           onclick="renderEvaluatorBlock(<?php echo $instanceStageID; ?>, 0, '', {});" />
+                           onclick="renderEvaluatorBlock(<?php echo $instanceStageID; ?>, 0, '', {}, {});" />
                 </div>
 
                 <!-- Add criteria closes out the stage, as the reveal-link pattern
@@ -844,6 +972,12 @@
                             <option value="date">Date</option>
                             <option value="number">Number</option>
                         </select>
+                        <label style="font-size:11px; color:#666; margin-left:4px;">
+                            <input type="checkbox" name="isGradeable" value="1"
+                                   onchange="document.getElementById('addCriteriaWeight_<?php echo $instanceStageID; ?>').disabled = !this.checked;" /> Gradeable
+                        </label>
+                        <input id="addCriteriaWeight_<?php echo $instanceStageID; ?>" type="text" name="weight"
+                               class="inputbox weightBox" value="0" title="Weight" disabled="disabled" />
                         <input type="submit" class="button" value="Add Criteria" />
                         <input type="button" class="button" value="Cancel"
                                onclick="hideEdit('addCriteriaLink_<?php echo $instanceStageID; ?>', 'addCriteriaArea_<?php echo $instanceStageID; ?>');" />
