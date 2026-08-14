@@ -3321,9 +3321,6 @@ class CandidatesUI extends UserInterface
         ? trim($candidateData['firstName'] . ' ' . $candidateData['lastName'])
         : '';
 
-    $stages  = $evaluations->getFullEvaluation($instanceID);
-    $scoring = EvaluationScore::scoreEvaluation($stages);
-
     $filenameSafe = preg_replace('/[^A-Za-z0-9_\-]+/', '_', trim($candidateName . '_' . $instance['title']));
 
     header('Content-Type: text/csv; charset=utf-8');
@@ -3332,55 +3329,10 @@ class CandidatesUI extends UserInterface
     header('Expires: 0');
 
     $out = fopen('php://output', 'w');
-
-    fputcsv($out, array('Evaluation', $instance['title']));
-    fputcsv($out, array('Candidate', $candidateName));
-fputcsv($out, array('Score', EvaluationScore::formatFull($scoring['score'])));
-    fputcsv($out, array());
-
-    fputcsv($out, array(
-        'Stage', 'Stage Weight', 'Criteria', 'Type',
-        'Gradeable', 'Criteria Weight', 'Evaluator', 'Value', 'Grade'
-    ));
-
-    foreach ($stages as $stage)
-    {
-        if (empty($stage['evaluators']))
-        {
-            foreach ($stage['criteria'] as $criterion)
-            {
-                fputcsv($out, array(
-                    $stage['stage_name'], $stage['weight'],
-                    $criterion['criteria_name'], $criterion['data_type'],
-                    $criterion['is_gradeable'] ? 'Yes' : 'No', $criterion['weight'],
-                    '', '', ''
-                ));
-            }
-            continue;
-        }
-
-        foreach ($stage['evaluators'] as $evaluator)
-        {
-            foreach ($stage['criteria'] as $criterion)
-            {
-                $criteriaID = $criterion['instance_criteria_id'];
-                $value = isset($evaluator['values'][$criteriaID]) ? $evaluator['values'][$criteriaID] : '';
-                $grade = isset($evaluator['grades'][$criteriaID]) ? $evaluator['grades'][$criteriaID] : '';
-
-                fputcsv($out, array(
-                    $stage['stage_name'], $stage['weight'],
-                    $criterion['criteria_name'], $criterion['data_type'],
-                    $criterion['is_gradeable'] ? 'Yes' : 'No', $criterion['weight'],
-                    $evaluator['evaluator_name'], $value, $grade
-                ));
-            }
-        }
-    }
-
+    $evaluations->writeInstanceCSV($out, $instanceID, $candidateName);
     fclose($out);
     exit;
 }
-
     private function _requireEvaluation($evaluations, $instanceID, $candidateID)
     {
         $instance = $evaluations->getInstance($instanceID);
@@ -3663,7 +3615,7 @@ $this->_template->assign('scorePercent', EvaluationScore::formatPercent($scoring
         $this->_template->display('./modules/candidates/Evaluate.tpl');
     }
 
-    private function onEvaluate()
+  private function onEvaluate()
     {
         $candidateID     = isset($_POST['candidateID'])     ? (int) $_POST['candidateID']     : 0;
         $instanceID      = isset($_POST['instanceID'])      ? (int) $_POST['instanceID']      : 0;
@@ -3676,31 +3628,6 @@ $this->_template->assign('scorePercent', EvaluationScore::formatPercent($scoring
 
         if ($candidateID <= 0 || $instanceID <= 0 || $instanceStageID <= 0)
         {
-if ($isAjax)
-        {
-            $scoring = EvaluationScore::scoreEvaluation($evaluations->getFullEvaluation($instanceID));
-
-            $stageScores = array();
-            foreach ($scoring['stages'] as $s)
-            {
-                $stageScores[(int) $s['instance_stage_id']] = array(
-                    'scoreDisplay' => EvaluationScore::format($s['scoring']['score']),
-                    'scorePercent' => EvaluationScore::formatPercent($s['scoring']['score']),
-                );
-            }
-
-            header('Content-Type: application/json');
-            echo json_encode(array(
-                'success'      => true,
-                'evaluatorID'  => (int) $evaluatorID,
-                'score'        => $scoring['score'],
-                'scoreDisplay' => EvaluationScore::format($scoring['score']),
-                'scorePercent' => EvaluationScore::formatPercent($scoring['score']),
-                'emptyFields'  => $emptyValueCriteriaIDs,
-                'stageScores'  => $stageScores,
-            ));
-            die();
-        }
             CommonErrors::fatal(COMMONERROR_BADFIELDS, $this, 'Invalid request.');
         }
 
@@ -3763,16 +3690,39 @@ if ($isAjax)
             $evaluations->renameEvaluator($evaluatorID, $evaluatorName);
         }
 
-/* Flagged for the client, not enforced here - a blank answer isn't
-         * an error, just something worth calling out. Save proceeds either
-         * way. */
+        /* Union of both arrays' keys - a score criterion only ever appears
+         * in $grades now (no answer field to post to $values), while every
+         * other type only ever appears in $values. Walking just $values like
+         * before would silently skip saving any score criterion's grade. */
+        $criteriaIDs = array_unique(array_merge(array_keys($values), array_keys($grades)));
+
+        /* Flagged for the client, not enforced here - a blank answer/grade
+         * isn't an error, just something worth calling out. A criterion only
+         * counts as empty if NEITHER a value NOR a grade was given for it -
+         * that single check works for every data_type without needing to
+         * look up which type each criterion actually is: a text/date/number
+         * criterion never has a grade to check, a score criterion never has
+         * a value, so the unused side is always blank and the other side
+         * alone decides it. */
         $emptyValueCriteriaIDs = array();
-        foreach ($values as $instanceCriteriaID => $value)
+        foreach ($criteriaIDs as $instanceCriteriaID)
         {
-            if (trim((string) $value) === '')
+            $trimmedValue = isset($values[$instanceCriteriaID]) ? trim((string) $values[$instanceCriteriaID]) : '';
+            $trimmedGrade = isset($grades[$instanceCriteriaID]) ? trim((string) $grades[$instanceCriteriaID]) : '';
+
+            if ($trimmedValue === '' && $trimmedGrade === '')
             {
                 $emptyValueCriteriaIDs[] = (int) $instanceCriteriaID;
             }
+        }
+
+        /* This is the loop that actually persists anything - every value and
+         * grade posted for this evaluator gets written here. */
+        foreach ($criteriaIDs as $instanceCriteriaID)
+        {
+            $value = isset($values[$instanceCriteriaID]) ? $values[$instanceCriteriaID] : '';
+            $grade = isset($grades[$instanceCriteriaID]) ? $grades[$instanceCriteriaID] : null;
+            $evaluations->saveCriteriaValue((int) $evaluatorID, (int) $instanceCriteriaID, $value, $grade);
         }
 
         $evaluations->touchInstance($instanceID);
@@ -3781,14 +3731,24 @@ if ($isAjax)
         {
             $scoring = EvaluationScore::scoreEvaluation($evaluations->getFullEvaluation($instanceID));
 
+            $stageScores = array();
+            foreach ($scoring['stages'] as $s)
+            {
+                $stageScores[(int) $s['instance_stage_id']] = array(
+                    'scoreDisplay' => EvaluationScore::format($s['scoring']['score']),
+                    'scorePercent' => EvaluationScore::formatPercent($s['scoring']['score']),
+                );
+            }
+
             header('Content-Type: application/json');
-echo json_encode(array(
+            echo json_encode(array(
                 'success'      => true,
                 'evaluatorID'  => (int) $evaluatorID,
                 'score'        => $scoring['score'],
                 'scoreDisplay' => EvaluationScore::format($scoring['score']),
                 'scorePercent' => EvaluationScore::formatPercent($scoring['score']),
                 'emptyFields'  => $emptyValueCriteriaIDs,
+                'stageScores'  => $stageScores,
             ));
             die();
         }

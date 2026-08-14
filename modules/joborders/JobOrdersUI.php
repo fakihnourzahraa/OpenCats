@@ -47,6 +47,7 @@ include_once(LEGACY_ROOT . '/lib/Questionnaire.php');
 include_once(LEGACY_ROOT . '/lib/CommonErrors.php');
 include_once(LEGACY_ROOT . '/lib/JobOrderTypes.php');
 include_once(LEGACY_ROOT . '/lib/JobOrderStatuses.php');
+include_once(LEGACY_ROOT . '/lib/Evaluations.php');
 include_once(LEGACY_ROOT . '/modules/joborders/dataGrids.php');
 
 
@@ -364,6 +365,9 @@ class JobOrdersUI extends UserInterface
             case 'exportPipeline':
                 $this->exportPipeline();
                 break;
+           case 'exportPipelineEvaluations':
+                $this->exportPipelineEvaluations();
+                break;
         }
     }
 private function exportPipeline()
@@ -404,40 +408,7 @@ private function exportPipeline()
     {
         $filterString = isset($_GET['filterString']) ? urldecode($_GET['filterString']) : '';
 
-        /* Same $columnMap the AJAX endpoint uses to resolve display names to row keys. */
-        $columnMap = array(
-            'First Name'       => 'firstName',
-            'Last Name'        => 'lastName',
-            'State'            => 'state',
-            'City'             => 'city',
-            'Zip'              => 'zip',
-            'Address'          => 'address',
-            'E-Mail'           => 'candidateEmail',
-            '2nd E-Mail'       => 'candidateEmail2',
-            'Home Phone'       => 'phoneHome',
-            'Cell Phone'       => 'phoneCell',
-            'Work Phone'       => 'phoneWork',
-            'Key Skills'       => 'keySkills',
-            'Current Employer' => 'currentEmployer',
-            'Current Pay'      => 'currentPay',
-            'Desired Pay'      => 'desiredPay',
-            'Can Relocate'     => 'canRelocate',
-            'Source'           => 'source',
-            'Web Site'         => 'webSite',
-            'Misc Notes'       => 'notes',
-            'Available'        => 'dateAvailable',
-            'Modified'         => 'dateModified',
-            'Added'            => 'dateCreated',
-            'Created'          => 'candidateDateCreated',
-            'Status'  => 'statusDescription',
-        );
-        $extraFieldDefs = $pipelines->getExtraFieldDefinitions();
-        if ($extraFieldDefs) {
-            foreach ($extraFieldDefs as $def) {
-                $columnMap[$def['field_name']] = $def['field_name'];
-            }
-        }
-
+$columnMap = $this->_pipelineColumnMap();
         $pipelinesRS = $pipelines->filterPipelineRows($pipelinesRS, $filterString, $columnMap);
 
         if (empty($pipelinesRS)) die('No matching candidates.');
@@ -1407,7 +1378,96 @@ $this->_template->display('./modules/joborders/Show.tpl');
         );
     }
 
-    /*
+   private function exportPipelineEvaluations()
+{
+    $jobOrderID = $this->getTrimmedInput('jobOrderID', $_GET);
+    $exportAll  = isset($_GET['exportAll']) && $_GET['exportAll'] == '1';
+
+    if (!$jobOrderID)
+    {
+        die('Invalid input.');
+    }
+
+    $pipelines   = new Pipelines($this->_siteID);
+    $pipelinesRS = $pipelines->getJobOrderPipeline($jobOrderID);
+
+    if ($exportAll)
+    {
+        $filterString = isset($_GET['filterString']) ? urldecode($_GET['filterString']) : '';
+        $pipelinesRS  = $pipelines->filterPipelineRows($pipelinesRS, $filterString, $this->_pipelineColumnMap());
+
+        if (empty($pipelinesRS))
+        {
+            die('No matching candidates.');
+        }
+    }
+    else
+    {
+        $candidateIDs = isset($_GET['candidateIDs'])
+            ? array_map('intval', (array) json_decode(urldecode($_GET['candidateIDs']), true))
+            : array();
+
+        if (empty($candidateIDs))
+        {
+            die('Invalid input.');
+        }
+
+        $pipelinesRS = array_values(array_filter($pipelinesRS, function($row) use ($candidateIDs) {
+            return in_array((int) $row['candidateID'], $candidateIDs);
+        }));
+    }
+
+    $evaluations = new Evaluations($this->_siteID);
+
+    $rows = array();
+    foreach ($pipelinesRS as $row)
+    {
+        $candidateID   = (int) $row['candidateID'];
+        $candidateName = trim($row['firstName'] . ' ' . $row['lastName']);
+        $mostRecent    = $evaluations->getMostRecentInstanceScored($candidateID);
+
+        if ($mostRecent === null)
+        {
+            continue;
+        }
+
+        $rows[] = array(
+            'candidateName' => $candidateName,
+            'instanceID'    => (int) $mostRecent['instance_id'],
+            'scoreDisplay'  => $mostRecent['scoreDisplay'],
+        );
+    }
+
+    if (empty($rows))
+    {
+        die('No matching candidates have evaluations.');
+    }
+
+    header('Content-Type: text/csv; charset=utf-8');
+    header('Content-Disposition: attachment; filename="evaluations_joborder_' . (int) $jobOrderID . '.csv"');
+    header('Pragma: no-cache');
+    header('Expires: 0');
+
+    $out = fopen('php://output', 'w');
+
+    fputcsv($out, array('Candidate', 'Score'));
+    foreach ($rows as $r)
+    {
+        fputcsv($out, array($r['candidateName'], $r['scoreDisplay']));
+    }
+
+foreach ($rows as $r)
+    {
+        fputcsv($out, array());
+        fputcsv($out, array());
+        fputcsv($out, array());
+        fputcsv($out, array());
+        $evaluations->writeInstanceCSV($out, $r['instanceID'], $r['candidateName']);
+    }
+
+    fclose($out);
+    exit;
+}    /*
      * Called by handleRequest() to process deleting a job order.
      */
     private function onDelete()
@@ -1456,6 +1516,52 @@ $this->_template->display('./modules/joborders/Show.tpl');
         $this->_template->assign('jobOrderID', $jobOrderID);
         $this->_template->display('./modules/joborders/ConsiderSearchModal.tpl');
     }
+    /* Shared by exportPipeline() and exportPipelineEvaluations() so this map
+   can't drift into two different copies again — that's what caused the
+   Status/statusDescription mismatch between this file and
+   getPipelineJobOrder.php before. */
+private function _pipelineColumnMap()
+{
+    $pipelines = new Pipelines($this->_siteID);
+
+    $columnMap = array(
+        'First Name'       => 'firstName',
+        'Last Name'        => 'lastName',
+        'State'            => 'state',
+        'City'             => 'city',
+        'Zip'              => 'zip',
+        'Address'          => 'address',
+        'E-Mail'           => 'candidateEmail',
+        '2nd E-Mail'       => 'candidateEmail2',
+        'Home Phone'       => 'phoneHome',
+        'Cell Phone'       => 'phoneCell',
+        'Work Phone'       => 'phoneWork',
+        'Key Skills'       => 'keySkills',
+        'Current Employer' => 'currentEmployer',
+        'Current Pay'      => 'currentPay',
+        'Desired Pay'      => 'desiredPay',
+        'Can Relocate'     => 'canRelocate',
+        'Source'           => 'source',
+        'Web Site'         => 'webSite',
+        'Misc Notes'       => 'notes',
+        'Available'        => 'dateAvailable',
+        'Modified'         => 'dateModified',
+        'Added'            => 'dateCreated',
+        'Created'          => 'candidateDateCreated',
+        'Status'           => 'statusDescription',
+    );
+
+    $extraFieldDefs = $pipelines->getExtraFieldDefinitions();
+    if ($extraFieldDefs)
+    {
+        foreach ($extraFieldDefs as $def)
+        {
+            $columnMap[$def['field_name']] = $def['field_name'];
+        }
+    }
+
+    return $columnMap;
+}
 
     /*
      * Called by handleRequest() to handle processing an "Add candidate to

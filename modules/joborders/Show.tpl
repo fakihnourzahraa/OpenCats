@@ -613,7 +613,7 @@ showNewFilter<?php echo md5('joborders:PipelineCandidatesDataGrid'); ?>();
             </p>
 
             <div id="ajaxPipelineTable"></div>
-            <input type="checkbox" name="select_all" onclick="selectAll_candidates(this)" title="Select all candidates" /> <a href="javascript:void(0);" onclick="exportFromPipeline()" title="Export selected candidates">Export</a>&nbsp;|&nbsp;<a href="javascript:void(0);" onclick="exportAllFromPipeline()" title="Export all candidates matching the current filter">All</a>&nbsp;&nbsp;&nbsp;&nbsp;
+<input type="checkbox" name="select_all" onclick="selectAll_candidates(this)" title="Select all candidates" /> <a href="javascript:void(0);" onclick="exportFromPipeline()" title="Export selected candidates">Export</a>&nbsp;|&nbsp;<a href="javascript:void(0);" onclick="exportAllFromPipeline()" title="Export all candidates matching the current filter">All</a>&nbsp;&nbsp;&nbsp;&nbsp;<a href="javascript:void(0);" onclick="exportEvaluationsFromPipeline()" title="Export most recent evaluation for selected candidates">Export Evaluations</a>&nbsp;|&nbsp;<a href="javascript:void(0);" onclick="exportAllEvaluationsFromPipeline()" title="Export most recent evaluation for all candidates matching the current filter">All</a>&nbsp;&nbsp;&nbsp;&nbsp;
             <script type="text/javascript">
 
             function exportFromPipeline() {
@@ -629,6 +629,20 @@ showNewFilter<?php echo md5('joborders:PipelineCandidatesDataGrid'); ?>();
                 var filterAreaEl = document.getElementById(pipelineDataGridFilterID);
                 var filterString = filterAreaEl ? filterAreaEl.value : '';
                 window.location.href = '<?php echo(CATSUtility::getIndexName()); ?>?m=joborders&a=exportPipeline&jobOrderID=<?php echo($this->data['jobOrderID']); ?>&exportAll=1&filterString=' + encodeURIComponent(filterString);
+            }
+            function exportEvaluationsFromPipeline() {
+                var ids = getSelected_candidates();
+                if (ids.length > 0) {
+                    window.location.href = '<?php echo(CATSUtility::getIndexName()); ?>?m=joborders&a=exportPipelineEvaluations&jobOrderID=<?php echo($this->data['jobOrderID']); ?>&candidateIDs=' + (serializeArray(ids));
+                } else {
+                    alert('No data selected');
+                }
+            }
+
+            function exportAllEvaluationsFromPipeline() {
+                var filterAreaEl = document.getElementById(pipelineDataGridFilterID);
+                var filterString = filterAreaEl ? filterAreaEl.value : '';
+                window.location.href = '<?php echo(CATSUtility::getIndexName()); ?>?m=joborders&a=exportPipelineEvaluations&jobOrderID=<?php echo($this->data['jobOrderID']); ?>&exportAll=1&filterString=' + encodeURIComponent(filterString);
             }
 <?php if (empty($this->savedPipelineFilter)): ?>
             PipelineJobOrder_populate(<?php $this->_($this->data['jobOrderID']); ?>, 0, <?php $this->_($this->pipelineEntriesPerPage); ?>, 'dateCreatedInt', 'desc', <?php if ($this->isPopup) echo(1); else echo(0); ?>, 'ajaxPipelineTable', <?php echo Template::escapeJs($this->sessionCookie); ?>, 'ajaxPipelineTableIndicator', <?php echo Template::escapeJs(CATSUtility::getIndexName()); ?>);

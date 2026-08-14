@@ -1067,5 +1067,71 @@ public function getInstanceIDsFiledUnder($candidateID, $jobOrderID)
 
         return sprintf('%.2f', $maxRange);
     }
+    /* Most recent evaluation for a candidate, regardless of job order.
+   getInstancesForCandidateScored() is already newest-first, so this is
+   just "give me element 0" with a name that says what it means at the
+   call site. Returns null if the candidate has no evaluations. */
+public function getMostRecentInstanceScored($candidateID)
+{
+    $instances = $this->getInstancesForCandidateScored($candidateID);
+    return empty($instances) ? null : $instances[0];
+}
+
+/* Writes one candidate's full evaluation as CSV: title/candidate/score
+   lines, then one block per stage (weight, score, criteria header, one
+   row per evaluator). Shared by the single-evaluation export
+   (CandidatesUI::onEvaluationExport) and the bulk pipeline export
+   (JobOrdersUI::exportPipelineEvaluations) so the two formats can't
+   drift apart the way $columnMap did between exportPipeline() and
+   getPipelineJobOrder.php. Returns the raw score so callers building a
+   summary table don't have to re-score the same instance. */
+public function writeInstanceCSV($out, $instanceID, $candidateName)
+{
+    $instance = $this->getInstance($instanceID);
+    $title    = $instance ? $instance['title'] : 'Evaluation';
+
+    $stages  = $this->getFullEvaluation($instanceID);
+    $scoring = EvaluationScore::scoreEvaluation($stages);
+    $stages  = $scoring['stages'];
+fputcsv($out, array('Name', $title));
+    fputcsv($out, array('Candidate', $candidateName));
+    fputcsv($out, array('Score', EvaluationScore::formatFull($scoring['score'])));
+    foreach ($stages as $stage)
+    {
+        fputcsv($out, array());
+        fputcsv($out, array('Stage', $stage['stage_name']));
+        fputcsv($out, array('Stage Weight', $stage['weight']));
+        fputcsv($out, array('Stage Score', EvaluationScore::format($stage['scoring']['score'])));
+        fputcsv($out, array());
+
+        $criteriaHeader = array('Criteria');
+        foreach ($stage['criteria'] as $criterion)
+        {
+            $label = $criterion['is_gradeable'] ? 'score' : 'text';
+            $criteriaHeader[] = $criterion['criteria_name'] . ' (' . $label . ')';
+        }
+        fputcsv($out, $criteriaHeader);
+
+        if (empty($stage['evaluators']))
+        {
+            continue;
+        }
+
+        foreach ($stage['evaluators'] as $evaluator)
+        {
+            $row = array($evaluator['evaluator_name']);
+            foreach ($stage['criteria'] as $criterion)
+            {
+                $criteriaID = $criterion['instance_criteria_id'];
+                $row[] = $criterion['is_gradeable']
+                    ? (isset($evaluator['grades'][$criteriaID]) ? $evaluator['grades'][$criteriaID] : '')
+                    : (isset($evaluator['values'][$criteriaID]) ? $evaluator['values'][$criteriaID] : '');
+            }
+            fputcsv($out, $row);
+        }
+    }
+
+    return $scoring['score'];
+}
 }
 ?>
