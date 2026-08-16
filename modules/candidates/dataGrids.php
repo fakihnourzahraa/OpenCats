@@ -65,7 +65,7 @@ class candidatesListByViewDataGrid extends CandidatesDataGrid
             $html .= $this->getInnerActionAreaItem('Send E-Mail', CATSUtility::getIndexName().'?m=candidates&amp;a=emailCandidates');
         }
         $html .= $this->getInnerActionAreaItem('Export', CATSUtility::getIndexName().'?m=export&amp;a=exportByDataGrid');
-
+        $html .= $this->getInnerActionAreaItem('Export Evaluations', CATSUtility::getIndexName().'?m=candidates&amp;a=exportEvaluationsForGrid');
         $html .= parent::getInnerActionArea();
 
         return $html;

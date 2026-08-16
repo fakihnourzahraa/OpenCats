@@ -214,6 +214,22 @@ class CandidatesUI extends UserInterface
                 }
                 $this->onEvaluationExport();
                 break;
+            case 'exportEvaluations':
+                if ($this->getUserAccessLevel('candidates.edit') < ACCESS_LEVEL_EDIT)
+                {
+                    header('Content-Type: text/plain; charset=utf-8');
+                    die('Invalid user level for action.');
+                }
+                $this->exportEvaluations();
+                break;
+            case 'exportEvaluationsForGrid':
+                if ($this->getUserAccessLevel('candidates.edit') < ACCESS_LEVEL_EDIT)
+                {
+                    header('Content-Type: text/plain; charset=utf-8');
+                    die('Invalid user level for action.');
+                }
+                $this->exportEvaluationsForGrid();
+                break;
             case 'setFinalOpinion':
                 if ($this->getUserAccessLevel('candidates.edit') < ACCESS_LEVEL_EDIT)
                 {
@@ -3302,6 +3318,91 @@ class CandidatesUI extends UserInterface
             'cats=candidates&action=show&candidateID=' . $candidateID
         );
     }
+
+    private function exportEvaluationsForGrid()
+{
+    $dataGrid = DataGrid::getFromRequest();
+
+    if ($dataGrid === null)
+    {
+        header('Content-Type: text/plain; charset=utf-8');
+        die('Invalid request.');
+    }
+
+    $gridRows = $dataGrid->getExportRows();
+
+    $candidateIDs = array();
+    foreach ($gridRows as $row)
+    {
+        if (isset($row['candidateID']))
+        {
+            $candidateIDs[(int) $row['candidateID']] = true;
+        }
+    }
+    $candidateIDs = array_keys($candidateIDs);
+
+    if (empty($candidateIDs))
+    {
+        header('Content-Type: text/plain; charset=utf-8');
+        die('No candidates selected.');
+    }
+
+    $candidates  = new Candidates($this->_siteID);
+    $evaluations = new Evaluations($this->_siteID);
+
+    $rows = array();
+    foreach ($candidateIDs as $candidateID)
+    {
+        $candidateData = $candidates->get($candidateID);
+        $candidateName = $candidateData
+            ? trim($candidateData['firstName'] . ' ' . $candidateData['lastName'])
+            : '';
+
+        $mostRecent = $evaluations->getMostRecentInstanceScored($candidateID);
+
+        if ($mostRecent === null)
+        {
+            continue;
+        }
+
+        $rows[] = array(
+            'candidateName' => $candidateName,
+            'instanceID'    => (int) $mostRecent['instance_id'],
+            'scoreDisplay'  => $mostRecent['scoreDisplay'],
+        );
+    }
+
+    if (empty($rows))
+    {
+        header('Content-Type: text/plain; charset=utf-8');
+        die('No evaluations found for the selected candidate(s).');
+    }
+
+    header('Content-Type: text/csv; charset=utf-8');
+    header('Content-Disposition: attachment; filename="evaluations_export.csv"');
+    header('Pragma: no-cache');
+    header('Expires: 0');
+
+    $out = fopen('php://output', 'w');
+
+    fputcsv($out, array('Candidate', 'Score'));
+    foreach ($rows as $r)
+    {
+        fputcsv($out, array($r['candidateName'], $r['scoreDisplay']));
+    }
+
+    foreach ($rows as $r)
+    {
+        fputcsv($out, array());
+        fputcsv($out, array());
+        fputcsv($out, array());
+        fputcsv($out, array());
+        $evaluations->writeInstanceCSV($out, $r['instanceID'], $r['candidateName']);
+    }
+
+    fclose($out);
+    exit;
+}
   private function onEvaluationExport()
 {
     $candidateID = isset($_GET['candidateID']) ? (int) $_GET['candidateID'] : 0;

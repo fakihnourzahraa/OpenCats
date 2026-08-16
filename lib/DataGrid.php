@@ -1718,6 +1718,21 @@ $counterFilters = 0;
 
         die();
     }
+    /**
+     * Runs the grid's query (same resolution as drawCSV, honoring
+     * exportIDs/filter/sort already baked into $this->_parameters by
+     * getFromRequest()) and returns the raw row data instead of rendering
+     * it as the grid's own columns. For callers building a custom export
+     * format that isn't a straight column dump (e.g. evaluations).
+     *
+     * @return array row data, keyed the same way $this->_rs is elsewhere
+     */
+    public function getExportRows()
+    {
+        $this->_getData();
+
+        return $this->_rs;
+    }
 
 
     /**
