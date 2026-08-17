@@ -29,6 +29,7 @@
  
 include_once(LEGACY_ROOT . '/lib/Site.php');
 include_once(LEGACY_ROOT . '/lib/DateUtility.php');
+include_once(LEGACY_ROOT . '/lib/ExtraFieldHistory.php');
  
 /**
  *	Extra Fields Library
@@ -498,6 +499,11 @@ class ExtraFields
     /**
      * Sets an extra field (even if it previously existed).
      *
+     * Also logs Interview Stage transitions to extra_field_history via
+     * ExtraFieldHistory, since extra_field itself has no change tracking
+     * (this function deletes the old row before the new one exists, so
+     * nothing downstream of it could ever recover the previous value).
+     *
      * @param string field name
      * @param string field value
      * @param integer candidate ID
@@ -505,6 +511,28 @@ class ExtraFields
      */
     public function setValue($field, $value, $candidateID)
     {
+        /* Capture the current value before it's destroyed below, so we can
+         * detect a real transition and log it. Scoped to Interview Stage only
+         * for now -- not opened up to all extra fields. */
+        $previousValue = null;
+        if ($field === 'Interview Stage')
+        {
+            $sql = sprintf(
+                "SELECT value FROM extra_field
+                 WHERE field_name = %s AND data_item_id = %s
+                 AND site_id = %s AND data_item_type = %s",
+                $this->_db->makeQueryString($field),
+                $this->_db->makeQueryInteger($candidateID),
+                $this->_siteID,
+                $this->_dataItemType
+            );
+            $result = $this->_db->getAllAssoc($sql);
+            if (!empty($result))
+            {
+                $previousValue = $result[0]['value'];
+            }
+        }
+
         /* Delete old entries. */
         $sql = sprintf(
             "DELETE FROM
@@ -553,8 +581,21 @@ class ExtraFields
             $this->_siteID,
             $this->_dataItemType
         );
+        $success = (boolean) $this->_db->query($sql);
 
-        return (boolean) $this->_db->query($sql);
+        /* On a real transition, log it -- but only if there's a logged-in
+         * session to attribute the change to (mirrors History.php's own
+         * dependency on $_SESSION['CATS'], with an added guard so an
+         * unauthenticated save path -- e.g. careers portal, import, cron --
+         * doesn't fatal; it just silently skips logging instead). */
+        if ($success && $field === 'Interview Stage' && $value !== $previousValue
+            && isset($_SESSION['CATS']) && $_SESSION['CATS']->isLoggedIn())
+        {
+            $history = new ExtraFieldHistory($this->_siteID);
+            $history->storeFieldChange($this->_dataItemType, $candidateID, $field, $previousValue, $value);
+        }
+
+        return $success;
     }
     
     /**

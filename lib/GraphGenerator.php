@@ -452,7 +452,6 @@ class WordVerify
         $object->draw();
     }
 }
-
 class recruitmentFunnelGraph
 {
     private $xLabels;
@@ -500,7 +499,7 @@ class recruitmentFunnelGraph
         $graph->border->setColor(new Color(187, 187, 187, 15));
 
         $plot = new BarPlotFunnel($this->xValues, 1, 1, 0, $this->totalValue);
-        $plot->setPadding(15, 15, 35, 29);
+        $plot->setPadding(40, 15, 35, 45);
         $plot->setBarColor(new DarkGreen);
         $plot->barBorder->hide(true);
 
@@ -516,7 +515,9 @@ class recruitmentFunnelGraph
         $plot->yAxis->setLabelNumber(12);
 
         $plot->xAxis->setLabelText($this->xLabels);
-        $plot->xAxis->label->setFont(new Tuffy(8));
+        $plot->xAxis->label->setFont(new Tuffy(7));
+        $plot->xAxis->label->setAngle(30);
+        $plot->xAxis->label->setAlign(awLabel::RIGHT, awLabel::TOP);
 
         $graph->add($plot);
 

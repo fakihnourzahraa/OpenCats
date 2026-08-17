@@ -23,7 +23,7 @@ class RecruitmentAnalyticsUI extends UserInterface
         $this->_authenticationRequired = true;
         $this->_moduleDirectory = 'recruitmentanalytics';
         $this->_moduleName = 'recruitmentanalytics';
-        $this->_moduleTabText = 'Recruitment Analytics';
+        $this->_moduleTabText = 'Analytics';
         $this->_subTabs = array(
             'Funnel' => CATSUtility::getIndexName() . '?m=recruitmentanalytics&a=funnel'
             /* Additional sections (applications-per-role, etc.) get their
