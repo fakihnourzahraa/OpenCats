@@ -11,6 +11,7 @@
  */
 
 include_once(LEGACY_ROOT . '/lib/RecruitmentAnalytics.php');
+include_once(LEGACY_ROOT . '/lib/Graphs.php');
 
 
 class RecruitmentAnalyticsUI extends UserInterface
@@ -65,8 +66,13 @@ class RecruitmentAnalyticsUI extends UserInterface
             $jobOrderID = (int) $_GET['jobOrderID'];
         }
 
+        $graphs = new Graphs();
+        $graphParams = ($jobOrderID !== null) ? array($jobOrderID) : array();
+        $funnelGraphHTML = $graphs->recruitmentFunnel(600, 300, $graphParams);
+
         $this->_template->assign('active', $this);
         $this->_template->assign('jobOrderID', $jobOrderID);
+        $this->_template->assign('funnelGraphHTML', $funnelGraphHTML);
 
         if (!eval(Hooks::get('RECRUITMENTANALYTICS_FUNNEL'))) return;
 

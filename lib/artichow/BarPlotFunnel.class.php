@@ -158,7 +158,7 @@ class awBarPlotFunnel extends awBarPlotPipeline {
 
 					if ($key > 0 && isset($datayReal[$key - 1]) && $datayReal[$key - 1] != 0)
 					{
-						$percent = round(($value / $datayReal[$key - 1]) * 100, 2);
+						$percent = round(($value / $datayReal[$key - 1]) * 100);
 						$combinedLabel = $formattedValue . ' (' . $percent . '%)';
 					}
 					else
