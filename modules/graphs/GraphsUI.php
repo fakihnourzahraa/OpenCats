@@ -33,7 +33,7 @@ include_once(LEGACY_ROOT . '/lib/GraphGenerator.php');
 include_once(LEGACY_ROOT . '/lib/DateUtility.php');
 include_once(LEGACY_ROOT . '/lib/CommonErrors.php');
 include_once(LEGACY_ROOT . '/lib/Dashboard.php');
-
+include_once(LEGACY_ROOT . '/lib/RecruitmentAnalytics.php');
 
 class GraphsUI extends UserInterface
 {
@@ -124,6 +124,9 @@ class GraphsUI extends UserInterface
 
                 case 'miniJobOrderPipeline':
                     $this->miniJobOrderPipeline();
+                    return;
+                case 'recruitmentFunnel':
+                    $this->recruitmentFunnel();
                     return;
 
                 default:
@@ -627,6 +630,58 @@ class GraphsUI extends UserInterface
         // FIXME: Generate an image containing the error message?
         die($error);
     }
+
+
+private function recruitmentFunnel()
+{
+    $filters = array();
+ 
+    /* Matches miniJobOrderPipeline()'s convention: 'params' is a single
+     * optional job order ID, not yet a delimited bundle of filters.
+     * Widen this once the filters UI (job order, date range, recruiter,
+     * etc.) is designed - at that point 'params' likely needs to become
+     * a delimited or JSON-encoded value, parsed back out here. */
+    if ($this->isRequiredIDValid('params', $_GET))
+    {
+        $filters['jobOrderID'] = (int) $_GET['params'];
+    }
+ 
+    $recruitmentAnalytics = new RecruitmentAnalytics($this->_siteID);
+    $funnelData = $recruitmentAnalytics->getRecruitmentFunnelData($filters);
+ 
+    $noData = empty($funnelData);
+ 
+    $y = array();
+    $x = array();
+ 
+    foreach ($funnelData as $row)
+    {
+        $y[] = $row['stage'];
+        $x[] = $row['count'];
+    }
+ 
+    /* First stage's count is the funnel's max - same role
+     * $statisticsData['totalPipeline'] plays in miniJobOrderPipeline(). */
+    $totalValue = $noData ? 0 : $x[0];
+ 
+    $colorOptions = Graphs::getColorOptions();
+    $colorArray = array();
+ 
+    foreach ($x as $index => $value)
+    {
+        $colorArray[] = new LinearGradient(new DarkGreen, new White, 0);
+    }
+ 
+    $graph = new recruitmentFunnelGraph(
+        $y, $x, $colorArray, 'Recruitment Funnel', $this->width,
+        $this->height, $totalValue
+    );
+ 
+    if (!eval(Hooks::get('GRAPH_RECRUITMENT_FUNNEL'))) return;
+ 
+    $graph->draw();
+    die();
+}
 }
 
 ?>

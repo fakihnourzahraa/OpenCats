@@ -42,6 +42,7 @@ if (function_exists('ImageCreateFromJpeg'))
     include_once(LEGACY_ROOT . '/lib/artichow/BarPlotDashboard.class.php');
     include_once(LEGACY_ROOT . '/lib/artichow/AntiSpam.class.php');
     include_once(LEGACY_ROOT . '/lib/artichow/Pie.class.php');
+    include_once(LEGACY_ROOT . '/lib/artichow/BarPlotFunnel.class.php');
 }
 
 /**
@@ -449,6 +450,78 @@ class WordVerify
         $object = new AntiSpam();
         $object->setText($this->text);
         $object->draw();
+    }
+}
+
+class recruitmentFunnelGraph
+{
+    private $xLabels;
+    private $xValues;
+    private $color;
+    private $title;
+    private $totalValue;
+
+
+    public function __construct($xLabels, $xValues, $colorArray, $title, $width, $height, $totalValue)
+    {
+        $this->xLabels = $xLabels;
+        $this->xValues = $xValues;
+        $this->colorArray = $colorArray;
+        $this->title = $title;
+        $this->width = $width;
+        $this->height = $height;
+        $this->totalValue = $totalValue;
+    }
+
+    // FIXME: Document me.
+    public function draw($format = false)
+    {
+        /* Make sure we have GD support. */
+        if (!function_exists('imagecreatefromjpeg'))
+        {
+            die();
+        }
+
+        if ($format === false)
+        {
+            $format = IMG_PNG;
+        }
+
+        $graph = new Graph($this->width, $this->height);
+
+        $graph->setFormat($format);
+        $graph->border->setColor(new Color(0xFF, 0xFF, 0xFF));
+        $graph->setBackgroundColor(new Color(0xF4, 0xF4, 0xF4));
+        $graph->noBorder = true;
+
+        $graph->title->set($this->title);
+        $graph->title->setFont(new Tuffy(12));
+        $graph->title->setColor(new Color(0x00, 0x00, 0x8B));
+        $graph->border->setColor(new Color(187, 187, 187, 15));
+
+        $plot = new BarPlotFunnel($this->xValues, 1, 1, 0, $this->totalValue);
+        $plot->setPadding(15, 15, 35, 29);
+        $plot->setBarColor(new DarkGreen);
+        $plot->barBorder->hide(true);
+
+        $plot->arrayBarBackground = $this->colorArray;
+
+        $plot->label->set($this->xValues);
+        $plot->label->setFormat('%.0f');
+        $plot->label->setBackgroundColor(new Color(240, 240, 240, 15));
+        $plot->label->border->setColor(new Color(187, 187, 187, 15));
+        $plot->label->setPadding(5, 3, 1, 1);
+
+        $plot->yAxis->hide();
+        $plot->yAxis->setLabelNumber(12);
+
+        $plot->xAxis->setLabelText($this->xLabels);
+        $plot->xAxis->label->setFont(new Tuffy(8));
+
+        $graph->add($plot);
+
+        $graph->draw();
+        die();
     }
 }
 

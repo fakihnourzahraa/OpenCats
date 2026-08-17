@@ -353,7 +353,7 @@ class EvaluationScore
        legitimate result now and must not read the same as "ungraded". */
     public static function format($score)
     {
-        return ($score === null) ? '—' : number_format($score * self::REPORT_SCALE, 2);
+        return ($score === null) ? '-' : number_format($score * self::REPORT_SCALE, 2);
     }
 
     /* '78%'. */
@@ -361,7 +361,7 @@ class EvaluationScore
     {
         if ($score === null)
         {
-            return '—';
+            return '-';
         }
 
         return number_format($score * 100, 0) . '%';
@@ -372,7 +372,7 @@ class EvaluationScore
     {
         if ($score === null)
         {
-            return '—';
+            return '-';
         }
 
         return sprintf(

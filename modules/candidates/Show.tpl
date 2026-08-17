@@ -651,7 +651,7 @@ use OpenCATS\UI\CandidateDuplicateQuickActionMenu;
                                     <img src="images/<?php echo !empty($evaluationData['is_locked']) ? 'key.png' : 'actions/edit.gif'; ?>" width="16" height="16" class="absmiddle" alt="" border="0" title="<?php echo !empty($evaluationData['is_locked']) ? 'Locked' : 'Lock Evaluation'; ?>" />
                                 </a>
                             <?php endif; ?>
-                            <?php if ($this->getUserAccessLevel('candidates.delete') >= ACCESS_LEVEL_DELETE): ?>
+<?php if ($this->getUserAccessLevel('candidates.delete') >= ACCESS_LEVEL_DELETE && empty($evaluationData['is_locked'])): ?>
                                 <form method="post" action="<?php echo(CATSUtility::getIndexName()); ?>?m=candidates&amp;a=deleteEvaluation" style="display:inline;" onsubmit="return confirm('Delete this evaluation?');">
                                     <input type="hidden" name="postback" value="postback" />
                                     <input type="hidden" name="candidateID" value="<?php echo Template::escapeAttr($this->candidateID); ?>" />

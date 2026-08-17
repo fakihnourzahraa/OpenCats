@@ -299,6 +299,16 @@ class Graphs
         );
         $db->query($sql);
     }
+
+    public function recruitmentFunnel($width, $height, $params)
+{
+    if (!$this->_graphsEnabled)
+    {
+         return '';
+    }
+ 
+    return $this->_getGraphHTML('recruitmentFunnel', $width, $height, $params);
+}
 }
 
 ?>
