@@ -452,6 +452,102 @@ class WordVerify
         $object->draw();
     }
 }
+
+/**
+ *	Time-In-Stage Graph Generator
+ *	@package    CATS
+ *	@subpackage Library
+ *
+ *  Plain bar chart, NOT a BarPlotPipeline/BarPlotFunnel subclass like
+ *  GraphComparisonChart/recruitmentFunnelGraph - those taper/cap bars
+ *  against a running total, which doesn't apply here (each bar is an
+ *  independent stage average in days, not a fraction of a starting
+ *  count). Uses plain BarPlot instead, same base class GraphSimple uses.
+ *
+ *  ASSUMPTION, NOT CONFIRMED: BarPlot (unlike BarPlotPipeline/
+ *  BarPlotFunnel/BarPlotDashboard) doesn't have arrayBarBackground or
+ *  ->label in this codebase - only GraphSimple's usage of BarPlot was
+ *  available as a reference, and it uses neither. $colorArray is
+ *  accepted here for interface consistency with the other graph
+ *  classes, but not used - if BarPlot.class.php actually supports
+ *  per-bar colors or value labels, both should be wired in here.
+ */
+class timeInStageGraph
+{
+    private $xLabels;
+    private $xValues;
+    private $title;
+    private $noData;
+
+
+    public function __construct($xLabels, $xValues, $colorArray, $title, $width, $height, $noData = false)
+    {
+        $this->xLabels = $xLabels;
+        $this->xValues = $xValues;
+        $this->colorArray = $colorArray;
+        $this->title = $title;
+        $this->width = $width;
+        $this->height = $height;
+        $this->noData = $noData;
+    }
+
+    // FIXME: Document me.
+    public function draw($format = false)
+    {
+        /* Make sure we have GD support. */
+        if (!function_exists('imagecreatefromjpeg'))
+        {
+            die();
+        }
+
+        if ($format === false)
+        {
+            $format = IMG_PNG;
+        }
+
+        $graph = new Graph($this->width, $this->height);
+
+        $graph->setFormat($format);
+        $graph->border->setColor(new Color(0xFF, 0xFF, 0xFF));
+        $graph->setBackgroundColor(new Color(0xF4, 0xF4, 0xF4));
+        $graph->noBorder = true;
+
+        $graph->title->set($this->title);
+        $graph->title->setFont(new Tuffy(12));
+        $graph->title->setColor(new Color(0x00, 0x00, 0x8B));
+        $graph->border->setColor(new Color(187, 187, 187, 15));
+
+        /* noData: still draw an empty/zeroed chart with the title and
+         * axis intact, rather than dying - matches recruitmentFunnel()'s
+         * caller-side handling of $noData (it computes totalValue = 0
+         * rather than skipping the draw). */
+        $values = $this->noData ? array_fill(0, count($this->xValues), 0) : $this->xValues;
+
+        $plot = new BarPlot($values);
+        $plot->setPadding(40, 15, 35, 45);
+        $plot->setBarColor(new DarkBlue);
+        $plot->barBorder->hide(true);
+        $plot->setBarGradient(new LinearGradient(new DarkBlue, new White, 0));
+        $plot->setBarPadding(0.2, 0.2);
+
+        /* yAxis stays visible (unlike the funnel, which hides it) -
+         * these bars are absolute day counts, not percentages of a
+         * starting total, so the scale is meaningful to show. */
+        $plot->yAxis->setLabelNumber(8);
+        $plot->yAxis->label->setFont(new Tuffy(8));
+
+        $plot->xAxis->setLabelText($this->xLabels);
+        $plot->xAxis->label->setFont(new Tuffy(7));
+        $plot->xAxis->label->setAngle(30);
+        $plot->xAxis->label->setAlign(awLabel::RIGHT, awLabel::TOP);
+
+        $graph->add($plot);
+
+        $graph->draw();
+        die();
+    }
+}
+
 class recruitmentFunnelGraph
 {
     private $xLabels;

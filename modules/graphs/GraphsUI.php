@@ -129,6 +129,9 @@ class GraphsUI extends UserInterface
                     $this->recruitmentFunnel();
                     return;
 
+                case 'timeInStage':
+                    $this->timeInStage();
+                    return;
                 default:
                     CommonErrors::fatal(COMMONERROR_BADFIELDS, $this, 'No graph specified.');
                     return;
@@ -682,6 +685,62 @@ private function recruitmentFunnel()
     $graph->draw();
     die();
 }
+
+
+private function timeInStage()
+{
+    $filterString = '';
+
+    if (isset($_GET['params']))
+    {
+        $filterString = $this->getTrimmedInput('params', $_GET);
+    }
+
+    $recruitmentAnalytics = new RecruitmentAnalytics($this->_siteID);
+    $timeInStageData = $recruitmentAnalytics->getTimeInStageData($filterString);
+
+    $aggregate = $timeInStageData['aggregate'];
+    $noData = empty($aggregate);
+
+    $y = array();
+    $x = array();
+
+    foreach ($aggregate as $row)
+    {
+        $y[] = $row['stage'];
+        /* averageDays is null when a stage has no completed transitions
+         * yet (nobody has passed all the way through it) - treat as 0
+         * for the bar rather than breaking the chart. */
+        $x[] = ($row['averageDays'] !== null) ? $row['averageDays'] : 0;
+    }
+
+    $colorOptions = Graphs::getColorOptions();
+    $colorArray = array();
+
+    foreach ($x as $index => $value)
+    {
+        $colorArray[] = new LinearGradient(new DarkBlue, new White, 0);
+    }
+
+    /* Mirrors recruitmentFunnelGraph's constructor shape. Unlike the
+     * funnel, this isn't a cumulative/tapered chart, so there's no
+     * $totalValue cap to pass - each bar is an independent average, not
+     * a fraction of a starting count. If timeInStageGraph doesn't exist
+     * yet in GraphGenerator.php, it needs to be added there as a plain
+     * bar chart (not a BarPlotPipeline subclass like the funnel), since
+     * there's no proportional/cumulative relationship between bars here.
+     */
+    $graph = new timeInStageGraph(
+        $y, $x, $colorArray, 'Average Days in Stage', $this->width,
+        $this->height, $noData
+    );
+
+    if (!eval(Hooks::get('GRAPH_TIME_IN_STAGE'))) return;
+
+    $graph->draw();
+    die();
+}
+ 
 }
 
 ?>

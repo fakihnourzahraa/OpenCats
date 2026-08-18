@@ -891,6 +891,19 @@ public function getExtraFieldDefinitions()
     return $rs ? $rs : array();
 }
 
+/* Date-type columns get DateUtility-based chronological comparison
+ * instead of the generic string comparison further down. 'dateAvailable'
+ * added for the operational dashboard's Date Available filter — same
+ * m-d-y-formatted-column treatment as dateCreated/dateModified.
+ */
+private function isDateColumn($col)
+{
+    return $col === 'dateCreated'
+        || $col === 'candidateDateCreated'
+        || $col === 'dateModified'
+        || $col === 'dateAvailable';
+}
+
 public function filterPipelineRows($pipelinesRS, $filterString, $columnMap)
 {
     if ($filterString === '')
@@ -911,21 +924,11 @@ public function filterPipelineRows($pipelinesRS, $filterString, $columnMap)
                 $val = strtolower(urldecode(substr($filterItem, $pos + strlen($op))));
                 $col = isset($columnMap[$col]) ? $columnMap[$col] : $col;
 
-                $pipelinesRS = array_filter($pipelinesRS, function($row) use ($col, $op, $val) {
+                $isDateColumn = $this->isDateColumn($col);
+
+                $pipelinesRS = array_filter($pipelinesRS, function($row) use ($col, $op, $val, $isDateColumn) {
                     $fieldValue = isset($row[$col]) ? $row[$col] : '';
-                    // if ($col === 'dateCreated' || $col === 'candidateDateCreated' || $col == 'dateModified') {
-                    //     if ($op === '=e') return $fieldValue === '' || $fieldValue === null;
-                    //     $fieldValue = DateTime::createFromFormat('m-d-y', $fieldValue);
-                    //     $valDate    = DateTime::createFromFormat('m-d-y', $val);
-                    //     if (!$fieldValue || !$valDate) return true;
-                    //     switch ($op) {
-                    //         case '==':  return $fieldValue == $valDate;
-                    //         case '=d>': return $fieldValue >= $valDate;
-                    //         case '=d<': return $fieldValue <= $valDate;
-                    //         case '=e':  return $fieldValue === '' || $fieldValue === null;
-                    //     }
-                    // }
-                    if ($col === 'dateCreated' || $col === 'candidateDateCreated' || $col === 'dateModified')
+                    if ($isDateColumn)
                     {
                         $dateFormatFlag = $_SESSION['CATS']->isDateDMY() ? DATE_FORMAT_DDMMYY : DATE_FORMAT_MMDDYY;
 

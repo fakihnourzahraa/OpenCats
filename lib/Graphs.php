@@ -309,6 +309,15 @@ class Graphs
  
     return $this->_getGraphHTML('recruitmentFunnel', $width, $height, $params);
 }
-}
 
+public function timeInStage($width, $height, $params)
+{
+    if (!$this->_graphsEnabled)
+    {
+         return '';
+    }
+ 
+    return $this->_getGraphHTML('timeInStage', $width, $height, $params);
+}
+}
 ?>
