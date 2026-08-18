@@ -1,15 +1,7 @@
 <?php
 /**
- * CATS
- * Recruitment Analytics Library
- *
- * New library, not part of the original CATS distribution.
- * Houses the recruitment funnel (and future analytics) query logic.
- * Meant to be called from a new dedicated module, reusing Pipelines.php's
- * filterPipelineRows() for combinable filters once that wiring is added.
- *
- * @package    CATS
- * @subpackage Library
+ * RecruitmentAnalytics.php
+ * Added for IBC
  */
 
 class RecruitmentAnalytics
@@ -17,11 +9,6 @@ class RecruitmentAnalytics
     private $_db;
     private $_siteID;
 
-    /**
-     * The one and only hardcoded name in this file. Everything else about
-     * the funnel (option list, order, bucket matching) is resolved live
-     * from extra_field_settings / extra_field at query time.
-     */
     const INTERVIEW_STAGE_FIELD_NAME = 'Interview Stage';
 
     public function __construct($siteID)
@@ -31,19 +18,8 @@ class RecruitmentAnalytics
     }
 
     /**
-     * Generic resolver: given an extra field's name and the data item type
-     * it belongs to (DATA_ITEM_CANDIDATE = 100, or a job order type once
-     * those fields exist), returns the field's options in admin-defined
-     * order, decoded, with the leading blank/unassigned entry dropped.
-     *
-     * This is the one function every extra-field-based filter (Department,
-     * Office, Country, Employment Type, Career Level, Interview Stage...)
-     * should go through. Add/reorder an option in Settings and this
-     * reflects it immediately, no code change required.
-     *
-     * @param string  $fieldName
-     * @param integer $dataItemType
-     * @return array ordered list of option strings (decoded, no blank entry)
+     * Given an extra field's name and the data item type
+     * returns the field's options in admin-defined order
      */
     public function resolveExtraFieldOptions($fieldName, $dataItemType)
     {
@@ -75,10 +51,6 @@ class RecruitmentAnalytics
 
         foreach ($rawOptions as $raw)
         {
-            // extra_field_options is stored comma-separated, +-encoded
-            // (urlencode style). The leading entry is the blank/unassigned
-            // state ("-- Select --") and is intentionally dropped here,
-            // not treated as a real stage.
             $decoded = urldecode(trim($raw));
 
             if ($decoded !== '')
@@ -91,27 +63,7 @@ class RecruitmentAnalytics
     }
 
     /**
-     * Builds the cumulative recruitment funnel.
-     *
-     * Funnel definition (confirmed): count at stage N = candidates
-     * currently at stage N + all candidates at any later stage in the
-     * field's option order. Rejected/withdrawn candidates are included
-     * at their last stage by default - this method does not filter on
-     * candidate.status at all; that's left to the Status filter.
-     *
-     * @param array $filters {
-     *     @type integer $jobOrderID  optional - restrict to one job order's pipeline
-     *     @type string  $dateFrom    optional - candidate.date_modified >= this (Y-m-d)
-     *     @type string  $dateTo      optional - candidate.date_modified <= this (Y-m-d)
-     * }
-     *     Additional filters (Recruiter, Department, Office, Country,
-     *     Position, Employment Type, Source, Status, Availability,
-     *     Career Level) are intentionally not wired in yet - they belong
-     *     in Pipelines.php's filterPipelineRows() infrastructure once
-     *     that's plugged in here, rather than being reimplemented ad hoc.
-     *
-     * @return array ordered list of:
-     *     [ 'stage' => string, 'count' => int, 'percentOfPrevious' => float|null ]
+     * [ 'stage' => string, 'count' => int, 'percentOfPrevious' => float|null ]
      */
     public function getRecruitmentFunnelData($filters = array())
     {
@@ -186,12 +138,6 @@ class RecruitmentAnalytics
         );
 
         $rs = $this->_db->getAllAssoc($sql);
-
-        /* Bucket raw counts by stage. Values in extra_field.value are
-         * compared urldecoded on both sides defensively, since we've
-         * only confirmed the *settings* table stores +-encoded option
-         * strings - not yet confirmed whether saved candidate values are
-         * stored encoded or plain. This makes the match work either way. */
         $countsByStage = array_fill_keys($stages, 0);
 
         foreach ($rs as $row)
@@ -204,8 +150,6 @@ class RecruitmentAnalytics
             }
         }
 
-        /* Cumulative sum from the last stage backward, per the confirmed
-         * example: 5 in A, 1 in B, 2 in C -> funnel shows 8, 3, 2. */
         $cumulative = 0;
         $cumulativeByStage = array();
 

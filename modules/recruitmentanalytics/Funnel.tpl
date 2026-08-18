@@ -1,4 +1,4 @@
-<?php /* Recruitment Analytics - Funnel */ ?>
+<?php /* Recruitment Analytics Funnel */ ?>
 <?php TemplateUtility::printHeader('Recruitment Analytics'); ?>
 <?php TemplateUtility::printHeaderBlock(); ?>
 <?php TemplateUtility::printTabs($this->active); ?>

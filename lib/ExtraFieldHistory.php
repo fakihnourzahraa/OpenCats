@@ -1,18 +1,7 @@
 <?php
 /**
- * CATS
- * Extra Field History Library
- *
- * Tracks changes to extra field values (currently: Interview Stage only).
- * extra_field itself has no built-in change tracking -- ExtraFields::setValue()
- * does a DELETE then INSERT on every save, so the previous value is destroyed
- * before anything could diff it. This class is called from setValue() with the
- * previous/new values already captured, and logs the transition to
- * extra_field_history, mirroring the shape and conventions of the core
- * History class (lib/History.php) which logs to the "history" table.
- *
- * @package    CATS
- * @subpackage Library
+ * ExtraFieldHistory.php
+ * Added for IBC
  */
 
 class ExtraFieldHistory
@@ -24,20 +13,12 @@ class ExtraFieldHistory
     public function __construct($siteID)
     {
         $this->_siteID = $siteID;
-        // FIXME: Remove dependency on Session here (mirrors History.php's own FIXME).
         $this->_userID = $_SESSION['CATS']->getUserID();
         $this->_db = DatabaseConnection::getInstance();
     }
 
     /**
      * Stores a single extra field value change.
-     *
-     * @param integer data item type
-     * @param integer data item ID
-     * @param string field name
-     * @param string previous value (or null)
-     * @param string new value
-     * @return query response
      */
     public function storeFieldChange($dataItemType, $dataItemID, $field,
         $previousValue, $newValue)
@@ -75,13 +56,7 @@ class ExtraFieldHistory
 
     /**
      * Get all extra field history entries for a given data item and field,
-     * oldest first (needed for time-in-stage delta calculations, unlike
-     * History::getAll() which returns newest first for display purposes).
-     *
-     * @param integer data item type
-     * @param integer data item ID
-     * @param string field name
-     * @return array history entries
+     * oldest first.
      */
     public function getAllForField($dataItemType, $dataItemID, $field)
     {
