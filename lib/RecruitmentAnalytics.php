@@ -593,6 +593,7 @@ class RecruitmentAnalytics
      * [
      *   'candidatesCount'    => int,
      *   'timeToHire'         => [ 'averageDays' => float|null, 'hiredCount' => int ],
+     *   'overallAcceptanceRate' => [ 'rate' => float|null, 'placedCount' => int, 'candidatesCount' => int ],
      *   'offerAcceptanceRate' => [ 'rate' => float|null, 'placedCount' => int, 'declinedCount' => int ],
      *   'sourceOfHire'       => [ [ 'source', 'hiredCount', 'percentOfHires' ], ... ]
      * ]
@@ -665,6 +666,19 @@ class RecruitmentAnalytics
             $offerAcceptanceRate = round(($placedCount / $offerTotal) * 100, 1);
         }
 
+        /* Whole-process conversion: placed as a fraction of every
+         * pipeline entry, not just of the ones that reached an offer
+         * decision. Distinct from offerAcceptanceRate above, which only
+         * looks at placed-vs-declined once an offer was actually made -
+         * this one reflects the full funnel, including candidates who
+         * never made it to an offer at all. */
+        $overallAcceptanceRate = null;
+
+        if ($candidatesCount > 0)
+        {
+            $overallAcceptanceRate = round(($placedCount / $candidatesCount) * 100, 1);
+        }
+
         $sourceOfHire = array();
 
         foreach ($hiresBySource as $source => $hiredCount)
@@ -681,17 +695,22 @@ class RecruitmentAnalytics
         }
 
         return array(
-            'candidatesCount'     => $candidatesCount,
-            'timeToHire'          => array(
+            'candidatesCount'        => $candidatesCount,
+            'timeToHire'             => array(
                 'averageDays' => $averageDaysToHire,
                 'hiredCount'  => count($hiredDurations)
             ),
-            'offerAcceptanceRate' => array(
+            'overallAcceptanceRate'  => array(
+                'rate'            => $overallAcceptanceRate,
+                'placedCount'     => $placedCount,
+                'candidatesCount' => $candidatesCount
+            ),
+            'offerAcceptanceRate'    => array(
                 'rate'          => $offerAcceptanceRate,
                 'placedCount'   => $placedCount,
                 'declinedCount' => $declinedCount
             ),
-            'sourceOfHire'        => $sourceOfHire
+            'sourceOfHire'           => $sourceOfHire
         );
     }
 

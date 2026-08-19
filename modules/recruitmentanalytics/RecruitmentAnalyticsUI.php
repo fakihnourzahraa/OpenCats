@@ -88,6 +88,7 @@ class RecruitmentAnalyticsUI extends UserInterface
         $this->_template->assign('timeInStageGraphHTML', $timeInStageGraphHTML);
         $this->_template->assign('candidatesCount', $operationalMetrics['candidatesCount']);
         $this->_template->assign('timeToHire', $operationalMetrics['timeToHire']);
+        $this->_template->assign('overallAcceptanceRate', $operationalMetrics['overallAcceptanceRate']);
         $this->_template->assign('offerAcceptanceRate', $operationalMetrics['offerAcceptanceRate']);
         $this->_template->assign('sourceOfHire', $operationalMetrics['sourceOfHire']);
         $this->_template->assign('funnelEffectiveness', $funnelEffectiveness);

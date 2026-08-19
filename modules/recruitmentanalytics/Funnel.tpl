@@ -25,13 +25,23 @@
                     </td>
                     <td align="center" valign="top" style="text-align: left; width: 180px; height: 60px;">
                         <div style="font-size: 22px; font-weight: bold;">
-                            <?php echo($this->timeToHire['averageDays'] !== null ? number_format($this->timeToHire['averageDays'], 1) : 'NA'); ?>
+                            <?php echo($this->timeToHire['averageDays'] !== null ? number_format($this->timeToHire['averageDays'], 1) : 'NA;'); ?>
                         </div>
                         <div style="font-size: 11px;">Avg. Days to Hire (<?php echo((int) $this->timeToHire['hiredCount']); ?> hired)</div>
                     </td>
                     <td align="center" valign="top" style="text-align: left; width: 220px; height: 60px;">
                         <div style="font-size: 22px; font-weight: bold;">
-                            <?php echo($this->offerAcceptanceRate['rate'] !== null ? number_format($this->offerAcceptanceRate['rate'], 1) . '%' : 'NA'); ?>
+                            <?php echo($this->overallAcceptanceRate['rate'] !== null ? number_format($this->overallAcceptanceRate['rate'], 1) . '%' : 'NA;'); ?>
+                        </div>
+                        <div style="font-size: 11px;">
+                            Overall Acceptance Rate
+                            (<?php echo((int) $this->overallAcceptanceRate['placedCount']); ?> placed of
+                            <?php echo((int) $this->overallAcceptanceRate['candidatesCount']); ?> pipeline entries)
+                        </div>
+                    </td>
+                    <td align="center" valign="top" style="text-align: left; width: 220px; height: 60px;">
+                        <div style="font-size: 22px; font-weight: bold;">
+                            <?php echo($this->offerAcceptanceRate['rate'] !== null ? number_format($this->offerAcceptanceRate['rate'], 1) . '%' : 'NA;'); ?>
                         </div>
                         <div style="font-size: 11px;">
                             Offer Acceptance Rate
@@ -88,15 +98,6 @@
                             </select>
                         </td>
                         <td style="font-size:11px; padding: 2px 8px 2px 0;">
-    Role<br />
-    <select name="jobOrderID" style="font-size:11px;">
-        <option value="">All</option>
-        <?php foreach ($this->filterOptions['jobOrders'] as $jobOrderID => $title): ?>
-        <option value="<?php echo((int) $jobOrderID); ?>"<?php echo(((int) $this->selectedFilters['jobOrderID'] === (int) $jobOrderID) ? ' selected="selected"' : ''); ?>><?php echo(htmlspecialchars($title)); ?></option>
-        <?php endforeach; ?>
-    </select>
-</td>
-                        <td style="font-size:11px; padding: 2px 8px 2px 0;">
                             Career Level<br />
                             <select name="careerLevel" style="font-size:11px;">
                                 <option value="">All</option>
@@ -114,8 +115,7 @@
                                 <?php endforeach; ?>
                             </select>
                         </td>
-                        </tr>
-                        <tr>
+                        </tr><tr>
                         <td style="font-size:11px; padding: 2px 8px 2px 0;">
                             Status<br />
                             <select name="status" style="font-size:11px;">
@@ -125,6 +125,7 @@
                                 <?php endforeach; ?>
                             </select>
                         </td>
+
                         <td style="font-size:11px; padding: 6px 8px 2px 0;">
                             Date Available From<br />
                             <input type="date" name="dateAvailableFrom" value="<?php echo(htmlspecialchars($this->selectedFilters['dateAvailableFrom'])); ?>" style="font-size:11px;" />
@@ -133,6 +134,8 @@
                             Date Available To<br />
                             <input type="date" name="dateAvailableTo" value="<?php echo(htmlspecialchars($this->selectedFilters['dateAvailableTo'])); ?>" style="font-size:11px;" />
                         </td>
+                    </tr>
+                    <tr>
                         <td colspan="5" style="padding: 8px 0 0 0;">
                             <input type="submit" value="Apply Filters" style="font-size:11px;" />
                             &nbsp;
@@ -210,7 +213,7 @@
                             <tr class="<?php TemplateUtility::printAlternatingRowClass($index); ?>">
                                 <td style="font-size:11px;"><?php $this->_($data['source']); ?></td>
                                 <td style="font-size:11px;"><?php echo((int) $data['hiredCount']); ?></td>
-                                <td style="font-size:11px;"><?php echo($data['percentOfHires'] !== null ? number_format($data['percentOfHires'], 1) . '%' : 'NA'); ?></td>
+                                <td style="font-size:11px;"><?php echo($data['percentOfHires'] !== null ? number_format($data['percentOfHires'], 1) . '%' : 'NA;'); ?></td>
                             </tr>
                             <?php endforeach; ?>
                         </table>
@@ -233,7 +236,7 @@
                             <tr class="<?php TemplateUtility::printAlternatingRowClass($index); ?>">
                                 <td style="font-size:11px;"><?php $this->_($data['stage']); ?></td>
                                 <td style="font-size:11px;"><?php echo((int) $data['count']); ?></td>
-                                <td style="font-size:11px;"><?php echo($data['conversionRate'] !== null ? number_format($data['conversionRate'], 1) . '%' : 'NA'); ?></td>
+                                <td style="font-size:11px;"><?php echo($data['conversionRate'] !== null ? number_format($data['conversionRate'], 1) . '%' : 'NA;'); ?></td>
                             </tr>
                             <?php endforeach; ?>
                         </table>
