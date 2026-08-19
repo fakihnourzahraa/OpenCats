@@ -634,54 +634,74 @@ class GraphsUI extends UserInterface
         die($error);
     }
 
-
 private function recruitmentFunnel()
 {
-    $filters = array();
- 
-    /* Matches miniJobOrderPipeline()'s convention: 'params' is a single
-     * optional job order ID, not yet a delimited bundle of filters.
-     * Widen this once the filters UI (job order, date range, recruiter,
-     * etc.) is designed - at that point 'params' likely needs to become
-     * a delimited or JSON-encoded value, parsed back out here. */
-    if ($this->isRequiredIDValid('params', $_GET))
+    $filterString = '';
+
+    if (isset($_GET['params']))
     {
-        $filters['jobOrderID'] = (int) $_GET['params'];
+        $filterString = $this->getTrimmedInput('params', $_GET);
     }
- 
+
     $recruitmentAnalytics = new RecruitmentAnalytics($this->_siteID);
-    $funnelData = $recruitmentAnalytics->getRecruitmentFunnelData($filters);
- 
+    $funnelData = $recruitmentAnalytics->getRecruitmentFunnelData($filterString);
+
     $noData = empty($funnelData);
- 
+
     $y = array();
     $x = array();
- 
-    foreach ($funnelData as $row)
+
+    if ($noData)
     {
-        $y[] = $row['stage'];
-        $x[] = $row['count'];
+        /* Filters matched zero pipeline entries - $funnelData comes back
+         * completely empty in that case, not just zero-valued. But this
+         * method (see $totalValue below) and recruitmentFunnelGraph's
+         * draw() (BarPlotFunnel construction) both assume $x/$y have at
+         * least one entry - that assumption held before filtering
+         * existed, since there was always at least the unfiltered stage
+         * list. Restore it here: fall back to the full admin-defined
+         * stage list with zero counts, so the chart still draws (empty
+         * bars, full axis) instead of erroring on a truly empty array.
+         * (If no Interview Stage field is configured at all, $stages
+         * itself is empty and this fallback can't help - that's a
+         * pre-existing edge case, not one filtering introduced.) */
+        $stages = $recruitmentAnalytics->resolveExtraFieldOptions(
+            RecruitmentAnalytics::INTERVIEW_STAGE_FIELD_NAME,
+            DATA_ITEM_CANDIDATE
+        );
+
+        foreach ($stages as $stage)
+        {
+            $y[] = $stage;
+            $x[] = 0;
+        }
     }
- 
-    /* First stage's count is the funnel's max - same role
-     * $statisticsData['totalPipeline'] plays in miniJobOrderPipeline(). */
+    else
+    {
+        foreach ($funnelData as $row)
+        {
+            $y[] = $row['stage'];
+            $x[] = $row['count'];
+        }
+    }
+
     $totalValue = $noData ? 0 : $x[0];
- 
+
     $colorOptions = Graphs::getColorOptions();
     $colorArray = array();
- 
+
     foreach ($x as $index => $value)
     {
         $colorArray[] = new LinearGradient(new DarkGreen, new White, 0);
     }
- 
+
     $graph = new recruitmentFunnelGraph(
         $y, $x, $colorArray, 'Recruitment Funnel', $this->width,
         $this->height, $totalValue
     );
- 
+
     if (!eval(Hooks::get('GRAPH_RECRUITMENT_FUNNEL'))) return;
- 
+
     $graph->draw();
     die();
 }
@@ -705,13 +725,33 @@ private function timeInStage()
     $y = array();
     $x = array();
 
-    foreach ($aggregate as $row)
+    if ($noData)
     {
-        $y[] = $row['stage'];
-        /* averageDays is null when a stage has no completed transitions
-         * yet (nobody has passed all the way through it) - treat as 0
-         * for the bar rather than breaking the chart. */
-        $x[] = ($row['averageDays'] !== null) ? $row['averageDays'] : 0;
+        /* Same reasoning as recruitmentFunnel() above - filters matching
+         * zero candidates leaves 'aggregate' completely empty, not just
+         * zero-valued, so fall back to the full stage list with 0-day
+         * averages rather than an empty axis. */
+        $stages = $recruitmentAnalytics->resolveExtraFieldOptions(
+            RecruitmentAnalytics::INTERVIEW_STAGE_FIELD_NAME,
+            DATA_ITEM_CANDIDATE
+        );
+
+        foreach ($stages as $stage)
+        {
+            $y[] = $stage;
+            $x[] = 0;
+        }
+    }
+    else
+    {
+        foreach ($aggregate as $row)
+        {
+            $y[] = $row['stage'];
+            /* averageDays is null when a stage has no completed transitions
+             * yet (nobody has passed all the way through it) - treat as 0
+             * for the bar rather than breaking the chart. */
+            $x[] = ($row['averageDays'] !== null) ? $row['averageDays'] : 0;
+        }
     }
 
     $colorOptions = Graphs::getColorOptions();

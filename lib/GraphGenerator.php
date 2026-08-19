@@ -43,6 +43,7 @@ if (function_exists('ImageCreateFromJpeg'))
     include_once(LEGACY_ROOT . '/lib/artichow/AntiSpam.class.php');
     include_once(LEGACY_ROOT . '/lib/artichow/Pie.class.php');
     include_once(LEGACY_ROOT . '/lib/artichow/BarPlotFunnel.class.php');
+ include_once(LEGACY_ROOT . '/lib/artichow/BarPlotLabeled.class.php');
 }
 
 /**
@@ -523,13 +524,13 @@ class timeInStageGraph
          * rather than skipping the draw). */
         $values = $this->noData ? array_fill(0, count($this->xValues), 0) : $this->xValues;
 
-        $plot = new BarPlot($values);
+        $plot = new BarPlotLabeled($values);
         $plot->setPadding(40, 15, 35, 45);
         $plot->setBarColor(new DarkBlue);
         $plot->barBorder->hide(true);
         $plot->setBarGradient(new LinearGradient(new DarkBlue, new White, 0));
         $plot->setBarPadding(0.2, 0.2);
-
+ $plot->label->set($values);
         /* yAxis stays visible (unlike the funnel, which hides it) -
          * these bars are absolute day counts, not percentages of a
          * starting total, so the scale is meaningful to show. */
