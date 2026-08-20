@@ -104,11 +104,11 @@ class RecruitmentAnalyticsUI extends UserInterface
     /*
      * Builds the Pipelines::filterPipelineRows() DSL string from $_GET,
      * for the operational filters (owner, jobOrder, careerLevel, source,
-     * status, dateAvailable). Every value is rawurlencode()'d because
-     * filterPipelineRows() splits the whole string on literal commas
-     * before decoding each piece; an unencoded comma in a value (a
-     * status description, say) would otherwise be misread as a filter
-     * separator.
+     * status, dateAvailable, dateModified). Every value is
+     * rawurlencode()'d because filterPipelineRows() splits the whole
+     * string on literal commas before decoding each piece; an unencoded
+     * comma in a value (a status description, say) would otherwise be
+     * misread as a filter separator.
      */
     private function buildFilterString()
     {
@@ -147,6 +147,12 @@ class RecruitmentAnalyticsUI extends UserInterface
             $filters[] = 'status==' . rawurlencode($status);
         }
 
+        /* Timer Period dropdown (year/quarter/month) - resolves to a
+         * dateModified range, same as before. Independent of the
+         * plain Date Modified From/To fields below - if both are set,
+         * filterPipelineRows() ANDs all four dateModified=d>/=d< terms
+         * together, narrowing to their intersection rather than one
+         * overriding the other. */
         $dateModifiedRange = $this->resolveDateModifiedRange();
 
         if ($dateModifiedRange !== null)
@@ -169,11 +175,28 @@ class RecruitmentAnalyticsUI extends UserInterface
             $filters[] = 'dateAvailable=d<' . rawurlencode($this->toMDY($dateAvailableTo));
         }
 
+        /* Plain Date Modified From/To fields - separate from the Timer
+         * Period dropdown above, same from/to pattern as Date
+         * Available. */
+        $dateModifiedFrom = isset($_GET['dateModifiedFrom']) ? trim($_GET['dateModifiedFrom']) : '';
+
+        if ($dateModifiedFrom !== '')
+        {
+            $filters[] = 'dateModified=d>' . rawurlencode($this->toMDY($dateModifiedFrom));
+        }
+
+        $dateModifiedTo = isset($_GET['dateModifiedTo']) ? trim($_GET['dateModifiedTo']) : '';
+
+        if ($dateModifiedTo !== '')
+        {
+            $filters[] = 'dateModified=d<' . rawurlencode($this->toMDY($dateModifiedTo));
+        }
+
         return implode(',', $filters);
     }
 
     /*
-     * Resolves the Date Modified dropdown's single combined value
+     * Resolves the Timer Period dropdown's single combined value
      * (from RecruitmentAnalytics::getFilterOptions()'s
      * dateModifiedPeriods - "year:2026", "quarter:2026-Q3", or
      * "month:2026-08") into a [start, end] m-d-y range for the
@@ -229,8 +252,9 @@ class RecruitmentAnalyticsUI extends UserInterface
     }
 
     /* Converts an HTML date input's Y-m-d value to the m-d-y format
-     * getHireEventRows() formats dateAvailable in, so filterPipelineRows()'s
-     * date comparison is comparing like-formatted strings. */
+     * getHireEventRows() formats dateAvailable/dateModified in, so
+     * filterPipelineRows()'s date comparison is comparing like-formatted
+     * strings. */
     private function toMDY($ymd)
     {
         $timestamp = strtotime($ymd);
@@ -257,7 +281,9 @@ class RecruitmentAnalyticsUI extends UserInterface
             'status'            => isset($_GET['status']) ? $_GET['status'] : '',
             'dateRangeValue'    => isset($_GET['dateRangeValue']) ? $_GET['dateRangeValue'] : '',
             'dateAvailableFrom' => isset($_GET['dateAvailableFrom']) ? $_GET['dateAvailableFrom'] : '',
-            'dateAvailableTo'   => isset($_GET['dateAvailableTo']) ? $_GET['dateAvailableTo'] : ''
+            'dateAvailableTo'   => isset($_GET['dateAvailableTo']) ? $_GET['dateAvailableTo'] : '',
+            'dateModifiedFrom'  => isset($_GET['dateModifiedFrom']) ? $_GET['dateModifiedFrom'] : '',
+            'dateModifiedTo'    => isset($_GET['dateModifiedTo']) ? $_GET['dateModifiedTo'] : ''
         );
     }
 }
