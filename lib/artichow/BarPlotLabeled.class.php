@@ -3,12 +3,12 @@
  * BarPlotLabeled.class.php
  * Added for IBC
  *
- * Plain (non-cumulative) bar plot with a value label drawn centered
- * inside each bar - same label placement/style as BarPlotFunnel
- * (mid-bar position, drawn via label->drawSpecial() as plain text, not
- * the generic awBarPlot::drawComponent() top-of-bar label placement
- * which goes through label->draw() and picks up background/border
- * styling instead).
+ * Plain (non-cumulative) bar plot with a value label drawn above each
+ * bar - same drawSpecial()-based approach as BarPlotFunnel (plain text,
+ * not the generic awBarPlot::drawComponent() label placement which goes
+ * through label->draw() and picks up background/border styling
+ * instead), but positioned above the bar's top edge rather than
+ * mid-bar, and drawn bold.
  *
  * Extends awBarPlot directly, NOT awBarPlotPipeline/awBarPlotFunnel -
  * there's no cumulative/tapered/totalValue relationship between bars
@@ -16,11 +16,23 @@
  * total). Each bar is an independent value, so the percent-of-previous
  * calculation BarPlotFunnel does is dropped; the label is just the
  * bar's own value, formatted to 1 decimal place (average days).
+ *
+ * BOLD NOTE: this codebase's fonts (Tuffy(7), Tuffy(8), etc.) don't
+ * have a confirmed bold variant available (no TuffyBold or similar seen
+ * in lib/artichow/fonts/ so far). Rather than guess a class name that
+ * might not exist and fatal, bold is faked here by drawing the label
+ * twice with a 1px horizontal offset - font-agnostic, no dependency on
+ * a bold font file existing. If a real bold font class is available,
+ * swap the double-draw below for a single drawSpecial() call using it.
  */
 
 require_once dirname(__FILE__)."/BarPlot.class.php";
 
 class awBarPlotLabeled extends awBarPlot {
+
+	// Vertical gap (in pixels) between the bar's top edge and the label
+	// drawn above it.
+	const LABEL_OFFSET = 14;
 
 	public function drawComponent(awDrawer $drawer, $x1, $y1, $x2, $y2, $aliasing) {
 
@@ -90,27 +102,29 @@ class awBarPlotLabeled extends awBarPlot {
 
 		}
 
-		// Draw labels - centered mid-bar (value / 2), same positioning
-		// BarPlotFunnel uses, via drawSpecial() so it's plain text, not
-		// boxed/backgrounded like the base class's label->draw() path.
+		// Draw labels - above the bar's top edge (not mid-bar), drawn
+		// twice with a 1px x-offset to fake bold weight.
 		foreach($this->datay as $key => $value) {
 
 			if($value !== NULL && $value != 0) {
 
-				$position2 = awAxis::toPosition(
+				$position = awAxis::toPosition(
 					$this->xAxis,
 					$this->yAxis,
-					new awPoint($key, $value / 2)
+					new awPoint($key, $value)
 				);
 
-				$point2 = new awPoint(
-					$barPosition + ($this->identifier - 1) * $this->barSpace + $position2->x + $barSize / 2 + 1 + $this->depth,
-					$position2->y - $this->depth
+				$labelPoint = new awPoint(
+					$barPosition + ($this->identifier - 1) * $this->barSpace + $position->x + $barSize / 2 + 1 + $this->depth,
+					$position->y - $this->depth - self::LABEL_OFFSET
 				);
 
 				$formattedValue = number_format($value, 1);
 
-				$this->label->drawSpecial($drawer, $point2, $key, $formattedValue);
+				// Faux-bold: draw twice, 1px apart horizontally.
+				$labelPointBold = new awPoint($labelPoint->x + 1, $labelPoint->y);
+				$this->label->drawSpecial($drawer, $labelPoint, $key, $formattedValue);
+				$this->label->drawSpecial($drawer, $labelPointBold, $key, $formattedValue);
 
 			}
 

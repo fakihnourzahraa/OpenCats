@@ -98,6 +98,15 @@
                             </select>
                         </td>
                         <td style="font-size:11px; padding: 2px 8px 2px 0;">
+                            Role<br />
+                            <select name="jobOrderID" style="font-size:11px;">
+                                <option value="">All</option>
+                                <?php foreach ($this->filterOptions['jobOrders'] as $jobOrderID => $title): ?>
+                                <option value="<?php echo((int) $jobOrderID); ?>"<?php echo(((int) $this->selectedFilters['jobOrderID'] === (int) $jobOrderID) ? ' selected="selected"' : ''); ?>><?php echo(htmlspecialchars($title)); ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </td>
+                        <td style="font-size:11px; padding: 2px 8px 2px 0;">
                             Career Level<br />
                             <select name="careerLevel" style="font-size:11px;">
                                 <option value="">All</option>
@@ -106,6 +115,7 @@
                                 <?php endforeach; ?>
                             </select>
                         </td>
+                        </tr><tr>
                         <td style="font-size:11px; padding: 2px 8px 2px 0;">
                             Source<br />
                             <select name="source" style="font-size:11px;">
@@ -115,7 +125,7 @@
                                 <?php endforeach; ?>
                             </select>
                         </td>
-                        </tr><tr>
+            
                         <td style="font-size:11px; padding: 2px 8px 2px 0;">
                             Status<br />
                             <select name="status" style="font-size:11px;">
