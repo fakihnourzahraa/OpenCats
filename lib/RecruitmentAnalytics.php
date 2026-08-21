@@ -11,36 +11,16 @@ class RecruitmentAnalytics
     private $_db;
     private $_siteID;
 
-    /* getHireEventRows() is the shared unfiltered base row set for every
-     * operational metric (KPIs, applications-by-role, filter dropdown
-     * options, time-in-stage's candidate-ID resolution). All of those
-     * can be called in the same request now that filters are wired up
-     * page-wide, so the query is memoized here rather than re-run once
-     * per caller. Filtering always happens afterward in PHP via
-     * filterPipelineRows(), so caching the unfiltered set is safe
-     * regardless of which filterString each caller applies. */
     private $_hireEventRowsCache = null;
 
     const INTERVIEW_STAGE_FIELD_NAME = 'Interview Stage';
     const CAREER_LEVEL_FIELD_NAME = 'Career Level';
 
-    /* candidate_joborder_status IDs, confirmed against this install's
-     * live candidate_joborder_status table. Not defined as constants
-     * anywhere else in the codebase, so defined here.
-     */
+
     const PIPELINE_STATUS_PLACED = 800;
     const PIPELINE_STATUS_CLIENT_DECLINED = 700;
 
-    /**
-     * Column map for Pipelines::filterPipelineRows(). Keys are the filter
-     * names the operational dashboard's filter UI is expected to emit;
-     * values are the array keys used in the row sets built below.
-     * ASSUMPTION: the filter UI will emit filter strings using these
-     * exact key names (e.g. "owner=~john,jobOrder==482,..."). Confirm
-     * against whatever generates the filter string before wiring the UI.
-     * (Not a class const array — kept as a method for compatibility with
-     * older PHP, matching the rest of this codebase's conventions.)
-     */
+
     private function getOperationalColumnMap()
     {
         return array(
@@ -60,10 +40,6 @@ class RecruitmentAnalytics
         $this->_db = DatabaseConnection::getInstance();
     }
 
-    /**
-     * Given an extra field's name and the data item type
-     * returns the field's options in admin-defined order
-     */
     public function resolveExtraFieldOptions($fieldName, $dataItemType)
     {
         $sql = sprintf(
@@ -105,26 +81,6 @@ class RecruitmentAnalytics
         return $options;
     }
 
-    /**
-     * [ 'stage' => string, 'count' => int, 'percentOfPrevious' => float|null ]
-     *
-     * @param string $filterString Same Pipelines::filterPipelineRows()
-     *        DSL string as getOperationalMetrics()/getTimeInStageData().
-     *        Empty string = no filters (full dataset).
-     *
-     * Filtering is resolved the same way getTimeInStageData() resolves
-     * it: reuse getFilteredCandidateIDs() (built from the shared
-     * getHireEventRows() base set) to get the distinct candidate IDs
-     * whose pipeline entries survive the filter, then scope this
-     * method's own Interview-Stage query to just those candidates via
-     * candidate_id IN (...). This replaces an earlier version that took
-     * a separate 'jobOrderID'/'dateFrom'/'dateTo' array and built its
-     * own ad-hoc joins/date range - that shape was never actually
-     * DSL-compatible (GraphsUI.php's recruitmentFunnel() action already
-     * passed a DSL string here, which would fail on array access), so
-     * this brings the method in line with what every caller actually
-     * sends.
-     */
     public function getRecruitmentFunnelData($filterString = '')
     {
         $stages = $this->resolveExtraFieldOptions(
@@ -141,8 +97,7 @@ class RecruitmentAnalytics
 
         if ($filterString !== '' && empty($candidateIDs))
         {
-            /* Filters applied and nothing matched - don't fall through to
-             * an unfiltered query below. */
+
             return array();
         }
 
@@ -231,17 +186,7 @@ class RecruitmentAnalytics
         return $result;
     }
 
-    /**
-     * Resolves a filterPipelineRows() DSL string to the distinct set of
-     * candidate IDs whose pipeline entries survive it. Shared by
-     * getTimeInStageData() so it can filter without duplicating
-     * extra_field_history rows per job order (see getTimeInStageData()'s
-     * docblock for why).
-     *
-     * @return array of int candidate IDs. Empty array + $filterString
-     *         === '' means "no filtering, use all candidates" - callers
-     *         must check $filterString, not just emptiness of the result.
-     */
+
     private function getFilteredCandidateIDs($filterString)
     {
         if ($filterString === '')
@@ -252,11 +197,13 @@ class RecruitmentAnalytics
         $rows = $this->getHireEventRows();
 
         $pipelines = new Pipelines($this->_siteID);
-        $filteredRows = $pipelines->filterPipelineRows(
-            $rows,
-            $filterString,
-            $this->getOperationalColumnMap()
-        );
+        error_log('DEBUG filterString: ' . $filterString);
+$filteredRows = $pipelines->filterPipelineRows(
+    $rows,
+    $filterString,
+    $this->getOperationalColumnMap(),
+    false
+);
 
         $candidateIDs = array();
 
@@ -268,50 +215,6 @@ class RecruitmentAnalytics
         return array_keys($candidateIDs);
     }
 
-    /**
-     * Time-in-stage report, derived from extra_field_history (a diff log,
-     * not an interval table). For each candidate's ordered transitions:
-     *
-     *   - Each row's new_value is the stage the candidate ENTERED at that
-     *     row's set_date.
-     *   - Duration in that stage = next row's set_date minus this row's
-     *     set_date.
-     *   - The candidate's most recent row is still "open": duration-so-far
-     *     = NOW() minus its set_date, and it's excluded from the average
-     *     (it hasn't finished) but reported separately as currentlyInStage.
-     *   - A candidate's very first previous_value has no known entry date
-     *     (we don't know when they entered that earlier stage), so it is
-     *     never used to compute a duration — only new_value entries are.
-     *
-     * Returns:
-     * [
-     *   'aggregate' => [
-     *     [ 'stage', 'averageDays', 'completedCount', 'currentlyInStage' ], ...
-     *   ],
-     *   'perCandidate' => [
-     *     [ 'candidateID', 'stages' => [
-     *         [ 'stage', 'enteredDate', 'exitedDate', 'days', 'isOpen' ], ...
-     *     ] ], ...
-     *   ]
-     * ]
-     *
-     * @param string $filterString Pipelines::filterPipelineRows() DSL
-     *        string, same 8 operational filters as getOperationalMetrics()
-     *        (dateModified/owner/jobOrder/careerLevel/source/status/
-     *        dateAvailable). Empty string = no filters (full dataset).
-     *
-     * Filtering is resolved in two steps rather than joining
-     * extra_field_history directly to candidate_joborder: a candidate can
-     * have multiple pipeline entries (multiple job orders), and joining
-     * the history table straight to candidate_joborder would duplicate
-     * each history row once per matching job order, inflating the
-     * duration averages. Instead: (1) reuse getHireEventRows() - the same
-     * per-pipeline-entry base rows getOperationalMetrics() uses - filter
-     * those, and reduce to the distinct set of candidate IDs whose
-     * pipeline entries survive the filter; (2) fetch each of those
-     * candidates' full extra_field_history normally (unchanged from
-     * before) and run the existing per-candidate delta logic untouched.
-     */
     public function getTimeInStageData($filterString = '')
     {
         $stages = $this->resolveExtraFieldOptions(
@@ -346,6 +249,11 @@ class RecruitmentAnalytics
             "extra_field_history.site_id = %s",
             $this->_db->makeQueryInteger($this->_siteID)
         );
+        if ($filterString !== '')
+{
+    $safeCandidateIDs = implode(',', array_map('intval', $candidateIDs));
+    $where[] = sprintf("extra_field_history.data_item_id IN (%s)", $safeCandidateIDs);
+}
 
         $sql = sprintf(
             "SELECT
@@ -367,8 +275,6 @@ class RecruitmentAnalytics
 
         $rs = $this->_db->getAllAssoc($sql);
 
-        // Group rows by candidate, preserving the oldest-first order
-        // within each candidate (guaranteed by the ORDER BY above).
         $rowsByCandidate = array();
 
         foreach ($rs as $row)
@@ -467,24 +373,6 @@ class RecruitmentAnalytics
         );
     }
 
-    /**
-     * Fetches one row per candidate_joborder (pipeline entry), with every
-     * column the 8 operational filters need, plus whichever of Placed
-     * (800) / Client Declined (700) is that pipeline entry's MOST RECENT
-     * hire-relevant status transition (or neither, if it hasn't reached
-     * one yet).
-     *
-     * This is the single shared base dataset for getOperationalMetrics().
-     * Unfiltered — filtering happens afterward via
-     * Pipelines::filterPipelineRows() so all 3 derived metrics
-     * (time to hire, offer acceptance rate, source of hire) share one
-     * fetch instead of three separate filtered queries.
-     *
-     * Dates are formatted m-d-y to match what filterPipelineRows()
-     * already expects for date-type columns (see its dateModified
-     * handling), plus a parallel UNIX_TIMESTAMP column for each date so
-     * duration math doesn't need to re-parse the formatted string.
-     */
     private function getHireEventRows()
     {
         if ($this->_hireEventRowsCache !== null)
@@ -580,34 +468,18 @@ class RecruitmentAnalytics
         return $this->_hireEventRowsCache;
     }
 
-    /**
-     * Candidates count (total pipeline entries), time to hire, offer
-     * acceptance rate, and source of hire — all derived from one shared,
-     * filtered base row set.
-     *
-     * @param string $filterString Pipelines::filterPipelineRows() DSL
-     *        string, e.g. "owner=~jane,jobOrder==482". Empty string = no
-     *        filters applied (full dataset).
-     *
-     * Returns:
-     * [
-     *   'candidatesCount'    => int,
-     *   'timeToHire'         => [ 'averageDays' => float|null, 'hiredCount' => int ],
-     *   'overallAcceptanceRate' => [ 'rate' => float|null, 'placedCount' => int, 'candidatesCount' => int ],
-     *   'offerAcceptanceRate' => [ 'rate' => float|null, 'placedCount' => int, 'declinedCount' => int ],
-     *   'sourceOfHire'       => [ [ 'source', 'hiredCount', 'percentOfHires' ], ... ]
-     * ]
-     */
     public function getOperationalMetrics($filterString = '')
     {
         $rows = $this->getHireEventRows();
 
         $pipelines = new Pipelines($this->_siteID);
-        $filteredRows = $pipelines->filterPipelineRows(
-            $rows,
-            $filterString,
-            $this->getOperationalColumnMap()
-        );
+        error_log('DEBUG filterString: ' . $filterString);
+$filteredRows = $pipelines->filterPipelineRows(
+    $rows,
+    $filterString,
+    $this->getOperationalColumnMap(),
+    false
+);
 
         $candidatesCount = count($filteredRows);
 
@@ -666,12 +538,6 @@ class RecruitmentAnalytics
             $offerAcceptanceRate = round(($placedCount / $offerTotal) * 100, 1);
         }
 
-        /* Whole-process conversion: placed as a fraction of every
-         * pipeline entry, not just of the ones that reached an offer
-         * decision. Distinct from offerAcceptanceRate above, which only
-         * looks at placed-vs-declined once an offer was actually made -
-         * this one reflects the full funnel, including candidates who
-         * never made it to an offer at all. */
         $overallAcceptanceRate = null;
 
         if ($candidatesCount > 0)
@@ -714,35 +580,19 @@ class RecruitmentAnalytics
         );
     }
 
-    /**
-     * Total applications (pipeline entries) broken down by role/job
-     * order, sorted by count descending. Same base row set and filter
-     * mechanism as getOperationalMetrics() (Option A - reuse
-     * filterPipelineRows() rather than a separate GROUP BY query), just
-     * bucketed differently: instead of computing hire/time/source
-     * metrics from the filtered rows, this just counts rows per
-     * jobOrderID.
-     *
-     * A pipeline entry whose job order row no longer exists (orphaned
-     * candidate_joborder row) has a null jobOrderTitle - those are
-     * bucketed under 'Unknown Role' rather than silently dropped, so the
-     * per-role total still reconciles with candidatesCount.
-     *
-     * @param string $filterString Same filterPipelineRows() DSL string
-     *        as getOperationalMetrics(). Empty string = no filters.
-     *
-     * @return array of [ 'jobOrderID' => int, 'role' => string, 'count' => int ]
-     */
+
     public function getApplicationsByRole($filterString = '')
     {
         $rows = $this->getHireEventRows();
 
         $pipelines = new Pipelines($this->_siteID);
-        $filteredRows = $pipelines->filterPipelineRows(
-            $rows,
-            $filterString,
-            $this->getOperationalColumnMap()
-        );
+        error_log('DEBUG filterString: ' . $filterString);
+$filteredRows = $pipelines->filterPipelineRows(
+    $rows,
+    $filterString,
+    $this->getOperationalColumnMap(),
+    false
+);
 
         $countsByRole = array();
 
@@ -774,43 +624,6 @@ class RecruitmentAnalytics
         return $result;
     }
 
-    /**
-     * Dropdown option lists for the 8 operational filters, so the filter
-     * form only ever shows values that actually occur in the current
-     * (unfiltered) dataset rather than a hardcoded/admin-wide list that
-     * might not match reality.
-     *
-     * - owners/jobOrders/sources: derived from the same base row set as
-     *   every other metric here, so there's no separate query and no
-     *   risk of the dropdown drifting from what filterPipelineRows() can
-     *   actually match against.
-     * - careerLevels: reuses resolveExtraFieldOptions() for admin-defined
-     *   order, same as the funnel's Interview Stage options.
-     * - statuses: reuses Pipelines::getStatuses() rather than deriving
-     *   from rows, so statuses with zero current candidates still show
-     *   up as pickable (a recruiter filtering "show me Placed" should
-     *   see that option even between placements).
-     * - dateModifiedPeriods: Year/Quarter/Month options derived from the
-     *   distinct dateModified values in the data (same "only show what
-     *   actually occurs" principle), each newest-first. Each option's
-     *   'value' is "type:value" (e.g. "quarter:2026-Q3", "year:2026",
-     *   "month:2026-08") so the filter form's single dropdown can carry
-     *   all three under one field name, and the controller can recover
-     *   which type it is by splitting on the first colon.
-     *
-     * @return array [
-     *   'owners'             => [ string, ... ],
-     *   'jobOrders'          => [ jobOrderID => title, ... ],
-     *   'sources'            => [ string, ... ],
-     *   'careerLevels'       => [ string, ... ],
-     *   'statuses'           => [ [ 'statusID', 'status', ... ], ... ],
-     *   'dateModifiedPeriods' => [
-     *     'years'    => [ [ 'value', 'label' ], ... ],
-     *     'quarters' => [ [ 'value', 'label' ], ... ],
-     *     'months'   => [ [ 'value', 'label' ], ... ]
-     *   ]
-     * ]
-     */
     public function getFilterOptions()
     {
         $rows = $this->getHireEventRows();
@@ -844,7 +657,8 @@ class RecruitmentAnalytics
 
             if (!empty($row['dateModified']))
             {
-                $date = DateTime::createFromFormat('m-d-y', $row['dateModified']);
+                    $dateFormat = $_SESSION['CATS']->isDateDMY() ? 'd-m-y' : 'm-d-y';
+                $date = DateTime::createFromFormat($dateFormat, $row['dateModified']);
 
                 if ($date !== false)
                 {
@@ -873,11 +687,6 @@ class RecruitmentAnalytics
         ksort($owners);
         asort($jobOrders);
         ksort($sources);
-
-        /* Newest first - krsort on the numeric/zero-padded keys sorts
-         * chronologically since every key is uniformly-widthed
-         * (4-digit year, so "2026-Q3" > "2025-Q4" compares correctly
-         * as a plain string). */
         krsort($years);
         krsort($quarters);
         krsort($months);
@@ -904,18 +713,6 @@ class RecruitmentAnalytics
         );
     }
 
-    /**
-     * Recruitment funnel effectiveness — thin passthrough, not new logic.
-     * getRecruitmentFunnelData() already computes stage-to-stage
-     * conversion as 'percentOfPrevious'; this just reshapes that into
-     * the 'stage' + 'conversionRate' pairing the operational dashboard
-     * asked for, so callers don't need to know the funnel method's
-     * internal field names.
-     *
-     * @param string $filterString Same Pipelines::filterPipelineRows()
-     *        DSL string as every other operational method here. Empty
-     *        string = no filters (full dataset).
-     */
     public function getFunnelEffectiveness($filterString = '')
     {
         $funnel = $this->getRecruitmentFunnelData($filterString);

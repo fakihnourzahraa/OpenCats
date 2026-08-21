@@ -904,7 +904,7 @@ private function isDateColumn($col)
         || $col === 'dateAvailable';
 }
 
-public function filterPipelineRows($pipelinesRS, $filterString, $columnMap)
+public function filterPipelineRows($pipelinesRS, $filterString, $columnMap, $valuesAreLocaleFormatted = true)
 {
     if ($filterString === '')
     {
@@ -926,22 +926,28 @@ public function filterPipelineRows($pipelinesRS, $filterString, $columnMap)
 
                 $isDateColumn = $this->isDateColumn($col);
 
-                $pipelinesRS = array_filter($pipelinesRS, function($row) use ($col, $op, $val, $isDateColumn) {
-                    $fieldValue = isset($row[$col]) ? $row[$col] : '';
-                    if ($isDateColumn)
-                    {
-                        $dateFormatFlag = $_SESSION['CATS']->isDateDMY() ? DATE_FORMAT_DDMMYY : DATE_FORMAT_MMDDYY;
+            $pipelinesRS = array_filter($pipelinesRS, function($row) use ($col, $op, $val, $isDateColumn, $valuesAreLocaleFormatted) {
+    $fieldValue = isset($row[$col]) ? $row[$col] : '';
 
-                        $fieldValue = DateUtility::convert('-', $fieldValue, $dateFormatFlag, DATE_FORMAT_YYYYMMDD);
-                        $val = DateUtility::convert('-', $val, $dateFormatFlag, DATE_FORMAT_YYYYMMDD);
+if ($isDateColumn)
+{
 
-                        switch ($op) {
-                            case '==':  return $fieldValue == $val;
-                            case '=d>': return $fieldValue >= $val;
-                            case '=d<': return $fieldValue <= $val;
-                            default:    return true;
-                        }
-                    }
+    $fieldDateFormat = $_SESSION['CATS']->isDateDMY() ? DATE_FORMAT_DDMMYY : DATE_FORMAT_MMDDYY;
+    $fieldValue = DateUtility::convert('-', $fieldValue, $fieldDateFormat, DATE_FORMAT_YYYYMMDD);
+
+    $valDateFormat = $valuesAreLocaleFormatted
+        ? ($_SESSION['CATS']->isDateDMY() ? DATE_FORMAT_DDMMYY : DATE_FORMAT_MMDDYY)
+        : DATE_FORMAT_MMDDYY;
+    $val = DateUtility::convert('-', $val, $valDateFormat, DATE_FORMAT_YYYYMMDD);
+
+    switch ($op) {
+        case '==':  return $fieldValue == $val;
+        case '=d>': return $fieldValue >= $val;
+        case '=d<': return $fieldValue <= $val;
+        default:    return true;
+    }
+}
+
                     if ($op === '=d>' || $op === '=d<')
                     {
                         if ($fieldValue === '' || $fieldValue === null) return false;

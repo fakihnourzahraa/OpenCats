@@ -39,17 +39,6 @@ class RecruitmentAnalyticsUI extends UserInterface
         }
     }
 
-    /*
-     * Called by handleRequest() to load the funnel page. Renders the
-     * funnel chart, the time-in-stage chart, and the KPI overview
-     * (candidates count, time to hire, offer acceptance rate, source of
-     * hire, funnel effectiveness) all on one page. The two charts are
-     * <img> tags pointing at the graphs module (piece 4), same pattern
-     * the legacy Dashboard uses for miniJobOrderPipeline. The KPI
-     * numbers aren't images - getOperationalMetrics() /
-     * getFunnelEffectiveness() are called directly here and handed to
-     * the template as plain PHP arrays, same as any other CATS page.
-     */
     private function funnel()
     {
         $jobOrderID = null;
@@ -63,16 +52,6 @@ class RecruitmentAnalyticsUI extends UserInterface
 
         $filterString = $this->buildFilterString();
 
-        /* Single filter string, used everywhere on the page now:
-         * - the two graphs, passed through as this image URL's 'params'
-         *   query string (Graphs::_getGraphHTML() encodes a one-element
-         *   $params array as-is, so the whole DSL string round-trips
-         *   through the <img> request intact - no comma-splitting
-         *   collision, since implode() on a single-element array is a
-         *   no-op)
-         * - the KPI panel, Applications by Role, and Funnel
-         *   Effectiveness, called directly in PHP below
-         */
         $graphs = new Graphs();
         $funnelGraphHTML = $graphs->recruitmentFunnel(600, 300, array($filterString));
         $timeInStageGraphHTML = $graphs->timeInStage(600, 300, array($filterString));
@@ -101,15 +80,6 @@ class RecruitmentAnalyticsUI extends UserInterface
         $this->_template->display('./modules/recruitmentanalytics/Funnel.tpl');
     }
 
-    /*
-     * Builds the Pipelines::filterPipelineRows() DSL string from $_GET,
-     * for the operational filters (owner, jobOrder, careerLevel, source,
-     * status, dateAvailable, dateModified). Every value is
-     * rawurlencode()'d because filterPipelineRows() splits the whole
-     * string on literal commas before decoding each piece; an unencoded
-     * comma in a value (a status description, say) would otherwise be
-     * misread as a filter separator.
-     */
     private function buildFilterString()
     {
         $filters = array();
@@ -147,12 +117,6 @@ class RecruitmentAnalyticsUI extends UserInterface
             $filters[] = 'status==' . rawurlencode($status);
         }
 
-        /* Timer Period dropdown (year/quarter/month) - resolves to a
-         * dateModified range, same as before. Independent of the
-         * plain Date Modified From/To fields below - if both are set,
-         * filterPipelineRows() ANDs all four dateModified=d>/=d< terms
-         * together, narrowing to their intersection rather than one
-         * overriding the other. */
         $dateModifiedRange = $this->resolveDateModifiedRange();
 
         if ($dateModifiedRange !== null)
@@ -175,9 +139,6 @@ class RecruitmentAnalyticsUI extends UserInterface
             $filters[] = 'dateAvailable=d<' . rawurlencode($this->toMDY($dateAvailableTo));
         }
 
-        /* Plain Date Modified From/To fields - separate from the Timer
-         * Period dropdown above, same from/to pattern as Date
-         * Available. */
         $dateModifiedFrom = isset($_GET['dateModifiedFrom']) ? trim($_GET['dateModifiedFrom']) : '';
 
         if ($dateModifiedFrom !== '')
@@ -195,14 +156,6 @@ class RecruitmentAnalyticsUI extends UserInterface
         return implode(',', $filters);
     }
 
-    /*
-     * Resolves the Timer Period dropdown's single combined value
-     * (from RecruitmentAnalytics::getFilterOptions()'s
-     * dateModifiedPeriods - "year:2026", "quarter:2026-Q3", or
-     * "month:2026-08") into a [start, end] m-d-y range for the
-     * dateModified DSL filter. Returns null if no value is selected, or
-     * if it doesn't match one of those three shapes.
-     */
     private function resolveDateModifiedRange()
     {
         $value = isset($_GET['dateRangeValue']) ? trim($_GET['dateRangeValue']) : '';
@@ -251,10 +204,6 @@ class RecruitmentAnalyticsUI extends UserInterface
         return null;
     }
 
-    /* Converts an HTML date input's Y-m-d value to the m-d-y format
-     * getHireEventRows() formats dateAvailable/dateModified in, so
-     * filterPipelineRows()'s date comparison is comparing like-formatted
-     * strings. */
     private function toMDY($ymd)
     {
         $timestamp = strtotime($ymd);
@@ -267,10 +216,6 @@ class RecruitmentAnalyticsUI extends UserInterface
         return date('m-d-y', $timestamp);
     }
 
-    /* Raw (unencoded) selected filter values, for repopulating the
-     * filter form - separate from buildFilterString()'s encoded DSL
-     * output since the template needs these for value="" attributes,
-     * not for splitting on commas. */
     private function getSelectedFilterValues($jobOrderID)
     {
         return array(

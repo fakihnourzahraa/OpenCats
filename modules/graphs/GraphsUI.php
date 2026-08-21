@@ -653,18 +653,6 @@ private function recruitmentFunnel()
 
     if ($noData)
     {
-        /* Filters matched zero pipeline entries - $funnelData comes back
-         * completely empty in that case, not just zero-valued. But this
-         * method (see $totalValue below) and recruitmentFunnelGraph's
-         * draw() (BarPlotFunnel construction) both assume $x/$y have at
-         * least one entry - that assumption held before filtering
-         * existed, since there was always at least the unfiltered stage
-         * list. Restore it here: fall back to the full admin-defined
-         * stage list with zero counts, so the chart still draws (empty
-         * bars, full axis) instead of erroring on a truly empty array.
-         * (If no Interview Stage field is configured at all, $stages
-         * itself is empty and this fallback can't help - that's a
-         * pre-existing edge case, not one filtering introduced.) */
         $stages = $recruitmentAnalytics->resolveExtraFieldOptions(
             RecruitmentAnalytics::INTERVIEW_STAGE_FIELD_NAME,
             DATA_ITEM_CANDIDATE
@@ -727,10 +715,6 @@ private function timeInStage()
 
     if ($noData)
     {
-        /* Same reasoning as recruitmentFunnel() above - filters matching
-         * zero candidates leaves 'aggregate' completely empty, not just
-         * zero-valued, so fall back to the full stage list with 0-day
-         * averages rather than an empty axis. */
         $stages = $recruitmentAnalytics->resolveExtraFieldOptions(
             RecruitmentAnalytics::INTERVIEW_STAGE_FIELD_NAME,
             DATA_ITEM_CANDIDATE
@@ -747,9 +731,6 @@ private function timeInStage()
         foreach ($aggregate as $row)
         {
             $y[] = $row['stage'];
-            /* averageDays is null when a stage has no completed transitions
-             * yet (nobody has passed all the way through it) - treat as 0
-             * for the bar rather than breaking the chart. */
             $x[] = ($row['averageDays'] !== null) ? $row['averageDays'] : 0;
         }
     }
@@ -762,14 +743,7 @@ private function timeInStage()
         $colorArray[] = new LinearGradient(new DarkBlue, new White, 0);
     }
 
-    /* Mirrors recruitmentFunnelGraph's constructor shape. Unlike the
-     * funnel, this isn't a cumulative/tapered chart, so there's no
-     * $totalValue cap to pass - each bar is an independent average, not
-     * a fraction of a starting count. If timeInStageGraph doesn't exist
-     * yet in GraphGenerator.php, it needs to be added there as a plain
-     * bar chart (not a BarPlotPipeline subclass like the funnel), since
-     * there's no proportional/cumulative relationship between bars here.
-     */
+
     $graph = new timeInStageGraph(
         $y, $x, $colorArray, 'Average Days in Stage', $this->width,
         $this->height, $noData

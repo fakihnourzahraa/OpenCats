@@ -15,7 +15,6 @@
                 </tr>
             </table>
 
-            <!-- KPI overview -->
             <div class="noteUnsizedSpan">Overview</div>
             <table>
                 <tr>
@@ -54,7 +53,6 @@
 
             <div class="noteUnsizedSpan">Applications by Role</div>
 
-            <!-- Filters -->
             <form method="get" action="<?php echo(CATSUtility::getIndexName()); ?>">
                 <input type="hidden" name="m" value="recruitmentanalytics" />
                 <input type="hidden" name="a" value="funnel" />
@@ -62,7 +60,7 @@
                 <table style="margin: 0 0 10px 0;">
                     <tr>
                         <td style="font-size:11px; padding: 2px 8px 2px 0;">
-                            Timer Period<br />
+                            Time Period<br />
                             <select name="dateRangeValue" style="font-size:11px;">
                                 <option value="">All time</option>
                                 <?php if (!empty($this->filterOptions['dateModifiedPeriods']['years'])): ?>
@@ -213,7 +211,6 @@
                 </tr>
             </table>
 
-            <!-- Source of hire + funnel effectiveness side by side -->
             <table>
                 <tr>
                     <td align="left" valign="top" style="text-align: left; width: 50%; height: 240px;">
