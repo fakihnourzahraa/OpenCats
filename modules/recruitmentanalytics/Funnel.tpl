@@ -20,7 +20,7 @@
                 <tr>
                     <td align="center" valign="top" style="text-align: left; width: 180px; height: 60px;">
                         <div style="font-size: 22px; font-weight: bold;"><?php echo(number_format($this->candidatesCount)); ?></div>
-                        <div style="font-size: 11px;">Pipeline Entries</div>
+                        <div style="font-size: 11px;">Candidates</div>
                     </td>
                     <td align="center" valign="top" style="text-align: left; width: 180px; height: 60px;">
                         <div style="font-size: 22px; font-weight: bold;">
@@ -59,32 +59,12 @@
 
                 <table style="margin: 0 0 10px 0;">
                     <tr>
-                        <td style="font-size:11px; padding: 2px 8px 2px 0;">
+                                               <td style="font-size:11px; padding: 2px 8px 2px 0;">
                             Time Period<br />
-                            <select name="dateRangeValue" style="font-size:11px;">
-                                <option value="">All time</option>
-                                <?php if (!empty($this->filterOptions['dateModifiedPeriods']['years'])): ?>
-                                <optgroup label="Year">
-                                    <?php foreach ($this->filterOptions['dateModifiedPeriods']['years'] as $period): ?>
-                                    <option value="<?php echo(htmlspecialchars($period['value'])); ?>"<?php echo($this->selectedFilters['dateRangeValue'] === $period['value'] ? ' selected="selected"' : ''); ?>><?php echo(htmlspecialchars($period['label'])); ?></option>
-                                    <?php endforeach; ?>
-                                </optgroup>
-                                <?php endif; ?>
-                                <?php if (!empty($this->filterOptions['dateModifiedPeriods']['quarters'])): ?>
-                                <optgroup label="Quarter">
-                                    <?php foreach ($this->filterOptions['dateModifiedPeriods']['quarters'] as $period): ?>
-                                    <option value="<?php echo(htmlspecialchars($period['value'])); ?>"<?php echo($this->selectedFilters['dateRangeValue'] === $period['value'] ? ' selected="selected"' : ''); ?>><?php echo(htmlspecialchars($period['label'])); ?></option>
-                                    <?php endforeach; ?>
-                                </optgroup>
-                                <?php endif; ?>
-                                <?php if (!empty($this->filterOptions['dateModifiedPeriods']['months'])): ?>
-                                <optgroup label="Month">
-                                    <?php foreach ($this->filterOptions['dateModifiedPeriods']['months'] as $period): ?>
-                                    <option value="<?php echo(htmlspecialchars($period['value'])); ?>"<?php echo($this->selectedFilters['dateRangeValue'] === $period['value'] ? ' selected="selected"' : ''); ?>><?php echo(htmlspecialchars($period['label'])); ?></option>
-                                    <?php endforeach; ?>
-                                </optgroup>
-                                <?php endif; ?>
-                            </select>
+                            <select id="dateRangeYear" style="font-size:11px;"></select>
+                            <select id="dateRangeQuarter" style="font-size:11px; display:none;"></select>
+                            <select id="dateRangeMonth" style="font-size:11px; display:none;"></select>
+                            <input type="hidden" name="dateRangeValue" id="dateRangeValue" value="<?php echo(htmlspecialchars($this->selectedFilters['dateRangeValue'])); ?>" />
                         </td>
                         <td style="font-size:11px; padding: 2px 8px 2px 0;">
                             Owner<br />
@@ -160,6 +140,119 @@
                         </td>
                     </tr>
                 </table>
+                                <script>
+                (function () {
+                    var years    = <?php echo(json_encode(!empty($this->filterOptions['dateModifiedPeriods']['years'])    ? $this->filterOptions['dateModifiedPeriods']['years']    : array())); ?>;
+                    var quarters = <?php echo(json_encode(!empty($this->filterOptions['dateModifiedPeriods']['quarters']) ? $this->filterOptions['dateModifiedPeriods']['quarters'] : array())); ?>;
+                    var months   = <?php echo(json_encode(!empty($this->filterOptions['dateModifiedPeriods']['months'])   ? $this->filterOptions['dateModifiedPeriods']['months']   : array())); ?>;
+                    var initialValue = <?php echo(json_encode($this->selectedFilters['dateRangeValue'])); ?>;
+
+                    var yearSelect    = document.getElementById('dateRangeYear');
+                    var quarterSelect = document.getElementById('dateRangeQuarter');
+                    var monthSelect   = document.getElementById('dateRangeMonth');
+                    var hiddenInput   = document.getElementById('dateRangeValue');
+
+                    function extractYear(value) {
+                        var m = value.match(/^(?:year|quarter|month):(\d{4})/);
+                        return m ? m[1] : null;
+                    }
+                    function quarterOfMonth(value) {
+                        var m = value.match(/^month:\d{4}-(\d{2})$/);
+                        return m ? (Math.floor((parseInt(m[1], 10) - 1) / 3) + 1) : null;
+                    }
+                    function quarterNum(value) {
+                        var m = value.match(/^quarter:\d{4}-Q([1-4])$/);
+                        return m ? parseInt(m[1], 10) : null;
+                    }
+
+                    function fillSelect(select, options, placeholderLabel) {
+                        select.innerHTML = '';
+                        var placeholder = document.createElement('option');
+                        placeholder.value = '';
+                        placeholder.textContent = placeholderLabel;
+                        select.appendChild(placeholder);
+                        options.forEach(function (period) {
+                            var o = document.createElement('option');
+                            o.value = period.value;
+                            o.textContent = period.label;
+                            select.appendChild(o);
+                        });
+                    }
+
+                    function populateQuarters(year) {
+                        var filtered = quarters.filter(function (q) { return extractYear(q.value) === year; });
+                        fillSelect(quarterSelect, filtered, 'All year');
+                        quarterSelect.style.display = filtered.length ? '' : 'none';
+                        monthSelect.style.display = 'none';
+                        monthSelect.innerHTML = '';
+                    }
+
+                    function populateMonths(year, qNum) {
+                        var filtered = months.filter(function (mo) {
+                            return extractYear(mo.value) === year && quarterOfMonth(mo.value) === qNum;
+                        });
+                        fillSelect(monthSelect, filtered, 'All quarter');
+                        monthSelect.style.display = filtered.length ? '' : 'none';
+                    }
+
+                    function updateHidden() {
+                        if (monthSelect.style.display !== 'none' && monthSelect.value) {
+                            hiddenInput.value = monthSelect.value;
+                        } else if (quarterSelect.style.display !== 'none' && quarterSelect.value) {
+                            hiddenInput.value = quarterSelect.value;
+                        } else if (yearSelect.value) {
+                            hiddenInput.value = yearSelect.value;
+                        } else {
+                            hiddenInput.value = '';
+                        }
+                    }
+
+                    fillSelect(yearSelect, years, 'All time');
+
+                    yearSelect.addEventListener('change', function () {
+                        quarterSelect.style.display = 'none';
+                        monthSelect.style.display = 'none';
+                        quarterSelect.innerHTML = '';
+                        monthSelect.innerHTML = '';
+                        if (yearSelect.value) {
+                            populateQuarters(extractYear(yearSelect.value));
+                        }
+                        updateHidden();
+                    });
+
+                    quarterSelect.addEventListener('change', function () {
+                        monthSelect.style.display = 'none';
+                        monthSelect.innerHTML = '';
+                        if (quarterSelect.value) {
+                            populateMonths(extractYear(quarterSelect.value), quarterNum(quarterSelect.value));
+                        }
+                        updateHidden();
+                    });
+
+                    monthSelect.addEventListener('change', updateHidden);
+
+                    /* Restore the current filter (deepest level first) after a page reload. */
+                    if (initialValue) {
+                        var year = extractYear(initialValue);
+                        if (year) {
+                            yearSelect.value = 'year:' + year;
+                            populateQuarters(year);
+
+                            if (/^quarter:/.test(initialValue)) {
+                                quarterSelect.value = initialValue;
+                                populateMonths(year, quarterNum(initialValue));
+                            } else if (/^month:/.test(initialValue)) {
+                                var qNum = quarterOfMonth(initialValue);
+                                quarterSelect.value = 'quarter:' + year + '-Q' + qNum;
+                                populateMonths(year, qNum);
+                                monthSelect.value = initialValue;
+                            }
+                        }
+                    }
+
+                    updateHidden();
+                })();
+                </script>
             </form>
 
             <?php if (!count($this->applicationsByRole)): ?>

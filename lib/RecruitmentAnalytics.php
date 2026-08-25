@@ -481,8 +481,15 @@ $filteredRows = $pipelines->filterPipelineRows(
     false
 );
 
-        $candidatesCount = count($filteredRows);
-
+        $candidateIDs = array();
+        foreach ($filteredRows as $row)
+        {
+            if (isset($row['candidateID']))
+            {
+                $candidateIDs[(int) $row['candidateID']] = true;
+            }
+        }
+        $candidatesCount = count($candidateIDs);
         $hiredDurations = array();
         $placedCount = 0;
         $declinedCount = 0;

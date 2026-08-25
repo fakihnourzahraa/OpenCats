@@ -1430,11 +1430,11 @@ $this->_template->display('./modules/joborders/Show.tpl');
         {
             continue;
         }
-
         $rows[] = array(
             'candidateName' => $candidateName,
             'instanceID'    => (int) $mostRecent['instance_id'],
             'scoreDisplay'  => $mostRecent['scoreDisplay'],
+            'scorePercent'  => $mostRecent['scorePercent'],
         );
     }
 
@@ -1453,17 +1453,10 @@ $this->_template->display('./modules/joborders/Show.tpl');
     fputcsv($out, array('Candidate', 'Score'));
     foreach ($rows as $r)
     {
-        fputcsv($out, array($r['candidateName'], $r['scoreDisplay']));
+        fputcsv($out, array($r['candidateName'], $r['scorePercent']));
     }
 
-foreach ($rows as $r)
-    {
-        fputcsv($out, array());
-        fputcsv($out, array());
-        fputcsv($out, array());
-        fputcsv($out, array());
-        $evaluations->writeInstanceCSV($out, $r['instanceID'], $r['candidateName']);
-    }
+    $evaluations->writeStagePivotCSV($out, $rows);
 
     fclose($out);
     exit;

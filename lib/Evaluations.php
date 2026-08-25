@@ -1,32 +1,7 @@
 <?php
 /*
- * CATS
- * Evaluations Library
- *
- * The Original Code is "CATS Standard Edition".
- * This file was added for IBC
- *
- * An evaluation belongs to a CANDIDATE only. It owns its own stages and
- * criteria (evaluation_instance_stage / evaluation_instance_criteria), which
- * are COPIED from a job order's template once, at seed time, and are editable
- * afterwards with no effect on the template. Nothing here references
- * evaluation_template / evaluation_stage / evaluation_criteria.
- *
- * data_type is what the ANSWER input looks like: text / date / number /
- * score. 'score' is the only type that also carries a GRADE - is_gradeable
- * is DERIVED from data_type (see _deriveGradeable()), never set directly, so
- * the two can never drift apart. A score criterion also carries its own
- * max_range (the grade runs 0..max_range, a double) - two score criteria in
- * the same stage can have different ranges (a /5 and a /10), which is why
- * scoring normalizes each grade against its own criterion's range before
- * weighting them together. See EvaluationScore.php for that arithmetic.
- *
- * The answer (`value`) and the grade (`grade`) are stored as two separate
- * columns on the same evaluation_criteria_value row, so changing a
- * criterion's type away from and back to 'score' never loses either one.
- *
- * Stages and score criteria carry a WEIGHT. Weights are raw user input, not
- * required to sum to anything; EvaluationScore turns them into shares.
+ * Added for IBC
+ * Evaluations.php
  */
 
 include_once(LEGACY_ROOT . '/lib/DatabaseConnection.php');
@@ -1132,6 +1107,144 @@ fputcsv($out, array('Name', $title));
     }
 
     return $scoring['score'];
+}/* Writes the pipeline evaluations pivoted by stage: one section per stage
+   name (union across all candidates' instances, first-seen order), with
+   criteria as columns and one row per (candidate, evaluator) pair. Criteria
+   are matched across candidates by name, not instance_criteria_id, since
+   each candidate's evaluation is its own instance. A candidate with no
+   data for a given stage still gets a row, just with blank values, so
+   the summary table and stage tables list the same candidate set.
+
+   'Score' is that evaluator's own computed score for the stage (from
+   EvaluationScore::scoreStage()'s per-evaluator breakdown). 'Stage Score'
+   is the candidate's overall stage score - the same value on every one of
+   that candidate's evaluator rows, since it isn't evaluator-specific. */
+public function writeStagePivotCSV($out, array $rows)
+{
+    $candidateStages = array();  // candidateName => scored stages
+    $stageOrder      = array();  // stage_name => true, preserves first-seen order
+    $stageCriteria   = array();  // stage_name => [criteria_name => 'Name (score|text)']
+    $stageWeights    = array();  // stage_name => weight (from first candidate that has it)
+
+    foreach ($rows as $r)
+    {
+        $stages  = $this->getFullEvaluation($r['instanceID']);
+        $scoring = EvaluationScore::scoreEvaluation($stages);
+
+        $candidateStages[$r['candidateName']] = $scoring['stages'];
+
+        foreach ($scoring['stages'] as $stage)
+        {
+            $stageName = $stage['stage_name'];
+
+            if (!isset($stageOrder[$stageName]))
+            {
+                $stageOrder[$stageName]    = true;
+                $stageCriteria[$stageName] = array();
+                $stageWeights[$stageName]  = $stage['weight'];
+            }
+
+            foreach ($stage['criteria'] as $criterion)
+            {
+                $name = $criterion['criteria_name'];
+
+                if (!isset($stageCriteria[$stageName][$name]))
+                {
+                    $label = $criterion['is_gradeable'] ? 'score' : 'text';
+                    $stageCriteria[$stageName][$name] = $name . ' (' . $label . ')';
+                }
+            }
+        }
+    }
+
+    foreach (array_keys($stageOrder) as $stageName)
+    {
+        fputcsv($out, array());
+        fputcsv($out, array());
+        fputcsv($out, array('Stage', $stageName));
+        fputcsv($out, array('Stage Weight', $stageWeights[$stageName]));
+        fputcsv($out, array());
+
+        $criteriaNames = array_keys($stageCriteria[$stageName]);
+
+        $header = array('Candidate', 'Evaluator');
+        foreach ($criteriaNames as $name)
+        {
+            $header[] = $stageCriteria[$stageName][$name];
+        }
+        $header[] = 'Score';
+        $header[] = 'Stage Score';
+        fputcsv($out, $header);
+
+        foreach ($rows as $r)
+        {
+            $candidateName = $r['candidateName'];
+            $matchedStage  = null;
+
+            foreach ($candidateStages[$candidateName] as $stage)
+            {
+                if ($stage['stage_name'] === $stageName)
+                {
+                    $matchedStage = $stage;
+                    break;
+                }
+            }
+
+            if ($matchedStage === null || empty($matchedStage['evaluators']))
+            {
+                $row = array($candidateName, '');
+                foreach ($criteriaNames as $name)
+                {
+                    $row[] = '';
+                }
+                $row[] = '';
+                $row[] = '';
+                fputcsv($out, $row);
+                continue;
+            }
+
+            $criteriaIDByName = array();
+            $gradeableByName  = array();
+            foreach ($matchedStage['criteria'] as $criterion)
+            {
+                $criteriaIDByName[$criterion['criteria_name']] = $criterion['instance_criteria_id'];
+                $gradeableByName[$criterion['criteria_name']]  = $criterion['is_gradeable'];
+            }
+
+            $stageScoreDisplay = EvaluationScore::format($matchedStage['scoring']['score']);
+            $evaluatorScores   = isset($matchedStage['scoring']['evaluators'])
+                ? $matchedStage['scoring']['evaluators']
+                : array();
+
+            foreach ($matchedStage['evaluators'] as $evaluator)
+            {
+                $row = array($candidateName, $evaluator['evaluator_name']);
+
+                foreach ($criteriaNames as $name)
+                {
+                    if (!isset($criteriaIDByName[$name]))
+                    {
+                        $row[] = '';
+                        continue;
+                    }
+
+                    $criteriaID = $criteriaIDByName[$name];
+
+                    $row[] = $gradeableByName[$name]
+                        ? (isset($evaluator['grades'][$criteriaID]) ? $evaluator['grades'][$criteriaID] : '')
+                        : (isset($evaluator['values'][$criteriaID]) ? $evaluator['values'][$criteriaID] : '');
+                }
+
+                $evaluatorID    = $evaluator['evaluator_id'];
+                $evaluatorScore = isset($evaluatorScores[$evaluatorID]) ? $evaluatorScores[$evaluatorID] : null;
+
+                $row[] = EvaluationScore::format($evaluatorScore);
+                $row[] = $stageScoreDisplay;
+
+                fputcsv($out, $row);
+            }
+        }
+    }
 }
 }
 ?>

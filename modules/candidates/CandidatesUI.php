@@ -3364,11 +3364,11 @@ class CandidatesUI extends UserInterface
         {
             continue;
         }
-
         $rows[] = array(
             'candidateName' => $candidateName,
             'instanceID'    => (int) $mostRecent['instance_id'],
             'scoreDisplay'  => $mostRecent['scoreDisplay'],
+            'scorePercent'  => $mostRecent['scorePercent'],
         );
     }
 
@@ -3388,22 +3388,15 @@ class CandidatesUI extends UserInterface
     fputcsv($out, array('Candidate', 'Score'));
     foreach ($rows as $r)
     {
-        fputcsv($out, array($r['candidateName'], $r['scoreDisplay']));
+        fputcsv($out, array($r['candidateName'], $r['scorePercent']));
     }
 
-    foreach ($rows as $r)
-    {
-        fputcsv($out, array());
-        fputcsv($out, array());
-        fputcsv($out, array());
-        fputcsv($out, array());
-        $evaluations->writeInstanceCSV($out, $r['instanceID'], $r['candidateName']);
-    }
+    $evaluations->writeStagePivotCSV($out, $rows);
 
     fclose($out);
     exit;
 }
-  private function onEvaluationExport()
+private function onEvaluationExport()
 {
     $candidateID = isset($_GET['candidateID']) ? (int) $_GET['candidateID'] : 0;
     $instanceID  = isset($_GET['instanceID'])  ? (int) $_GET['instanceID']  : 0;
